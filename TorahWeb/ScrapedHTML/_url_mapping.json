@@ -1,0 +1,492 @@
+{
+  "index.html": {
+    "url": "https://torahweb.org/",
+    "scrapedAt": "2025-11-13T02:58:04.361Z",
+    "linksFound": 32
+  },
+  "dt.html": {
+    "url": "https://torahweb.org/dt.html",
+    "scrapedAt": "2025-11-13T02:57:51.221Z",
+    "linksFound": 13
+  },
+  "parsha_parsha.html": {
+    "url": "https://torahweb.org/parsha/parsha.html",
+    "scrapedAt": "2025-11-13T02:57:52.324Z",
+    "linksFound": 18
+  },
+  "yomtov_yomtov.html": {
+    "url": "https://torahweb.org/yomtov/yomtov.html",
+    "scrapedAt": "2025-11-13T02:57:53.420Z",
+    "linksFound": 28
+  },
+  "special.html": {
+    "url": "https://torahweb.org/special.html",
+    "scrapedAt": "2025-11-13T02:57:54.513Z",
+    "linksFound": 141
+  },
+  "author_allAuthors.html": {
+    "url": "https://torahweb.org/author/allAuthors.html",
+    "scrapedAt": "2025-11-13T02:57:55.601Z",
+    "linksFound": 27
+  },
+  "thisweek.html": {
+    "url": "https://torahweb.org/thisweek.html",
+    "scrapedAt": "2025-11-13T02:57:56.685Z",
+    "linksFound": 0
+  },
+  "audio_index.html": {
+    "url": "https://torahweb.org/audio/index.html",
+    "scrapedAt": "2025-11-13T02:57:57.788Z",
+    "linksFound": 229
+  },
+  "audio_speakers_audio.html": {
+    "url": "https://torahweb.org/audio/speakers_audio.html",
+    "scrapedAt": "2025-11-13T02:57:58.877Z",
+    "linksFound": 26
+  },
+  "audio_yomtov_index.html": {
+    "url": "https://torahweb.org/audio/yomtov/index.html",
+    "scrapedAt": "2025-11-13T02:57:59.961Z",
+    "linksFound": 18
+  },
+  "books.html": {
+    "url": "https://torahweb.org/books.html",
+    "scrapedAt": "2025-11-13T02:58:01.074Z",
+    "linksFound": 24
+  },
+  "subscribe.html": {
+    "url": "https://torahweb.org/subscribe.html",
+    "scrapedAt": "2025-11-13T02:58:02.177Z",
+    "linksFound": 14
+  },
+  "donate.html": {
+    "url": "https://torahweb.org/donate.html",
+    "scrapedAt": "2025-11-13T02:58:03.266Z",
+    "linksFound": 14
+  },
+  "torah_2025_parsha_rsch_vayera.html": {
+    "url": "https://torahweb.org/torah/2025/parsha/rsch_vayera.html",
+    "scrapedAt": "2025-11-13T02:58:05.451Z",
+    "linksFound": 16
+  },
+  "torah_2025_parsha_rhab_lechlecha.html": {
+    "url": "https://torahweb.org/torah/2025/parsha/rhab_lechlecha.html",
+    "scrapedAt": "2025-11-13T02:58:06.577Z",
+    "linksFound": 17
+  },
+  "torah_2025_parsha_rwil_noach.html": {
+    "url": "https://torahweb.org/torah/2025/parsha/rwil_noach.html",
+    "scrapedAt": "2025-11-13T02:58:07.686Z",
+    "linksFound": 16
+  },
+  "torah_2025_parsha_rlop_breishis.html": {
+    "url": "https://torahweb.org/torah/2025/parsha/rlop_breishis.html",
+    "scrapedAt": "2025-11-13T02:58:08.849Z",
+    "linksFound": 16
+  },
+  "author_rhab.html": {
+    "url": "https://torahweb.org/author/rhab.html",
+    "scrapedAt": "2025-11-13T02:58:09.954Z",
+    "linksFound": 15
+  },
+  "author_rkoe.html": {
+    "url": "https://torahweb.org/author/rkoe.html",
+    "scrapedAt": "2025-11-13T02:58:11.031Z",
+    "linksFound": 15
+  },
+  "author_rleb.html": {
+    "url": "https://torahweb.org/author/rleb.html",
+    "scrapedAt": "2025-11-13T02:58:12.122Z",
+    "linksFound": 17
+  },
+  "author_rlop.html": {
+    "url": "https://torahweb.org/author/rlop.html",
+    "scrapedAt": "2025-11-13T02:58:13.207Z",
+    "linksFound": 17
+  },
+  "author_rneu.html": {
+    "url": "https://torahweb.org/author/rneu.html",
+    "scrapedAt": "2025-11-13T02:58:14.290Z",
+    "linksFound": 16
+  },
+  "author_rros.html": {
+    "url": "https://torahweb.org/author/rros.html",
+    "scrapedAt": "2025-11-13T02:58:15.376Z",
+    "linksFound": 17
+  },
+  "author_rsac.html": {
+    "url": "https://torahweb.org/author/rsac.html",
+    "scrapedAt": "2025-11-13T02:58:16.466Z",
+    "linksFound": 16
+  },
+  "author_rsch.html": {
+    "url": "https://torahweb.org/author/rsch.html",
+    "scrapedAt": "2025-11-13T02:58:17.556Z",
+    "linksFound": 28
+  },
+  "author_rsob.html": {
+    "url": "https://torahweb.org/author/rsob.html",
+    "scrapedAt": "2025-11-13T02:58:18.642Z",
+    "linksFound": 16
+  },
+  "author_rdst.html": {
+    "url": "https://torahweb.org/author/rdst.html",
+    "scrapedAt": "2025-11-13T02:58:19.764Z",
+    "linksFound": 17
+  },
+  "author_dtwe.html": {
+    "url": "https://torahweb.org/author/dtwe.html",
+    "scrapedAt": "2025-11-13T02:58:20.845Z",
+    "linksFound": 17
+  },
+  "author_rtwe.html": {
+    "url": "https://torahweb.org/author/rtwe.html",
+    "scrapedAt": "2025-11-13T02:58:21.941Z",
+    "linksFound": 17
+  },
+  "author_rwil.html": {
+    "url": "https://torahweb.org/author/rwil.html",
+    "scrapedAt": "2025-11-13T02:58:23.030Z",
+    "linksFound": 17
+  },
+  "author_ryud.html": {
+    "url": "https://torahweb.org/author/ryud.html",
+    "scrapedAt": "2025-11-13T02:58:24.112Z",
+    "linksFound": 17
+  },
+  "parsha_breishis_breishis.html": {
+    "url": "https://torahweb.org/parsha/breishis/breishis.html",
+    "scrapedAt": "2025-11-13T02:58:25.213Z",
+    "linksFound": 25
+  },
+  "parsha_shemos_shemos.html": {
+    "url": "https://torahweb.org/parsha/shemos/shemos.html",
+    "scrapedAt": "2025-11-13T02:58:26.304Z",
+    "linksFound": 23
+  },
+  "parsha_vayikra_vayikra.html": {
+    "url": "https://torahweb.org/parsha/vayikra/vayikra.html",
+    "scrapedAt": "2025-11-13T02:58:27.383Z",
+    "linksFound": 22
+  },
+  "parsha_bamidbar_bamidbar.html": {
+    "url": "https://torahweb.org/parsha/bamidbar/bamidbar.html",
+    "scrapedAt": "2025-11-13T02:58:28.473Z",
+    "linksFound": 23
+  },
+  "parsha_devarim_devarim.html": {
+    "url": "https://torahweb.org/parsha/devarim/devarim.html",
+    "scrapedAt": "2025-11-13T02:58:29.559Z",
+    "linksFound": 23
+  },
+  "yomtov_elul.html": {
+    "url": "https://torahweb.org/yomtov/elul.html",
+    "scrapedAt": "2025-11-13T02:58:30.672Z",
+    "linksFound": 31
+  },
+  "yomtov_rh.html": {
+    "url": "https://torahweb.org/yomtov/rh.html",
+    "scrapedAt": "2025-11-13T02:58:31.777Z",
+    "linksFound": 53
+  },
+  "yomtov_ayt.html": {
+    "url": "https://torahweb.org/yomtov/ayt.html",
+    "scrapedAt": "2025-11-13T02:58:32.869Z",
+    "linksFound": 24
+  },
+  "yomtov_yk.html": {
+    "url": "https://torahweb.org/yomtov/yk.html",
+    "scrapedAt": "2025-11-13T02:58:33.996Z",
+    "linksFound": 35
+  },
+  "yomtov_sukkos.html": {
+    "url": "https://torahweb.org/yomtov/sukkos.html",
+    "scrapedAt": "2025-11-13T02:58:35.088Z",
+    "linksFound": 60
+  },
+  "yomtov_chanukah.html": {
+    "url": "https://torahweb.org/yomtov/chanukah.html",
+    "scrapedAt": "2025-11-13T02:58:36.185Z",
+    "linksFound": 50
+  },
+  "yomtov_10teves.html": {
+    "url": "https://torahweb.org/yomtov/10teves.html",
+    "scrapedAt": "2025-11-13T02:58:37.272Z",
+    "linksFound": 18
+  },
+  "yomtov_4parshas.html": {
+    "url": "https://torahweb.org/yomtov/4parshas.html",
+    "scrapedAt": "2025-11-13T02:58:38.357Z",
+    "linksFound": 27
+  },
+  "yomtov_purim.html": {
+    "url": "https://torahweb.org/yomtov/purim.html",
+    "scrapedAt": "2025-11-13T02:58:39.448Z",
+    "linksFound": 54
+  },
+  "yomtov_pesach.html": {
+    "url": "https://torahweb.org/yomtov/pesach.html",
+    "scrapedAt": "2025-11-13T02:58:40.531Z",
+    "linksFound": 85
+  },
+  "yomtov_sefirah.html": {
+    "url": "https://torahweb.org/yomtov/sefirah.html",
+    "scrapedAt": "2025-11-13T02:58:41.615Z",
+    "linksFound": 32
+  },
+  "yomtov_israel.html": {
+    "url": "https://torahweb.org/yomtov/israel.html",
+    "scrapedAt": "2025-11-13T02:58:42.695Z",
+    "linksFound": 31
+  },
+  "yomtov_shavuos.html": {
+    "url": "https://torahweb.org/yomtov/shavuos.html",
+    "scrapedAt": "2025-11-13T02:58:43.780Z",
+    "linksFound": 46
+  },
+  "yomtov_9av.html": {
+    "url": "https://torahweb.org/yomtov/9av.html",
+    "scrapedAt": "2025-11-13T02:58:44.875Z",
+    "linksFound": 58
+  },
+  "yomtov_rch.html": {
+    "url": "https://torahweb.org/yomtov/rch.html",
+    "scrapedAt": "2025-11-13T02:58:45.960Z",
+    "linksFound": 15
+  },
+  "torah_2025_parsha_rwil_eikev.html": {
+    "url": "https://torahweb.org/torah/2025/parsha/rwil_eikev.html",
+    "scrapedAt": "2025-11-13T02:58:47.045Z",
+    "linksFound": 16
+  },
+  "torah_special_2025_ryud_israelwar.html": {
+    "url": "https://torahweb.org/torah/special/2025/ryud_israelwar.html",
+    "scrapedAt": "2025-11-13T02:58:48.132Z",
+    "linksFound": 15
+  },
+  "torah_docs_rtwe_transmogrification_5-26-25.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rtwe_transmogrification_5-26-25.pdf",
+    "scrapedAt": "2025-11-13T02:58:49.608Z",
+    "linksFound": 0
+  },
+  "torah_special_2025_rtwe_communication.html": {
+    "url": "https://torahweb.org/torah/special/2025/rtwe_communication.html",
+    "scrapedAt": "2025-11-13T02:58:50.695Z",
+    "linksFound": 15
+  },
+  "torah_special_2025_rtwe_club2.html": {
+    "url": "https://torahweb.org/torah/special/2025/rtwe_club2.html",
+    "scrapedAt": "2025-11-13T02:58:51.779Z",
+    "linksFound": 15
+  },
+  "torah_special_2025_rtwe_club.html": {
+    "url": "https://torahweb.org/torah/special/2025/rtwe_club.html",
+    "scrapedAt": "2025-11-13T02:58:52.868Z",
+    "linksFound": 16
+  },
+  "torah_docs_rsch_Rav%20Schachter_Kedoshim%20Tihiyu.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rsch/Rav%20Schachter_Kedoshim%20Tihiyu.pdf",
+    "scrapedAt": "2025-11-13T02:58:53.966Z",
+    "linksFound": 0
+  },
+  "torah_2024_parsha_rwil_kiteitsei.html": {
+    "url": "https://torahweb.org/torah/2024/parsha/rwil_kiteitsei.html",
+    "scrapedAt": "2025-11-13T02:58:55.053Z",
+    "linksFound": 16
+  },
+  "torah_special_2024_rleb_feeling.html": {
+    "url": "https://torahweb.org/torah/special/2024/rleb_feeling.html",
+    "scrapedAt": "2025-11-13T02:58:56.139Z",
+    "linksFound": 15
+  },
+  "torah_2024_moadim_rwil_pesach.html": {
+    "url": "https://torahweb.org/torah/2024/moadim/rwil_pesach.html",
+    "scrapedAt": "2025-11-13T02:58:57.234Z",
+    "linksFound": 16
+  },
+  "torah_special_2024_rtwe_purim5784.html": {
+    "url": "https://torahweb.org/torah/special/2024/rtwe_purim5784.html",
+    "scrapedAt": "2025-11-13T02:58:58.346Z",
+    "linksFound": 17
+  },
+  "torah_2024_moadim_rleb_purim.html": {
+    "url": "https://torahweb.org/torah/2024/moadim/rleb_purim.html",
+    "scrapedAt": "2025-11-13T02:58:59.435Z",
+    "linksFound": 16
+  },
+  "torah_docs_rsch_RavSchachter-Agunah.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rsch/RavSchachter-Agunah.pdf",
+    "scrapedAt": "2025-11-13T02:59:00.547Z",
+    "linksFound": 0
+  },
+  "torah_2024_moadim_rwil_purim.html": {
+    "url": "https://torahweb.org/torah/2024/moadim/rwil_purim.html",
+    "scrapedAt": "2025-11-13T02:59:01.638Z",
+    "linksFound": 16
+  },
+  "torah_2023_parsha_rneu_vayechi.html": {
+    "url": "https://torahweb.org/torah/2023/parsha/rneu_vayechi.html",
+    "scrapedAt": "2025-11-13T02:59:02.728Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_rtwe_secularcollege.html": {
+    "url": "https://torahweb.org/torah/special/2023/rtwe_secularcollege.html",
+    "scrapedAt": "2025-11-13T02:59:03.822Z",
+    "linksFound": 16
+  },
+  "torah_2023_parsha_ryud_miketz.html": {
+    "url": "https://torahweb.org/torah/2023/parsha/ryud_miketz.html",
+    "scrapedAt": "2025-11-13T02:59:04.917Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_rsch_wargeulah.html": {
+    "url": "https://torahweb.org/torah/special/2023/rsch_wargeulah.html",
+    "scrapedAt": "2025-11-13T02:59:06.020Z",
+    "linksFound": 15
+  },
+  "torah_docs_rtwe_rally_hebrew.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rtwe_rally_hebrew.pdf",
+    "scrapedAt": "2025-11-13T02:59:07.118Z",
+    "linksFound": 0
+  },
+  "torah_special_2023_rtwe_rally2.html": {
+    "url": "https://torahweb.org/torah/special/2023/rtwe_rally2.html",
+    "scrapedAt": "2025-11-13T02:59:08.278Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_rtwe_rally.html": {
+    "url": "https://torahweb.org/torah/special/2023/rtwe_rally.html",
+    "scrapedAt": "2025-11-13T02:59:09.362Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_rtwe_evil.html": {
+    "url": "https://torahweb.org/torah/special/2023/rtwe_evil.html",
+    "scrapedAt": "2025-11-13T02:59:10.467Z",
+    "linksFound": 15
+  },
+  "torah_docs_rsch_RavSchachter_FastingYomKippurKattan.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rsch/RavSchachter_FastingYomKippurKattan.pdf",
+    "scrapedAt": "2025-11-13T02:59:11.798Z",
+    "linksFound": 0
+  },
+  "torah_2023_parsha_rneu_lech.html": {
+    "url": "https://torahweb.org/torah/2023/parsha/rneu_lech.html",
+    "scrapedAt": "2025-11-13T02:59:13.064Z",
+    "linksFound": 16
+  },
+  "torah_2023_parsha_rlop_noach.html": {
+    "url": "https://torahweb.org/torah/2023/parsha/rlop_noach.html",
+    "scrapedAt": "2025-11-13T02:59:14.160Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_ryud_israel.html": {
+    "url": "https://torahweb.org/torah/special/2023/ryud_israel.html",
+    "scrapedAt": "2025-11-13T02:59:15.262Z",
+    "linksFound": 15
+  },
+  "torah_docs_rsch_RavSchachter_Succos_5784.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rsch/RavSchachter_Succos_5784.pdf",
+    "scrapedAt": "2025-11-13T02:59:16.504Z",
+    "linksFound": 0
+  },
+  "torah_2023_parsha_rdst_nitzavim.html": {
+    "url": "https://torahweb.org/torah/2023/parsha/rdst_nitzavim.html",
+    "scrapedAt": "2025-11-13T02:59:17.596Z",
+    "linksFound": 16
+  },
+  "torah_special_2023_rsch_mesira.html": {
+    "url": "https://torahweb.org/torah/special/2023/rsch_mesira.html",
+    "scrapedAt": "2025-11-13T02:59:18.697Z",
+    "linksFound": 15
+  },
+  "torah_special_2022_rsch_shabbos.html": {
+    "url": "https://torahweb.org/torah/special/2022/rsch_shabbos.html",
+    "scrapedAt": "2025-11-13T02:59:19.795Z",
+    "linksFound": 16
+  },
+  "torah_2022_parsha_rlop_noach.html": {
+    "url": "https://torahweb.org/torah/2022/parsha/rlop_noach.html",
+    "scrapedAt": "2025-11-13T02:59:20.886Z",
+    "linksFound": 16
+  },
+  "torah_docs_rsch_RavSchachter-Substances-March-11-2022.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rsch/RavSchachter-Substances-March-11-2022.pdf",
+    "scrapedAt": "2025-11-13T02:59:21.984Z",
+    "linksFound": 0
+  },
+  "torah_2022_parsha_rlop_yisro.html": {
+    "url": "https://torahweb.org/torah/2022/parsha/rlop_yisro.html",
+    "scrapedAt": "2025-11-13T02:59:23.072Z",
+    "linksFound": 16
+  },
+  "torah_docs_Grid-Teshuva-1966.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/Grid-Teshuva-1966.pdf",
+    "scrapedAt": "2025-11-13T02:59:24.309Z",
+    "linksFound": 0
+  },
+  "author_rsch_dt_special.html": {
+    "url": "https://torahweb.org/author/rsch_dt_special.html",
+    "scrapedAt": "2025-11-13T02:59:25.400Z",
+    "linksFound": 108
+  },
+  "author_rtwe_dt_special.html": {
+    "url": "https://torahweb.org/author/rtwe_dt_special.html",
+    "scrapedAt": "2025-11-13T02:59:26.497Z",
+    "linksFound": 64
+  },
+  "torah_2021_parsha_rwil_shoftim.html": {
+    "url": "https://torahweb.org/torah/2021/parsha/rwil_shoftim.html",
+    "scrapedAt": "2025-11-13T02:59:27.584Z",
+    "linksFound": 19
+  },
+  "torah_2021_parsha_rros_balak.html": {
+    "url": "https://torahweb.org/torah/2021/parsha/rros_balak.html",
+    "scrapedAt": "2025-11-13T02:59:28.676Z",
+    "linksFound": 16
+  },
+  "torah_2021_parsha_rwil_naso.html": {
+    "url": "https://torahweb.org/torah/2021/parsha/rwil_naso.html",
+    "scrapedAt": "2025-11-13T02:59:29.766Z",
+    "linksFound": 18
+  },
+  "torah_2021_parsha_rwil_vayakheil.html": {
+    "url": "https://torahweb.org/torah/2021/parsha/rwil_vayakheil.html",
+    "scrapedAt": "2025-11-13T02:59:30.861Z",
+    "linksFound": 16
+  },
+  "torah_special_2020_rtwe_sojourn.html": {
+    "url": "https://torahweb.org/torah/special/2020/rtwe_sojourn.html",
+    "scrapedAt": "2025-11-13T02:59:31.958Z",
+    "linksFound": 16
+  },
+  "torah_special_2020_rtwe_chilulhashem.html": {
+    "url": "https://torahweb.org/torah/special/2020/rtwe_chilulhashem.html",
+    "scrapedAt": "2025-11-13T02:59:33.043Z",
+    "linksFound": 16
+  },
+  "torah_2020_moadim_rwil_rh5781.html": {
+    "url": "https://torahweb.org/torah/2020/moadim/rwil_rh5781.html",
+    "scrapedAt": "2025-11-13T02:59:34.139Z",
+    "linksFound": 18
+  },
+  "torah_docs_rwil_covid19_shaylas.pdf.html": {
+    "url": "https://torahweb.org/torah/docs/rwil_covid19_shaylas.pdf",
+    "scrapedAt": "2025-11-13T02:59:35.446Z",
+    "linksFound": 0
+  },
+  "torah_2020_moadim_rhab_shavuos.html": {
+    "url": "https://torahweb.org/torah/2020/moadim/rhab_shavuos.html",
+    "scrapedAt": "2025-11-13T02:59:36.530Z",
+    "linksFound": 16
+  },
+  "torah_2020_parsha_rwil_metzora.html": {
+    "url": "https://torahweb.org/torah/2020/parsha/rwil_metzora.html",
+    "scrapedAt": "2025-11-13T02:59:37.613Z",
+    "linksFound": 16
+  },
+  "torah_special_2020_rsch_sakana.html": {
+    "url": "https://torahweb.org/torah/special/2020/rsch_sakana.html",
+    "scrapedAt": "2025-11-13T02:59:38.701Z",
+    "linksFound": 17
+  }
+}
