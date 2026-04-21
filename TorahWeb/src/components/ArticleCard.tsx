@@ -1,125 +1,68 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
-import { Content, Article, Video, Audio } from '../types';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Content, isArticle, isAudio, isVideo } from '../types';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 
 interface ArticleCardProps {
   content: Content;
   onPress: () => void;
+  compact?: boolean;
 }
 
-const ArticleCard: React.FC<ArticleCardProps> = ({ content, onPress }) => {
-  const getContentType = () => {
-    if ('content' in content) return '📄 Article';
-    if ('videoUrl' in content) return '🎥 Video';
-    if ('audioUrl' in content) return '🎵 Audio';
-    return '';
-  };
-
-  const getContentIcon = () => {
-    if ('content' in content) return '📄';
-    if ('videoUrl' in content) return '🎥';
-    if ('audioUrl' in content) return '🎵';
-    return '📄';
-  };
-
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{getContentIcon()}</Text>
-      </View>
-      <View style={styles.contentContainer}>
-        <Text style={styles.typeLabel}>{getContentType()}</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {content.title}
-        </Text>
-        <Text style={styles.author}>{content.author.name}</Text>
-        {content.topics && content.topics.length > 0 && (
-          <View style={styles.topicsContainer}>
-            {content.topics.slice(0, 2).map((topic) => (
-              <View key={topic.id} style={styles.topicTag}>
-                <Text style={styles.topicText}>{topic.name}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+const eyebrowFor = (c: Content): string => {
+  if (isArticle(c)) return c.parshaLabel?.toUpperCase() ?? 'DIVREI TORAH';
+  if (isVideo(c)) return 'VIDEO';
+  if (isAudio(c)) return 'AUDIO';
+  return '';
 };
+
+const ArticleCard: React.FC<ArticleCardProps> = ({ content, onPress, compact }) => (
+  <TouchableOpacity
+    style={[styles.card, compact && styles.cardCompact]}
+    onPress={onPress}
+    activeOpacity={0.85}>
+    <Text style={styles.eyebrow}>{eyebrowFor(content)}</Text>
+    <Text style={styles.title} numberOfLines={3}>
+      {content.title}
+    </Text>
+    <View style={styles.meta}>
+      <Text style={styles.author}>{content.author.name}</Text>
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    marginBottom: 12,
-    marginHorizontal: 10,
-    borderRadius: 6,
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.navy,
+    ...shadows.card,
   },
-  iconContainer: {
-    width: 56,
-    height: 56,
-    backgroundColor: '#1a3a5c',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
+  cardCompact: {
+    marginBottom: spacing.sm,
+    padding: spacing.md,
   },
-  icon: {
-    fontSize: 26,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  typeLabel: {
-    fontSize: 12,
-    color: '#1a3a5c',
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
+  eyebrow: {
+    ...typography.eyebrow,
+    color: colors.accent,
+    marginBottom: spacing.xs,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1a3a5c',
-    marginBottom: 6,
-    lineHeight: 24,
+    ...typography.cardTitle,
+    color: colors.navy,
+    marginBottom: spacing.sm,
+  },
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   author: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  topicsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  topicTag: {
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    marginRight: 6,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-  },
-  topicText: {
-    fontSize: 11,
-    color: '#555555',
-    fontWeight: '500',
+    ...typography.caption,
+    color: colors.textSecondary,
   },
 });
 
 export default ArticleCard;
-

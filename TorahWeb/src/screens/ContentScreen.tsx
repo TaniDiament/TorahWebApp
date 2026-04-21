@@ -1,94 +1,77 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { Content, Article, Video, Audio } from '../types';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
 import AudioPlayer from '../components/AudioPlayer';
+import { colors, radii, spacing, typography } from '../theme';
 
 interface ContentScreenProps {
   content: Content;
 }
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
-  const isArticle = (content: Content): content is Article => {
-    return 'content' in content;
-  };
-
-  const isVideo = (content: Content): content is Video => {
-    return 'videoUrl' in content;
-  };
-
-  const isAudio = (content: Content): content is Audio => {
-    return 'audioUrl' in content && !('videoUrl' in content);
-  };
-
-  const renderContent = () => {
-    if (isVideo(content)) {
-      return (
-        <View>
-          <VideoPlayer videoUrl={content.videoUrl} thumbnailUrl={content.thumbnailUrl} />
-          {content.description && (
-            <View style={styles.descriptionContainer}>
-              <Text style={styles.description}>{content.description}</Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    if (isAudio(content)) {
-      return (
-        <View>
-          <AudioPlayer audioUrl={content.audioUrl} title={content.title} />
-          {content.description && (
-            <View style={styles.descriptionContainer}>
-              <Text style={styles.description}>{content.description}</Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    if (isArticle(content)) {
-      return (
-        <View style={styles.articleContainer}>
-          {content.excerpt && (
-            <Text style={styles.excerpt}>{content.excerpt}</Text>
-          )}
-          <Text style={styles.articleContent}>{content.content}</Text>
-        </View>
-      );
-    }
-
-    return null;
-  };
+  const showHeroImage = content.author.portraitUrl;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {showHeroImage ? (
+        <View style={styles.heroImageWrap}>
+          <Image source={{ uri: content.author.portraitUrl }} style={styles.heroImage} />
+          <View style={styles.heroImageOverlay} />
+        </View>
+      ) : (
+        <View style={styles.heroFallback} />
+      )}
+
+      <View style={styles.titleBlock}>
+        <Text style={styles.authorLink}>{content.author.name}</Text>
         <Text style={styles.title}>{content.title}</Text>
-        <Text style={styles.author}>By {content.author.name}</Text>
+        {'parshaLabel' in content && content.parshaLabel ? (
+          <Text style={styles.parshaTag}>{content.parshaLabel}</Text>
+        ) : null}
         <Text style={styles.date}>
           {new Date(content.publishedDate).toLocaleDateString()}
         </Text>
       </View>
 
-      {content.topics && content.topics.length > 0 && (
-        <View style={styles.topicsContainer}>
-          {content.topics.map((topic) => (
-            <View key={topic.id} style={styles.topicTag}>
-              <Text style={styles.topicText}>{topic.name}</Text>
+      {isVideo(content) ? (
+        <View style={styles.playerWrap}>
+          <VideoPlayer
+            vimeoId={content.vimeoId}
+            videoUrl={content.videoUrl}
+            thumbnailUrl={content.thumbnailUrl}
+          />
+          {content.description ? (
+            <Text style={styles.body}>{content.description}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {isAudio(content) ? (
+        <View style={styles.playerWrap}>
+          <AudioPlayer audioUrl={content.audioUrl} title={content.title} />
+          {content.description ? (
+            <Text style={styles.body}>{content.description}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {isArticle(content) ? (
+        <View style={styles.articleBody}>
+          {content.excerpt ? <Text style={styles.excerpt}>{content.excerpt}</Text> : null}
+          <Text style={styles.body}>{content.content}</Text>
+        </View>
+      ) : null}
+
+      {content.topics.length > 0 ? (
+        <View style={styles.topicsRow}>
+          {content.topics.map((t) => (
+            <View key={t.id} style={styles.topicChip}>
+              <Text style={styles.topicChipText}>{t.name}</Text>
             </View>
           ))}
         </View>
-      )}
-
-      {renderContent()}
+      ) : null}
     </ScrollView>
   );
 };
@@ -96,79 +79,93 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
-  header: {
-    padding: 24,
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 2,
-    borderBottomColor: '#1a3a5c',
+  heroImageWrap: {
+    width: '100%',
+    height: 200,
+    backgroundColor: colors.navyDark,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  heroImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  heroFallback: {
+    width: '100%',
+    height: 120,
+    backgroundColor: colors.navy,
+  },
+  titleBlock: {
+    padding: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  authorLink: {
+    ...typography.caption,
+    color: colors.navy,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1a3a5c',
-    marginBottom: 12,
+    fontWeight: '700',
     lineHeight: 34,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
-  author: {
-    fontSize: 17,
-    color: '#1a3a5c',
-    marginBottom: 6,
-    fontWeight: '600',
+  parshaTag: {
+    ...typography.eyebrow,
+    color: colors.accent,
+    marginBottom: spacing.xs,
   },
   date: {
-    fontSize: 14,
-    color: '#666666',
+    ...typography.caption,
+    color: colors.textMuted,
   },
-  topicsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 20,
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+  playerWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  topicTag: {
-    backgroundColor: '#1a3a5c',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 4,
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  topicText: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  articleContainer: {
-    padding: 24,
+  articleBody: {
+    padding: spacing.xl,
   },
   excerpt: {
-    fontSize: 17,
+    ...typography.body,
     fontStyle: 'italic',
-    color: '#555555',
-    marginBottom: 24,
-    paddingLeft: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1a3a5c',
-    lineHeight: 26,
+    color: colors.textSecondary,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.navy,
+    paddingLeft: spacing.md,
+    marginBottom: spacing.lg,
   },
-  articleContent: {
-    fontSize: 17,
-    lineHeight: 28,
-    color: '#333333',
+  body: {
+    ...typography.body,
+    color: colors.textPrimary,
   },
-  descriptionContainer: {
-    padding: 20,
+  topicsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
+  topicChip: {
+    backgroundColor: colors.navy,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.sm,
+    marginRight: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  topicChipText: {
+    ...typography.caption,
+    color: colors.surface,
   },
 });
 
 export default ContentScreen;
-

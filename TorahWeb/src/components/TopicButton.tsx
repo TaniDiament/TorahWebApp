@@ -1,64 +1,89 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Topic } from '../types';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 
 interface TopicButtonProps {
   topic: Topic;
   onPress: () => void;
 }
 
-const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => {
-  return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>📖</Text>
+const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
+  <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+    <View style={styles.thumbWrap}>
+      {topic.thumbnailUrl ? (
+        <Image source={{ uri: topic.thumbnailUrl }} style={styles.thumb} />
+      ) : (
+        <View style={[styles.thumb, styles.thumbPlaceholder]} />
+      )}
+      <View style={styles.thumbLabel}>
+        <Text style={styles.thumbLabelText}>{topic.name.toUpperCase()}</Text>
       </View>
-      <Text style={styles.text} numberOfLines={2}>
-        {topic.name}
-      </Text>
-    </TouchableOpacity>
-  );
-};
+    </View>
+    <View style={styles.body}>
+      <Text style={styles.title}>{topic.name.toUpperCase()}</Text>
+      {topic.description ? (
+        <Text style={styles.description} numberOfLines={3}>
+          {topic.description}
+        </Text>
+      ) : null}
+      {topic.cta ? <Text style={styles.cta}>{topic.cta.toUpperCase()} ...</Text> : null}
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
-  button: {
-    width: '48%',
-    backgroundColor: '#ffffff',
-    padding: 18,
-    marginBottom: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+  card: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  iconContainer: {
-    width: 52,
-    height: 52,
-    backgroundColor: '#2c5f8d',
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+  thumbWrap: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: colors.navyDark,
   },
-  icon: {
-    fontSize: 26,
+  thumb: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  text: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#1a3a5c',
-    fontWeight: '600',
-    lineHeight: 20,
+  thumbPlaceholder: {
+    backgroundColor: colors.navy,
+  },
+  thumbLabel: {
+    position: 'absolute',
+    left: spacing.md,
+    bottom: spacing.md,
+    backgroundColor: colors.navy,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+  },
+  thumbLabelText: {
+    ...typography.eyebrow,
+    color: colors.surface,
+  },
+  body: {
+    padding: spacing.lg,
+  },
+  title: {
+    ...typography.sectionTitle,
+    color: colors.navy,
+    marginBottom: spacing.sm,
+  },
+  description: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  cta: {
+    ...typography.eyebrow,
+    color: colors.accent,
   },
 });
 
 export default TopicButton;
-

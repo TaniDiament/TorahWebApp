@@ -1,14 +1,18 @@
 export interface Author {
   id: string;
+  slug: string;
   name: string;
   bio?: string;
-  imageUrl?: string;
+  portraitUrl?: string;
 }
 
 export interface Topic {
   id: string;
+  slug: string;
   name: string;
   description?: string;
+  thumbnailUrl?: string;
+  cta?: string;
 }
 
 export interface Article {
@@ -18,6 +22,7 @@ export interface Article {
   author: Author;
   topics: Topic[];
   publishedDate: string;
+  parshaLabel?: string;
   excerpt?: string;
   url?: string;
 }
@@ -25,7 +30,8 @@ export interface Article {
 export interface Video {
   id: string;
   title: string;
-  videoUrl: string;
+  vimeoId?: string;
+  videoUrl?: string;
   thumbnailUrl?: string;
   author: Author;
   topics: Topic[];
@@ -56,3 +62,8 @@ export interface SearchParams {
   contentType?: ContentType;
 }
 
+export const isArticle = (c: Content): c is Article => 'content' in c;
+export const isVideo = (c: Content): c is Video =>
+  'vimeoId' in c || ('videoUrl' in c && !('audioUrl' in c));
+export const isAudio = (c: Content): c is Audio =>
+  'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);

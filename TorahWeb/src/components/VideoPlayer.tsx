@@ -1,88 +1,114 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { colors, radii, typography } from '../theme';
 
 interface VideoPlayerProps {
-  videoUrl: string;
+  vimeoId?: string;
+  videoUrl?: string;
   thumbnailUrl?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl, thumbnailUrl }) => {
-  const [error, setError] = useState(false);
+const buildHtml = (embedUrl: string) => `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <style>
+      html, body { margin: 0; padding: 0; background: #000; height: 100%; }
+      .wrap { position: relative; width: 100%; height: 100%; }
+      iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <iframe
+        src="${embedUrl}"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowfullscreen
+        webkitallowfullscreen
+        mozallowfullscreen>
+      </iframe>
+    </div>
+  </body>
+</html>`;
 
-  const handlePlayVideo = async () => {
-    try {
-      const supported = await Linking.canOpenURL(videoUrl);
-      if (supported) {
-        await Linking.openURL(videoUrl);
-      } else {
-        setError(true);
-      }
-    } catch (err) {
-      console.error('Error opening video:', err);
-      setError(true);
-    }
-  };
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
+  const [fallback, setFallback] = useState(false);
+
+  const embedUrl = vimeoId
+    ? `https://player.vimeo.com/video/${vimeoId}`
+    : videoUrl ?? null;
+
+  if (!embedUrl) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>No video available for this shiur.</Text>
+      </View>
+    );
+  }
+
+  if (fallback) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>Unable to load the embedded player.</Text>
+        <TouchableOpacity
+          style={styles.openButton}
+          onPress={() => Linking.openURL(embedUrl)}
+          activeOpacity={0.85}>
+          <Text style={styles.openButtonText}>OPEN IN BROWSER</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.placeholder}>
-        <Text style={styles.icon}>🎥</Text>
-        <TouchableOpacity style={styles.playButton} onPress={handlePlayVideo}>
-          <Text style={styles.playButtonText}>▶ Play Video</Text>
-        </TouchableOpacity>
-        {error && (
-          <Text style={styles.errorText}>
-            Unable to load video player
-          </Text>
-        )}
-      </View>
-      <Text style={styles.note}>
-        Note: Install react-native-video for embedded video playback
-      </Text>
+      <WebView
+        originWhitelist={['*']}
+        allowsFullscreenVideo
+        javaScriptEnabled
+        domStorageEnabled
+        mediaPlaybackRequiresUserAction={false}
+        source={{ html: buildHtml(embedUrl) }}
+        style={styles.webview}
+        onError={() => setFallback(true)}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#000',
-    aspectRatio: 16 / 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000',
+    borderRadius: radii.sm,
+    overflow: 'hidden',
   },
-  icon: {
-    fontSize: 60,
-    marginBottom: 20,
+  webview: {
+    flex: 1,
+    backgroundColor: '#000',
   },
-  playButton: {
-    backgroundColor: '#0066cc',
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  playButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: '#ff6b6b',
-    marginTop: 10,
-    fontSize: 12,
-  },
-  note: {
-    fontSize: 10,
-    color: '#666',
-    padding: 5,
+  message: {
+    ...typography.body,
+    color: colors.surface,
     textAlign: 'center',
+    marginTop: 40,
+    paddingHorizontal: 20,
+  },
+  openButton: {
+    alignSelf: 'center',
+    marginTop: 16,
+    backgroundColor: colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: radii.sm,
+  },
+  openButtonText: {
+    ...typography.eyebrow,
+    color: colors.navyDark,
   },
 });
 
 export default VideoPlayer;
-

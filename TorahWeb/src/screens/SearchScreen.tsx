@@ -1,64 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
+import { colors, radii, spacing, typography } from '../theme';
 
 interface SearchScreenProps {
+  initialAuthorId?: string;
+  initialTopicSlug?: string;
+  headerTitle?: string;
   onContentSelect: (content: Content) => void;
 }
 
-const SearchScreen: React.FC<SearchScreenProps> = ({ onContentSelect }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+type Filter = ContentType | 'all';
+
+const SearchScreen: React.FC<SearchScreenProps> = ({
+  initialAuthorId,
+  initialTopicSlug,
+  headerTitle,
+  onContentSelect,
+}) => {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
   const [results, setResults] = useState<Content[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedType, setSelectedType] = useState<ContentType | 'all'>('all');
 
   useEffect(() => {
-    if (searchQuery.length > 2) {
-      performSearch();
-    } else {
-      setResults([]);
-    }
-  }, [searchQuery, selectedType]);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        let next: Content[];
+        if (initialAuthorId) {
+          next = await api.getContentByAuthor(initialAuthorId);
+        } else if (initialTopicSlug) {
+          next = await api.getContentByTopic(initialTopicSlug);
+        } else if (query.trim().length > 0 || filter !== 'all') {
+          next = await api.searchContent({
+            query: query.trim() || undefined,
+            contentType: filter === 'all' ? undefined : filter,
+          });
+        } else {
+          next = [];
+        }
+        if (cancelled) return;
+        const typed =
+          filter === 'all'
+            ? next
+            : next.filter((c) => {
+                if (filter === 'article') return 'content' in c;
+                if (filter === 'video') return 'vimeoId' in c || 'videoUrl' in c;
+                if (filter === 'audio')
+                  return 'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
+                return true;
+              });
+        setResults(typed);
+      } catch (e) {
+        console.error('Search failed:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [query, filter, initialAuthorId, initialTopicSlug]);
 
-  const performSearch = async () => {
-    setLoading(true);
-    try {
-      const searchResults = await api.searchContent({
-        query: searchQuery,
-        contentType: selectedType === 'all' ? undefined : selectedType,
-      });
-      setResults(searchResults);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderContentTypeButton = (type: ContentType | 'all', label: string) => (
+  const renderFilter = (f: Filter, label: string) => (
     <TouchableOpacity
-      style={[
-        styles.typeButton,
-        selectedType === type && styles.typeButtonActive,
-      ]}
-      onPress={() => setSelectedType(type)}
-    >
+      key={f}
+      style={[styles.filterButton, filter === f && styles.filterButtonActive]}
+      onPress={() => setFilter(f)}>
       <Text
         style={[
-          styles.typeButtonText,
-          selectedType === type && styles.typeButtonTextActive,
-        ]}
-      >
+          styles.filterButtonText,
+          filter === f && styles.filterButtonTextActive,
+        ]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -66,46 +91,52 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onContentSelect }) => {
 
   return (
     <View style={styles.container}>
+      {headerTitle ? (
+        <View style={styles.pageHeader}>
+          <Text style={styles.pageHeaderText}>{headerTitle}</Text>
+        </View>
+      ) : null}
 
-      <View style={styles.searchContainer}>
+      <View style={styles.searchBox}>
         <TextInput
-          style={styles.searchInput}
-          placeholder="Search articles, videos, audio..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          style={styles.input}
+          placeholder="Search divrei Torah, shiurim, speakers…"
+          placeholderTextColor={colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
           autoCapitalize="none"
           autoCorrect={false}
         />
       </View>
 
-      <View style={styles.filterContainer}>
-        {renderContentTypeButton('all', 'All')}
-        {renderContentTypeButton('article', 'Articles')}
-        {renderContentTypeButton('video', 'Videos')}
-        {renderContentTypeButton('audio', 'Audio')}
+      <View style={styles.filters}>
+        {renderFilter('all', 'All')}
+        {renderFilter('article', 'Divrei Torah')}
+        {renderFilter('video', 'Video')}
+        {renderFilter('audio', 'Audio')}
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0066cc" />
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.navy} />
         </View>
       ) : (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <ArticleCard content={item} onPress={() => onContentSelect(item)} />
           )}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+            <View style={styles.empty}>
               <Text style={styles.emptyText}>
-                {searchQuery.length > 2
-                  ? 'No results found'
-                  : 'Enter at least 3 characters to search'}
+                {query.length > 0
+                  ? 'No results.'
+                  : 'Browse by author, topic, or start typing to search.'}
               </Text>
             </View>
           }
-          contentContainerStyle={styles.listContainer}
         />
       )}
     </View>
@@ -115,71 +146,73 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ onContentSelect }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.background,
   },
-  searchContainer: {
-    padding: 20,
-    backgroundColor: '#ffffff',
+  pageHeader: {
+    backgroundColor: colors.navy,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
+  pageHeaderText: {
+    ...typography.sectionTitle,
+    color: colors.surface,
+  },
+  searchBox: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border,
   },
-  searchInput: {
-    height: 48,
-    borderWidth: 2,
-    borderColor: '#1a3a5c',
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#ffffff',
-    color: '#333333',
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    padding: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  typeButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    marginHorizontal: 5,
-    borderRadius: 6,
-    backgroundColor: '#e8e8e8',
+  input: {
+    height: 46,
     borderWidth: 1,
-    borderColor: '#d0d0d0',
+    borderColor: colors.navy,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.lg,
+    fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
   },
-  typeButtonActive: {
-    backgroundColor: '#1a3a5c',
-    borderColor: '#1a3a5c',
+  filters: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  typeButtonText: {
-    fontSize: 14,
-    color: '#555555',
-    fontWeight: '500',
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: '#ececec',
   },
-  typeButtonTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
+  filterButtonActive: {
+    backgroundColor: colors.navy,
   },
-  loadingContainer: {
+  filterButtonText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  filterButtonTextActive: {
+    color: colors.surface,
+  },
+  loading: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  listContainer: {
-    padding: 10,
+  list: {
+    padding: spacing.lg,
   },
-  emptyContainer: {
-    padding: 40,
+  empty: {
+    padding: spacing.xxl,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });
 
 export default SearchScreen;
-

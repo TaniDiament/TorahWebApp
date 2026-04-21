@@ -3,7 +3,6 @@
  * This script scrapes the website and saves HTML files to ScrapedHTML folder
  */
 
-const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
@@ -102,15 +101,24 @@ async function scrapePage(url) {
     console.log(`Scraping [${visitedUrls.size}/${MAX_PAGES}]: ${url}`);
 
     try {
-        // Fetch the page
-        const response = await axios.get(url, {
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        // Fetch the page (Node 20+ built-in fetch with AbortController for timeout)
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 10000);
+        let html;
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                signal: ac.signal,
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${response.statusText}`);
             }
-        });
-
-        const html = response.data;
+            html = await response.text();
+        } finally {
+            clearTimeout(timer);
+        }
 
         // Save the HTML file
         const filename = sanitizeFilename(url);

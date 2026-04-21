@@ -1,64 +1,79 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Author } from '../types';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 
 interface AuthorButtonProps {
   author: Author;
   onPress: () => void;
 }
 
-const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress }) => {
-  return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>👤</Text>
+const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress }) => (
+  <TouchableOpacity style={styles.tile} onPress={onPress} activeOpacity={0.85}>
+    <View style={styles.imageWrap}>
+      {author.portraitUrl ? (
+        <Image source={{ uri: author.portraitUrl }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Text style={styles.placeholderText}>
+            {author.name
+              .split(' ')
+              .map((p) => p[0])
+              .join('')
+              .slice(0, 2)}
+          </Text>
+        </View>
+      )}
+      <View style={styles.overlay}>
+        <Text style={styles.name} numberOfLines={2}>
+          {author.name}
+        </Text>
       </View>
-      <Text style={styles.text} numberOfLines={2}>
-        {author.name}
-      </Text>
-    </TouchableOpacity>
-  );
-};
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
-  button: {
-    width: '48%',
-    backgroundColor: '#ffffff',
-    padding: 18,
-    marginBottom: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+  tile: {
+    width: '31%',
+    marginBottom: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  iconContainer: {
-    width: 52,
-    height: 52,
-    backgroundColor: '#1a3a5c',
-    borderRadius: 26,
+  imageWrap: {
+    aspectRatio: 1,
+    backgroundColor: colors.navyDark,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imagePlaceholder: {
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  icon: {
-    fontSize: 26,
+  placeholderText: {
+    color: colors.surface,
+    fontSize: 24,
+    fontWeight: '700',
   },
-  text: {
-    fontSize: 14,
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.overlay,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  name: {
+    ...typography.caption,
+    color: colors.surface,
     textAlign: 'center',
-    color: '#1a3a5c',
-    fontWeight: '600',
-    lineHeight: 20,
   },
 });
 
 export default AuthorButton;
-

@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Linking,
-} from 'react-native';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -15,105 +10,69 @@ interface AudioPlayerProps {
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, title }) => {
   const [error, setError] = useState(false);
 
-  const handlePlayAudio = async () => {
+  const open = async () => {
     try {
-      const supported = await Linking.canOpenURL(audioUrl);
-      if (supported) {
-        await Linking.openURL(audioUrl);
-      } else {
+      const ok = await Linking.canOpenURL(audioUrl);
+      if (!ok) {
         setError(true);
+        return;
       }
-    } catch (err) {
-      console.error('Error opening audio:', err);
+      await Linking.openURL(audioUrl);
+    } catch (e) {
+      console.error('Audio open failed:', e);
       setError(true);
     }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.playerContainer}>
-        <Text style={styles.icon}>🎵</Text>
-        <Text style={styles.title} numberOfLines={2}>
-          {title}
-        </Text>
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.playButton} onPress={handlePlayAudio}>
-            <Text style={styles.playButtonText}>▶</Text>
-          </TouchableOpacity>
-        </View>
-        {error && (
-          <Text style={styles.errorText}>
-            Unable to load audio player
-          </Text>
-        )}
-      </View>
-      <Text style={styles.note}>
-        Note: Install react-native-sound or react-native-track-player for embedded audio playback
+      <Text style={styles.eyebrow}>PLAY AUDIO ONLY</Text>
+      <Text style={styles.title} numberOfLines={3}>
+        {title}
       </Text>
+      <TouchableOpacity style={styles.playButton} onPress={open} activeOpacity={0.85}>
+        <Text style={styles.playButtonText}>▶   LISTEN</Text>
+      </TouchableOpacity>
+      {error ? <Text style={styles.errorText}>Unable to play this audio file.</Text> : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  playerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
+    backgroundColor: colors.surface,
+    padding: spacing.xl,
+    borderRadius: radii.md,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    ...shadows.card,
   },
-  icon: {
-    fontSize: 60,
-    marginBottom: 15,
+  eyebrow: {
+    ...typography.eyebrow,
+    color: colors.accent,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    ...typography.cardTitle,
+    color: colors.navy,
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: spacing.lg,
   },
   playButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#0066cc',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.navy,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: radii.pill,
   },
   playButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
+    color: colors.surface,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
   errorText: {
-    color: '#ff6b6b',
-    marginTop: 10,
-    fontSize: 12,
-  },
-  note: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
+    marginTop: spacing.md,
+    color: '#b00020',
+    ...typography.caption,
   },
 });
 
 export default AudioPlayer;
-

@@ -1,163 +1,222 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Author, Topic } from '../types';
+import { Article, Author, Topic } from '../types';
 import { api } from '../services/api';
 import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
+import ArticleCard from '../components/ArticleCard';
+import { colors, radii, spacing, typography } from '../theme';
 
 interface HomeScreenProps {
   onAuthorPress: (author: Author) => void;
   onTopicPress: (topic: Topic) => void;
+  onArticlePress: (article: Article) => void;
+  onSearchPress: () => void;
 }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ onAuthorPress, onTopicPress }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({
+  onAuthorPress,
+  onTopicPress,
+  onArticlePress,
+  onSearchPress,
+}) => {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [recent, setRecent] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [a, t, r] = await Promise.all([
+          api.getAuthors(),
+          api.getTopics(),
+          api.getRecent(4),
+        ]);
+        if (cancelled) return;
+        setAuthors(a);
+        setTopics(t);
+        setRecent(r);
+      } catch (err) {
+        console.error('HomeScreen load failed:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [authorsData, topicsData] = await Promise.all([
-        api.getAuthors(),
-        api.getTopics(),
-      ]);
-      setAuthors(authorsData);
-      setTopics(topicsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066cc" />
+        <ActivityIndicator size="large" color={colors.navy} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>TorahWeb</Text>
+        <Text style={styles.heroBrand}>TorahWeb</Text>
         <Text style={styles.heroSubtitle}>
-          Divrei Torah, videos, and events with special{'\n'}
-          attention to contemporary religious and social issues
+          Divrei Torah, videos, and events with special attention to contemporary
+          religious and social issues
         </Text>
+        <TouchableOpacity style={styles.heroCta} onPress={onSearchPress} activeOpacity={0.85}>
+          <Text style={styles.heroCtaText}>SUBSCRIBE. FREE!</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Explore Our </Text>
-          <Text style={styles.sectionTitleHighlight}>Authors</Text>
-        </View>
-        <View style={styles.buttonGrid}>
-          {authors.map((author) => (
-            <AuthorButton
-              key={author.id}
-              author={author}
-              onPress={() => onAuthorPress(author)}
-            />
-          ))}
-        </View>
+      <SectionHeader lead="Most" highlight="Recent" />
+      <View style={styles.sectionBody}>
+        {recent.map((article) => (
+          <ArticleCard
+            key={article.id}
+            content={article}
+            onPress={() => onArticlePress(article)}
+          />
+        ))}
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Browse by </Text>
-          <Text style={styles.sectionTitleHighlight}>Topics</Text>
-        </View>
-        <View style={styles.buttonGrid}>
-          {topics.map((topic) => (
-            <TopicButton
-              key={topic.id}
-              topic={topic}
-              onPress={() => onTopicPress(topic)}
-            />
-          ))}
-        </View>
+      <SectionHeader lead="Explore Our" highlight="Torah" />
+      <View style={styles.sectionBody}>
+        {topics.map((topic) => (
+          <TopicButton
+            key={topic.id}
+            topic={topic}
+            onPress={() => onTopicPress(topic)}
+          />
+        ))}
+      </View>
+
+      <SectionHeader
+        lead="Our"
+        highlight="Authors & Speakers"
+        subtitle="(alphabetical order)"
+      />
+      <View style={[styles.sectionBody, styles.authorsGrid]}>
+        {authors.map((author) => (
+          <AuthorButton
+            key={author.id}
+            author={author}
+            onPress={() => onAuthorPress(author)}
+          />
+        ))}
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          © {new Date().getFullYear()} TorahWeb Foundation. All Rights Reserved.
+        </Text>
       </View>
     </ScrollView>
   );
 };
 
+const SectionHeader: React.FC<{ lead: string; highlight: string; subtitle?: string }> = ({
+  lead,
+  highlight,
+  subtitle,
+}) => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionLead}>
+      {lead} <Text style={styles.sectionHighlight}>{highlight}</Text>
+    </Text>
+    {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+    <View style={styles.sectionRule} />
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: colors.background,
   },
   hero: {
-    backgroundColor: '#1a3a5c',
-    padding: 40,
+    backgroundColor: colors.navy,
+    paddingVertical: 48,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
   },
-  heroTitle: {
-    fontSize: 38,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 15,
-    textAlign: 'center',
+  heroBrand: {
+    ...typography.heroTitle,
+    color: colors.surface,
+    marginBottom: spacing.md,
   },
   heroSubtitle: {
-    fontSize: 16,
-    color: '#ffffff',
-    opacity: 0.95,
+    color: colors.surface,
     textAlign: 'center',
-    lineHeight: 24,
+    opacity: 0.92,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: spacing.xl,
   },
-  section: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    marginTop: 15,
-    marginHorizontal: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  heroCta: {
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: radii.sm,
+  },
+  heroCtaText: {
+    ...typography.eyebrow,
+    color: colors.navyDark,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333333',
+  sectionLead: {
+    ...typography.sectionTitle,
+    color: colors.textPrimary,
   },
-  sectionTitleHighlight: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1a3a5c',
+  sectionHighlight: {
+    color: colors.navy,
   },
-  buttonGrid: {
+  sectionSubtitle: {
+    marginTop: spacing.xs,
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  sectionRule: {
+    marginTop: spacing.sm,
+    height: 2,
+    width: 48,
+    backgroundColor: colors.accent,
+  },
+  sectionBody: {
+    paddingHorizontal: spacing.lg,
+  },
+  authorsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+  footer: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
+  footerText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
 });
 
 export default HomeScreen;
-
