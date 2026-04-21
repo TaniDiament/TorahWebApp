@@ -19,6 +19,9 @@ interface HomeScreenProps {
   onTopicPress: (topic: Topic) => void;
   onArticlePress: (article: Article) => void;
   onSearchPress: () => void;
+  onAudioPress: () => void;
+  onVideoPress: () => void;
+  onNewestPress: () => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -26,6 +29,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onTopicPress,
   onArticlePress,
   onSearchPress,
+  onAudioPress,
+  onVideoPress,
+  onNewestPress,
 }) => {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -66,7 +72,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+    <View style={styles.container}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <View style={styles.hero}>
         <Text style={styles.heroBrand}>TorahWeb</Text>
         <Text style={styles.heroSubtitle}>
@@ -120,7 +127,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           © {new Date().getFullYear()} TorahWeb Foundation. All Rights Reserved.
         </Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      <View style={styles.quickLinksRow}>
+        <TouchableOpacity
+          style={styles.quickLinkButton}
+          onPress={onAudioPress}
+          activeOpacity={0.85}>
+          <Text style={styles.quickLinkText}>Audio</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickLinkButton}
+          onPress={onVideoPress}
+          activeOpacity={0.85}>
+          <Text style={styles.quickLinkText}>Video</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickLinkButton}
+          onPress={onNewestPress}
+          activeOpacity={0.85}>
+          <Text style={styles.quickLinkText}>Newest</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -142,6 +171,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -208,6 +243,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  quickLinkButton: {
+    flex: 1,
+    backgroundColor: colors.navy,
+    paddingVertical: spacing.md,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+  },
+  quickLinkText: {
+    ...typography.eyebrow,
+    color: colors.surface,
   },
   footer: {
     paddingVertical: spacing.xl,

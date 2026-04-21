@@ -16,6 +16,8 @@ import { colors, radii, spacing, typography } from '../theme';
 interface SearchScreenProps {
   initialAuthorId?: string;
   initialTopicSlug?: string;
+  initialContentType?: ContentType;
+  showAllOnMount?: boolean;
   headerTitle?: string;
   onContentSelect: (content: Content) => void;
 }
@@ -25,11 +27,13 @@ type Filter = ContentType | 'all';
 const SearchScreen: React.FC<SearchScreenProps> = ({
   initialAuthorId,
   initialTopicSlug,
+  initialContentType,
+  showAllOnMount,
   headerTitle,
   onContentSelect,
 }) => {
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialContentType ?? 'all');
   const [results, setResults] = useState<Content[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -43,7 +47,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
           next = await api.getContentByAuthor(initialAuthorId);
         } else if (initialTopicSlug) {
           next = await api.getContentByTopic(initialTopicSlug);
-        } else if (query.trim().length > 0 || filter !== 'all') {
+        } else if (query.trim().length > 0 || filter !== 'all' || showAllOnMount) {
           next = await api.searchContent({
             query: query.trim() || undefined,
             contentType: filter === 'all' ? undefined : filter,
@@ -62,7 +66,11 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
                   return 'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
                 return true;
               });
-        setResults(typed);
+        const sorted = [...typed].sort(
+          (a, b) =>
+            new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
+        );
+        setResults(sorted);
       } catch (e) {
         console.error('Search failed:', e);
       } finally {
@@ -72,7 +80,7 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [query, filter, initialAuthorId, initialTopicSlug]);
+  }, [query, filter, initialAuthorId, initialTopicSlug, showAllOnMount]);
 
   const renderFilter = (f: Filter, label: string) => (
     <TouchableOpacity

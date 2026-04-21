@@ -4,12 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ContentScreen from './src/screens/ContentScreen';
-import { Article, Author, Content, Topic } from './src/types';
+import { Article, Author, Content, ContentType, Topic } from './src/types';
 import { colors, spacing, typography } from './src/theme';
 
 type Screen =
   | { name: 'home' }
-  | { name: 'search'; authorId?: string; topicSlug?: string; title?: string }
+  | {
+      name: 'search';
+      authorId?: string;
+      topicSlug?: string;
+      contentType?: ContentType;
+      showAll?: boolean;
+      title?: string;
+    }
   | { name: 'content'; content: Content };
 
 const App = () => {
@@ -39,6 +46,12 @@ const App = () => {
   const openArticle = (article: Article) => push({ name: 'content', content: article });
   const openContent = (content: Content) => push({ name: 'content', content });
   const openSearch = () => push({ name: 'search', title: 'Search TorahWeb' });
+  const openAudio = () =>
+    push({ name: 'search', contentType: 'audio', title: 'Audio' });
+  const openVideo = () =>
+    push({ name: 'search', contentType: 'video', title: 'Video' });
+  const openNewest = () =>
+    push({ name: 'search', showAll: true, title: 'Newest' });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,12 +81,17 @@ const App = () => {
             onTopicPress={openTopic}
             onArticlePress={openArticle}
             onSearchPress={openSearch}
+            onAudioPress={openAudio}
+            onVideoPress={openVideo}
+            onNewestPress={openNewest}
           />
         )}
         {current.name === 'search' && (
           <SearchScreen
             initialAuthorId={current.authorId}
             initialTopicSlug={current.topicSlug}
+            initialContentType={current.contentType}
+            showAllOnMount={current.showAll}
             headerTitle={current.title}
             onContentSelect={openContent}
           />

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(echo \"EXIT=$?\")",
       "Bash(npm uninstall *)",
-      "Bash(echo \"---grep_exit=$?\")"
+      "Bash(echo \"---grep_exit=$?\")",
+      "Bash(npx tsc *)",
+      "PowerShell($paths = @\\(\"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\", \"$env:USERPROFILE\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\", \"C:\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\", \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\platform-tools\\\\adb.exe\"\\); foreach \\($p in $paths\\) { if \\(Test-Path $p\\) { Write-Output \"FOUND: $p\" } else { Write-Output \"missing: $p\" } })"
     ]
   }
 }
