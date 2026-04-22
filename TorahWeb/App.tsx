@@ -1,14 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { BackHandler, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  BackHandler,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ContentScreen from './src/screens/ContentScreen';
 import DownloadsScreen from './src/screens/DownloadsScreen';
 import { Article, Author, Content, ContentType, Topic } from './src/types';
-import { colors, liquidGlass, radii, spacing, typography } from './src/theme';
+import { colors, radii, spacing, typography } from './src/theme';
 import { GlassButton, GlassSurface } from './src/components/ui/Glass';
-import { AudioPlayerProvider, useAudioPlayer } from './src/audio/AudioPlayerProvider';
+import Icon, { IconName } from './src/components/ui/Icon';
+import { AudioPlayerProvider } from './src/audio/AudioPlayerProvider';
+
+type Tab = 'home' | 'search' | 'library';
 
 type Screen =
   | { name: 'home' }
@@ -21,17 +31,33 @@ type Screen =
       title?: string;
     }
   | { name: 'content'; content: Content }
-  | { name: 'downloads' };
+  | { name: 'library' };
+
+const TAB_BAR_HEIGHT = 64;
+const TAB_BAR_BOTTOM_OFFSET = 14;
 
 const AppShell = () => {
-  const { currentTrack, expand } = useAudioPlayer();
-  const [stack, setStack] = useState<Screen[]>([{ name: 'home' }]);
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [stacks, setStacks] = useState<Record<Tab, Screen[]>>({
+    home: [{ name: 'home' }],
+    search: [{ name: 'search', title: 'Search' }],
+    library: [{ name: 'library' }],
+  });
 
+  const stack = stacks[activeTab];
   const current = stack[stack.length - 1];
-  const push = (s: Screen) => setStack((prev) => [...prev, s]);
+
+  const push = (s: Screen) =>
+    setStacks((prev) => ({ ...prev, [activeTab]: [...prev[activeTab], s] }));
   const pop = () =>
-    setStack((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
-  const reset = () => setStack([{ name: 'home' }]);
+    setStacks((prev) => {
+      const cur = prev[activeTab];
+      if (cur.length <= 1) return prev;
+      return { ...prev, [activeTab]: cur.slice(0, -1) };
+    });
+  const resetTab = (tab: Tab) =>
+    setStacks((prev) => ({ ...prev, [tab]: [prev[tab][0]] }));
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -42,7 +68,7 @@ const AppShell = () => {
       return false;
     });
     return () => sub.remove();
-  }, [stack.length]);
+  }, [stack.length, activeTab]);
 
   const openAuthor = (author: Author) =>
     push({ name: 'search', authorId: author.id, title: author.name });
@@ -50,43 +76,67 @@ const AppShell = () => {
     push({ name: 'search', topicSlug: topic.slug, title: topic.name });
   const openArticle = (article: Article) => push({ name: 'content', content: article });
   const openContent = (content: Content) => push({ name: 'content', content });
-  const openSearch = () => push({ name: 'search', title: 'Search TorahWeb' });
+  const openSearch = () => {
+    setActiveTab('search');
+    resetTab('search');
+  };
   const openAudio = () =>
     push({ name: 'search', contentType: 'audio', title: 'Audio' });
   const openVideo = () =>
     push({ name: 'search', contentType: 'video', title: 'Video' });
   const openNewest = () =>
     push({ name: 'search', showAll: true, title: 'Newest' });
-  const openDownloads = () => push({ name: 'downloads' });
-  const openRootSearch = () => setStack([{ name: 'search', title: 'Search TorahWeb' }]);
-  const openRootDownloads = () => setStack([{ name: 'downloads' }]);
+  const openLibrary = () => {
+    setActiveTab('library');
+    resetTab('library');
+  };
+
+  const onTabPress = (tab: Tab) => {
+    if (tab === activeTab) {
+      resetTab(tab);
+      return;
+    }
+    setActiveTab(tab);
+  };
+
+  const showBackButton = stack.length > 1;
+  const headerTitle = useMemo(() => {
+    if (current.name === 'home') return null;
+    if (current.name === 'search') return current.title ?? 'Search';
+    if (current.name === 'library') return 'Library';
+    return '';
+  }, [current]);
+
+  const bodyBottomPadding = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_OFFSET + Math.max(insets.bottom, 8) + 12;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {current.name !== 'home' ? (
-        <GlassSurface style={styles.header}>
-          <GlassButton style={styles.backButton} contentStyle={styles.iconButtonInner} onPress={pop}>
-            <Text style={styles.backButtonText}>←</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {showBackButton ? (
+        <View style={styles.floatingBackWrap} pointerEvents="box-none">
+          <GlassButton
+            style={styles.floatingBack}
+            contentStyle={styles.floatingBackInner}
+            cornerRadius={radii.pill}
+            variant="regular"
+            onPress={pop}>
+            <Icon name="chevron.left" size={22} color={colors.text} />
           </GlassButton>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {current.name === 'search'
-              ? current.title ?? 'Search'
-              : current.name === 'downloads'
-                ? 'Downloads'
-                : 'TorahWeb'}
-          </Text>
-          <View style={styles.headerActions}>
-            <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={openDownloads}>
-              <Text style={styles.homeButtonText}>↓</Text>
-            </GlassButton>
-            <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={reset}>
-              <Text style={styles.homeButtonText}>⌂</Text>
-            </GlassButton>
-          </View>
-        </GlassSurface>
+          {headerTitle ? (
+            <View style={styles.floatingTitleWrap} pointerEvents="none">
+              <GlassSurface
+                variant="regular"
+                cornerRadius={radii.pill}
+                style={styles.floatingTitle}>
+                <Text numberOfLines={1} style={styles.floatingTitleText}>
+                  {headerTitle}
+                </Text>
+              </GlassSurface>
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingBottom: bodyBottomPadding }]}>
         {current.name === 'home' && (
           <HomeScreen
             onAuthorPress={openAuthor}
@@ -96,7 +146,7 @@ const AppShell = () => {
             onAudioPress={openAudio}
             onVideoPress={openVideo}
             onNewestPress={openNewest}
-            onDownloadsPress={openDownloads}
+            onDownloadsPress={openLibrary}
           />
         )}
         {current.name === 'search' && (
@@ -110,35 +160,50 @@ const AppShell = () => {
           />
         )}
         {current.name === 'content' && <ContentScreen content={current.content} />}
-        {current.name === 'downloads' && <DownloadsScreen />}
+        {current.name === 'library' && <DownloadsScreen />}
       </View>
-      <GlassSurface style={styles.bottomBar}>
-        <GlassButton style={styles.tabButton} contentStyle={styles.tabButtonInner} onPress={reset}>
-          <Text style={styles.tabLabel}>Home</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.tabButton}
-          contentStyle={styles.tabButtonInner}
-          onPress={openRootSearch}>
-          <Text style={styles.tabLabel}>Search</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.tabButton}
-          contentStyle={styles.tabButtonInner}
-          onPress={openRootDownloads}>
-          <Text style={styles.tabLabel}>Downloads</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.tabButton}
-          contentStyle={styles.tabButtonInner}
-          onPress={expand}
-          disabled={!currentTrack}>
-          <Text style={styles.tabLabel}>Now Playing</Text>
-        </GlassButton>
-      </GlassSurface>
+
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.tabBarWrap,
+          { bottom: TAB_BAR_BOTTOM_OFFSET + Math.max(insets.bottom, 8) },
+        ]}>
+        <GlassSurface
+          variant="prominent"
+          cornerRadius={radii.pill}
+          style={styles.tabBar}>
+          <TabItem label="Home" icon="house.fill" active={activeTab === 'home'} onPress={() => onTabPress('home')} />
+          <TabItem label="Search" icon="magnifyingglass" active={activeTab === 'search'} onPress={() => onTabPress('search')} />
+          <TabItem label="Library" icon="rectangle.stack.fill" active={activeTab === 'library'} onPress={() => onTabPress('library')} />
+        </GlassSurface>
+      </View>
     </SafeAreaView>
   );
 };
+
+const TabItem: React.FC<{
+  label: string;
+  icon: IconName;
+  active: boolean;
+  onPress: () => void;
+}> = ({ label, icon, active, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.tabItem,
+      pressed && { opacity: 0.7 },
+    ]}>
+    <Icon name={icon} size={22} color={active ? colors.navy : colors.textTertiary} />
+    <Text
+      style={[
+        styles.tabLabel,
+        { color: active ? colors.navy : colors.textTertiary },
+      ]}>
+      {label}
+    </Text>
+  </Pressable>
+);
 
 const App = () => (
   <AudioPlayerProvider>
@@ -151,76 +216,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    ...liquidGlass.header,
-  },
-  backButton: {
-    borderRadius: radii.pill,
-  },
-  iconButtonInner: {
-    ...liquidGlass.button,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-  },
-  backButtonText: {
-    color: liquidGlass.textOnGlass,
-    fontSize: 26,
-    fontWeight: '600',
-    lineHeight: 28,
-  },
-  headerTitle: {
-    flex: 1,
-    ...typography.cardTitle,
-    color: liquidGlass.textOnGlass,
-    textAlign: 'center',
-  },
-  homeButton: {
-    borderRadius: radii.pill,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  homeButtonText: {
-    color: liquidGlass.textOnGlass,
-    fontSize: 22,
-    fontWeight: '600',
-  },
   body: {
     flex: 1,
-    paddingBottom: 74,
   },
-  bottomBar: {
-    ...liquidGlass.surface,
+  floatingBackWrap: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    borderRadius: radii.lg,
-    padding: spacing.sm,
+    top: Platform.OS === 'ios' ? 8 : 16,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.xs,
+    alignItems: 'center',
+    zIndex: 50,
   },
-  tabButton: {
-    flex: 1,
+  floatingBack: {
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
   },
-  tabButtonInner: {
-    ...liquidGlass.button,
+  floatingBackInner: {
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+  },
+  floatingTitleWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingTitle: {
+    paddingHorizontal: spacing.lg,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    maxWidth: '70%',
+  },
+  floatingTitleText: {
+    ...typography.headline,
+    color: colors.text,
+  },
+  tabBarWrap: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    height: TAB_BAR_HEIGHT,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderRadius: radii.pill,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
   },
   tabLabel: {
     ...typography.caption,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
   },
 });
 

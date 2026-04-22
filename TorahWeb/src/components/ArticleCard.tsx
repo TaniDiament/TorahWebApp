@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
-import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
-import { GlassButton } from './ui/Glass';
+import { colors, radii, shadows, spacing, typography } from '../theme';
+import Icon, { IconName } from './ui/Icon';
 
 interface ArticleCardProps {
   content: Content;
@@ -11,11 +11,22 @@ interface ArticleCardProps {
   onDownloadPress?: () => Promise<void> | void;
 }
 
-const eyebrowFor = (c: Content): string => {
-  if (isArticle(c)) return c.parshaLabel?.toUpperCase() ?? 'DIVREI TORAH';
-  if (isVideo(c)) return 'VIDEO';
-  if (isAudio(c)) return 'AUDIO';
+const kindLabel = (c: Content): string => {
+  if (isArticle(c)) return c.parshaLabel ?? 'Divrei Torah';
+  if (isVideo(c)) return 'Video';
+  if (isAudio(c)) return 'Audio';
   return '';
+};
+
+const kindIcon = (c: Content): IconName => {
+  if (isVideo(c)) return 'video.fill';
+  if (isAudio(c)) return 'waveform';
+  return 'doc.text.fill';
+};
+
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -25,12 +36,11 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   onDownloadPress,
 }) => {
   const [downloading, setDownloading] = useState(false);
+  const artwork = content.author.portraitUrl;
 
-  const handleDownload = async () => {
-    if (!onDownloadPress || downloading) {
-      return;
-    }
-
+  const handleDownload = async (e?: any) => {
+    e?.stopPropagation?.();
+    if (!onDownloadPress || downloading) return;
     setDownloading(true);
     try {
       await onDownloadPress();
@@ -40,83 +50,111 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   };
 
   return (
-    <GlassButton
-      style={[styles.card, compact && styles.cardCompact]}
-      contentStyle={[styles.cardInner, compact && styles.cardInnerCompact]}
-      onPress={onPress}>
-      <Text style={styles.eyebrow}>{eyebrowFor(content)}</Text>
-      <Text style={styles.title} numberOfLines={3}>
-        {content.title}
-      </Text>
-      <View style={styles.meta}>
-        <Text style={styles.author}>{content.author.name}</Text>
-        {onDownloadPress ? (
-          <TouchableOpacity
-            style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
-            onPress={handleDownload}
-            disabled={downloading}
-            activeOpacity={0.85}>
-            <Text style={styles.downloadText}>{downloading ? 'DOWNLOADING' : 'DOWNLOAD'}</Text>
-          </TouchableOpacity>
-        ) : null}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        compact && styles.cardCompact,
+        pressed && styles.pressed,
+      ]}>
+      {artwork ? (
+        <Image source={{ uri: artwork }} style={styles.artwork} />
+      ) : (
+        <View style={[styles.artwork, styles.artworkPlaceholder]}>
+          <Icon name={kindIcon(content)} size={28} color={colors.textInverse} />
+        </View>
+      )}
+      <View style={styles.body}>
+        <View style={styles.metaRow}>
+          <Icon name={kindIcon(content)} size={11} color={colors.textTertiary} />
+          <Text style={styles.eyebrow}>{kindLabel(content).toUpperCase()}</Text>
+          <Text style={styles.dot}>·</Text>
+          <Text style={styles.eyebrow}>{formatDate(content.publishedDate)}</Text>
+        </View>
+        <Text style={styles.title} numberOfLines={2}>
+          {content.title}
+        </Text>
+        <Text style={styles.author} numberOfLines={1}>
+          {content.author.name}
+        </Text>
       </View>
-    </GlassButton>
+      {onDownloadPress ? (
+        <Pressable
+          onPress={handleDownload}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.downloadButton,
+            pressed && { opacity: 0.6 },
+            downloading && { opacity: 0.5 },
+          ]}>
+          <Icon name="arrow.down.circle.fill" size={26} color={colors.navy} />
+        </Pressable>
+      ) : null}
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderRadius: radii.md,
+    padding: spacing.md,
     marginBottom: spacing.md,
-  },
-  cardInner: {
-    ...liquidGlass.surface,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: 'rgba(26, 58, 92, 0.72)',
     ...shadows.card,
   },
   cardCompact: {
-    marginBottom: spacing.sm,
+    padding: spacing.sm,
   },
-  cardInnerCompact: {
-    padding: spacing.md,
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
-  eyebrow: {
-    ...typography.eyebrow,
-    color: colors.accent,
-    marginBottom: spacing.xs,
+  artwork: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceTint,
   },
-  title: {
-    ...typography.cardTitle,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.sm,
+  artworkPlaceholder: {
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  meta: {
+  body: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 4,
+    marginBottom: 2,
+  },
+  eyebrow: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textTertiary,
+    letterSpacing: 0.4,
+  },
+  dot: {
+    color: colors.textTertiary,
+    marginHorizontal: 2,
+  },
+  title: {
+    ...typography.headline,
+    color: colors.text,
   },
   author: {
-    ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
-    flex: 1,
-    paddingRight: spacing.sm,
+    ...typography.subheadline,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   downloadButton: {
-    ...liquidGlass.button,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  downloadButtonDisabled: {
-    opacity: 0.6,
-  },
-  downloadText: {
-    ...typography.caption,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
   },
 });
 

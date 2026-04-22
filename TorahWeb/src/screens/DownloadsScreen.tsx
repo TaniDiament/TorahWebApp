@@ -3,29 +3,36 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { DownloadItem } from '../types';
-import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 import {
   getDownloadedItems,
   openDownloadedItem,
   removeDownloadedItem,
 } from '../services/download';
-import { GlassSurface } from '../components/ui/Glass';
+import Icon from '../components/ui/Icon';
 
-const formatDate = (value: string) => new Date(value).toLocaleDateString();
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
 interface DownloadRowProps {
   item: DownloadItem;
   onOpen: (item: DownloadItem) => void;
   onDelete: (item: DownloadItem) => Promise<void>;
 }
+
+const kindIcon = (kind: string) => {
+  if (kind === 'audio') return 'waveform';
+  if (kind === 'video') return 'video.fill';
+  return 'doc.text.fill';
+};
 
 const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => {
   const swipeRef = useRef<React.ElementRef<typeof Swipeable> | null>(null);
@@ -37,12 +44,15 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
 
   const renderRightAction = () => (
     <View style={styles.swipeActionWrap}>
-      <TouchableOpacity
-        style={styles.swipeDeleteAction}
-        onPress={onDeletePress}
-        activeOpacity={0.85}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.swipeDeleteAction,
+          pressed && { opacity: 0.85 },
+        ]}
+        onPress={onDeletePress}>
+        <Icon name="xmark" size={20} color={colors.textInverse} />
         <Text style={styles.swipeDeleteText}>Delete</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 
@@ -53,22 +63,24 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
       rightThreshold={24}
       friction={Platform.OS === 'ios' ? 1.6 : 1.9}
       renderRightActions={renderRightAction}>
-      <GlassSurface style={styles.row}>
-        <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.meta}>
-          {item.authorName} - {formatDate(item.publishedDate)}
-        </Text>
-        <Text style={styles.meta}>Saved {formatDate(item.createdAt)}</Text>
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.openButton]}
-            onPress={() => onOpen(item)}
-            activeOpacity={0.85}>
-            <Text style={styles.actionText}>Open</Text>
-          </TouchableOpacity>
+      <Pressable
+        onPress={() => onOpen(item)}
+        style={({ pressed }) => [
+          styles.row,
+          pressed && { opacity: 0.85 },
+        ]}>
+        <View style={styles.kindBadge}>
+          <Icon name={kindIcon(item.kind) as any} size={20} color={colors.textInverse} />
         </View>
-      </GlassSurface>
+        <View style={styles.body}>
+          <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
+          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {item.authorName} · {formatDate(item.publishedDate)}
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={18} color={colors.textTertiary} />
+      </Pressable>
     </Swipeable>
   );
 };
@@ -116,25 +128,31 @@ const DownloadsScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <DownloadRow item={item} onOpen={openDownloadedItem} onDelete={onRemove} />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyTitle}>No downloads yet</Text>
-            <Text style={styles.emptyText}>
-              Use the DOWNLOAD button on an article or audio shiur and it will appear here.
-            </Text>
-          </View>
-        }
-      />
-    </View>
+    <FlatList
+      style={styles.container}
+      data={items}
+      keyExtractor={(item) => item.id}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      contentContainerStyle={styles.listContent}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <Text style={styles.largeTitle}>Library</Text>
+          <Text style={styles.subtitle}>{items.length} downloaded</Text>
+        </View>
+      }
+      renderItem={({ item }) => (
+        <DownloadRow item={item} onOpen={openDownloadedItem} onDelete={onRemove} />
+      )}
+      ListEmptyComponent={
+        <View style={styles.emptyWrap}>
+          <Icon name="rectangle.stack.fill" size={56} color={colors.textTertiary} />
+          <Text style={styles.emptyTitle}>Nothing downloaded</Text>
+          <Text style={styles.emptyText}>
+            Tap the download icon on any item to keep it here for offline.
+          </Text>
+        </View>
+      }
+    />
   );
 };
 
@@ -150,15 +168,61 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.xxxl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxxl,
     flexGrow: 1,
   },
+  header: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  largeTitle: {
+    ...typography.largeTitle,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.subheadline,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
   row: {
-    ...liquidGlass.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    padding: spacing.md,
     borderRadius: radii.md,
-    padding: spacing.lg,
     marginBottom: spacing.md,
+    ...shadows.card,
+  },
+  kindBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+  },
+  kind: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textTertiary,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  title: {
+    ...typography.headline,
+    color: colors.text,
+  },
+  meta: {
+    ...typography.subheadline,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   swipeActionWrap: {
     justifyContent: 'center',
@@ -166,68 +230,36 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   swipeDeleteAction: {
-    ...liquidGlass.buttonDestructive,
-    width: 110,
+    backgroundColor: colors.destructive,
+    width: 96,
     height: '86%',
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
   },
   swipeDeleteText: {
-    ...typography.eyebrow,
-    color: liquidGlass.destructiveTextOnGlass,
-  },
-  kind: {
-    ...typography.eyebrow,
-    color: colors.accent,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    ...typography.cardTitle,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.xs,
-  },
-  meta: {
     ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
-    marginBottom: spacing.xs,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  actionButton: {
-    ...liquidGlass.button,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  openButton: {
-    ...liquidGlass.buttonPrimary,
-  },
-  actionText: {
-    ...typography.caption,
+    color: colors.textInverse,
     fontWeight: '700',
-    color: liquidGlass.textOnGlass,
   },
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.xl,
+    gap: spacing.md,
   },
   emptyTitle: {
-    ...typography.sectionTitle,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.sm,
+    ...typography.title2,
+    color: colors.text,
   },
   emptyText: {
-    ...typography.body,
-    color: liquidGlass.subtleTextOnGlass,
+    ...typography.subheadline,
+    color: colors.textTertiary,
     textAlign: 'center',
   },
 });
 
 export default DownloadsScreen;
-

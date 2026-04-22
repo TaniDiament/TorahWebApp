@@ -1,26 +1,31 @@
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
 import AudioPlayer from '../components/AudioPlayer';
-import { colors, liquidGlass, radii, spacing, typography } from '../theme';
-import { GlassSurface } from '../components/ui/Glass';
+import { colors, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton } from '../components/ui/Glass';
+import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
 
 interface ContentScreenProps {
   content: Content;
 }
 
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
 const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
-  const showHeroImage = content.author.portraitUrl;
   const [downloading, setDownloading] = useState(false);
   const showDownload = canDownloadContent(content);
+  const artwork = content.author.portraitUrl;
 
   const onDownload = async () => {
-    if (downloading || !showDownload) {
-      return;
-    }
-
+    if (downloading || !showDownload) return;
     setDownloading(true);
     try {
       await downloadContent(content);
@@ -30,37 +35,42 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {showHeroImage ? (
-        <View style={styles.heroImageWrap}>
-          <Image source={{ uri: content.author.portraitUrl }} style={styles.heroImage} />
-          <View style={styles.heroImageOverlay} />
-        </View>
-      ) : (
-        <View style={styles.heroFallback} />
-      )}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}>
+      <View style={styles.heroBlock}>
+        {artwork ? (
+          <Image source={{ uri: artwork }} style={styles.artwork} />
+        ) : (
+          <View style={[styles.artwork, styles.artworkPlaceholder]} />
+        )}
 
-      <GlassSurface style={styles.titleBlock}>
-        <Text style={styles.authorLink}>{content.author.name}</Text>
-        <Text style={styles.title}>{content.title}</Text>
-        {'parshaLabel' in content && content.parshaLabel ? (
-          <Text style={styles.parshaTag}>{content.parshaLabel}</Text>
-        ) : null}
-        <Text style={styles.date}>
-          {new Date(content.publishedDate).toLocaleDateString()}
+        <Text style={styles.eyebrow}>
+          {isArticle(content) ? (content.parshaLabel ?? 'DIVREI TORAH') : isVideo(content) ? 'VIDEO' : 'AUDIO'}
         </Text>
+        <Text style={styles.title}>{content.title}</Text>
+        <Text style={styles.author}>{content.author.name}</Text>
+        <Text style={styles.date}>{formatDate(content.publishedDate)}</Text>
+
         {showDownload ? (
-          <TouchableOpacity
-            style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
-            onPress={onDownload}
-            disabled={downloading}
-            activeOpacity={0.85}>
-            <Text style={styles.downloadButtonText}>
-              {downloading ? 'DOWNLOADING...' : 'DOWNLOAD'}
+          <GlassButton
+            style={styles.downloadButton}
+            contentStyle={styles.downloadButtonInner}
+            cornerRadius={radii.pill}
+            tint="rgba(26, 58, 92, 0.92)"
+            onPress={onDownload}>
+            <Icon
+              name="arrow.down.circle.fill"
+              size={18}
+              color={colors.textInverse}
+            />
+            <Text style={styles.downloadText}>
+              {downloading ? 'Downloading…' : 'Download'}
             </Text>
-          </TouchableOpacity>
+          </GlassButton>
         ) : null}
-      </GlassSurface>
+      </View>
 
       {isVideo(content) ? (
         <View style={styles.playerWrap}>
@@ -92,18 +102,23 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
 
       {isArticle(content) ? (
         <View style={styles.articleBody}>
-          {content.excerpt ? <Text style={styles.excerpt}>{content.excerpt}</Text> : null}
+          {content.excerpt ? (
+            <Text style={styles.excerpt}>{content.excerpt}</Text>
+          ) : null}
           <Text style={styles.body}>{content.content}</Text>
         </View>
       ) : null}
 
       {content.topics.length > 0 ? (
-        <View style={styles.topicsRow}>
-          {content.topics.map((t) => (
-            <GlassSurface key={t.id} style={styles.topicChip}>
-              <Text style={styles.topicChipText}>{t.name}</Text>
-            </GlassSurface>
-          ))}
+        <View style={styles.topicsSection}>
+          <Text style={styles.topicsHeading}>Topics</Text>
+          <View style={styles.topicsRow}>
+            {content.topics.map((t) => (
+              <View key={t.id} style={styles.topicChip}>
+                <Text style={styles.topicChipText}>{t.name}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       ) : null}
     </ScrollView>
@@ -113,79 +128,77 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
-  heroImageWrap: {
-    width: '100%',
-    height: 200,
+  scrollContent: {
+    paddingTop: spacing.xxxl,
+    paddingBottom: spacing.xl,
+  },
+  heroBlock: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    alignItems: 'center',
+  },
+  artwork: {
+    width: '78%',
+    aspectRatio: 1,
+    borderRadius: radii.lg,
     backgroundColor: colors.navyDark,
+    marginBottom: spacing.xl,
+    ...shadows.elevated,
   },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  heroImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  heroFallback: {
-    width: '100%',
-    height: 120,
+  artworkPlaceholder: {
     backgroundColor: colors.navy,
   },
-  titleBlock: {
-    padding: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.45)',
-  },
-  authorLink: {
-    ...typography.caption,
-    color: colors.navy,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    lineHeight: 34,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.sm,
-  },
-  parshaTag: {
+  eyebrow: {
     ...typography.eyebrow,
-    color: colors.accent,
+    color: colors.navy,
     marginBottom: spacing.xs,
   },
+  title: {
+    ...typography.title1,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  author: {
+    ...typography.headline,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
   date: {
-    ...typography.caption,
-    color: colors.textMuted,
+    ...typography.subheadline,
+    color: colors.textTertiary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
   },
   downloadButton: {
-    marginTop: spacing.md,
-    alignSelf: 'flex-start',
-    ...liquidGlass.buttonPrimary,
     borderRadius: radii.pill,
+    marginBottom: spacing.lg,
+  },
+  downloadButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    borderRadius: radii.pill,
   },
-  downloadButtonDisabled: {
-    opacity: 0.6,
-  },
-  downloadButtonText: {
-    ...typography.eyebrow,
-    color: liquidGlass.textOnPrimaryGlass,
+  downloadText: {
+    ...typography.subheadline,
+    color: colors.textInverse,
+    fontWeight: '700',
   },
   playerWrap: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
   },
   articleBody: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   excerpt: {
-    ...typography.body,
+    ...typography.callout,
     fontStyle: 'italic',
     color: colors.textSecondary,
     borderLeftWidth: 3,
@@ -195,25 +208,33 @@ const styles = StyleSheet.create({
   },
   body: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: colors.text,
+    marginTop: spacing.md,
+  },
+  topicsSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  topicsHeading: {
+    ...typography.title3,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   topicsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   topicChip: {
-    ...liquidGlass.chip,
-    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: radii.sm,
-    marginRight: spacing.sm,
-    marginTop: spacing.sm,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceTint,
   },
   topicChipText: {
-    ...typography.caption,
-    color: liquidGlass.textOnGlass,
+    ...typography.footnote,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
 

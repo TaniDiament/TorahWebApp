@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
-import { GlassButton, GlassSurface } from './ui/Glass';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton } from './ui/Glass';
+import Icon from './ui/Icon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
 
 interface AudioPlayerProps {
@@ -22,12 +23,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const { currentTrack, isPlaying, playTrack, togglePlayPause, expand } = useAudioPlayer();
 
   const isCurrent = currentTrack?.id === audioId;
-
-  const actionLabel = useMemo(() => {
-    if (!isCurrent) {
-      return 'PLAY';
-    }
-    return isPlaying ? 'PAUSE' : 'RESUME';
+  const playLabel = useMemo(() => {
+    if (!isCurrent) return 'Play';
+    return isPlaying ? 'Pause' : 'Resume';
   }, [isCurrent, isPlaying]);
 
   const onPrimaryAction = async () => {
@@ -35,7 +33,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       await togglePlayPause();
       return;
     }
-
     await playTrack({
       id: audioId,
       url: audioUrl,
@@ -46,89 +43,84 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   return (
-    <GlassSurface style={styles.container}>
-      <Text style={styles.eyebrow}>PLAY AUDIO ONLY</Text>
-      <Text style={styles.title} numberOfLines={3}>
-        {title}
-      </Text>
-      <View style={styles.controlsRow}>
+    <View style={styles.container}>
+      <View style={styles.row}>
         <GlassButton
           style={styles.playButton}
           contentStyle={styles.playButtonInner}
+          cornerRadius={radii.pill}
+          tint="rgba(26, 58, 92, 0.94)"
           onPress={onPrimaryAction}>
-          <Text style={styles.playButtonText}>{actionLabel}</Text>
+          <Icon
+            name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
+            size={18}
+            color={colors.textInverse}
+          />
+          <Text style={styles.playText}>{playLabel}</Text>
         </GlassButton>
-        <GlassButton
-          style={styles.queueButton}
-          contentStyle={styles.queueButtonInner}
-          onPress={expand}
-          disabled={!currentTrack}>
-          <Text style={styles.queueButtonText}>NOW PLAYING</Text>
-        </GlassButton>
+        {currentTrack ? (
+          <Pressable
+            onPress={expand}
+            style={({ pressed }) => [
+              styles.queueButton,
+              pressed && { opacity: 0.7 },
+            ]}>
+            <Text style={styles.queueText}>Now Playing</Text>
+            <Icon name="chevron.right" size={14} color={colors.navy} />
+          </Pressable>
+        ) : null}
       </View>
       {!currentTrack ? (
-        <Text style={styles.hintText}>The mini player will stay active while you navigate.</Text>
+        <Text style={styles.hint}>The mini player will stay active while you browse.</Text>
       ) : null}
-    </GlassSurface>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    ...liquidGlass.surface,
-    padding: spacing.xl,
+    backgroundColor: colors.surface,
     borderRadius: radii.md,
-    alignItems: 'center',
+    padding: spacing.lg,
     ...shadows.card,
   },
-  eyebrow: {
-    ...typography.eyebrow,
-    color: colors.accent,
-    marginBottom: spacing.sm,
-  },
-  title: {
-    ...typography.cardTitle,
-    color: liquidGlass.textOnGlass,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   playButton: {
     borderRadius: radii.pill,
   },
   playButtonInner: {
-    ...liquidGlass.buttonPrimary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    gap: spacing.sm,
     borderRadius: radii.pill,
   },
-  playButtonText: {
-    color: liquidGlass.textOnPrimaryGlass,
+  playText: {
+    ...typography.headline,
+    color: colors.textInverse,
     fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
   },
   queueButton: {
-    borderRadius: radii.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
-  queueButtonInner: {
-    ...liquidGlass.button,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.pill,
+  queueText: {
+    ...typography.subheadline,
+    color: colors.navy,
+    fontWeight: '600',
   },
-  queueButtonText: {
-    ...typography.caption,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
-  },
-  hintText: {
+  hint: {
+    ...typography.footnote,
+    color: colors.textTertiary,
     marginTop: spacing.md,
-    ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
-    textAlign: 'center',
   },
 });
 

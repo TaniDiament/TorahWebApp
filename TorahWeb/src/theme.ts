@@ -1,17 +1,41 @@
 import { Platform } from 'react-native';
 
+const isiOS = Platform.OS === 'ios';
+
 export const colors = {
   navy: '#1a3a5c',
   navyDark: '#122a44',
   navyLight: '#2b5480',
-  accent: '#c49a3f',
-  textPrimary: '#222222',
-  textSecondary: '#555555',
-  textMuted: '#888888',
-  background: '#f5f5f5',
+  accent: '#1a3a5c',
+
+  text: '#0a0a0a',
+  textPrimary: '#0a0a0a',
+  textSecondary: '#3c3c43',
+  textTertiary: 'rgba(60, 60, 67, 0.6)',
+  textMuted: 'rgba(60, 60, 67, 0.45)',
+  textInverse: '#ffffff',
+
+  background: '#f2f2f7',
+  groupedBackground: '#f2f2f7',
   surface: '#ffffff',
-  border: '#e0e0e0',
-  overlay: 'rgba(26, 58, 92, 0.82)',
+  surfaceElevated: '#ffffff',
+  surfaceTint: 'rgba(118, 118, 128, 0.08)',
+
+  separator: 'rgba(60, 60, 67, 0.18)',
+  hairline: 'rgba(60, 60, 67, 0.12)',
+  border: 'rgba(60, 60, 67, 0.12)',
+
+  destructive: '#ff3b30',
+  success: '#34c759',
+
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  scrim: 'rgba(0, 0, 0, 0.18)',
+
+  androidSurface: '#ffffff',
+  androidSurfaceContainer: '#eef0f5',
+  androidSurfaceContainerHigh: '#e7eaf1',
+  androidPrimaryContainer: '#dbe6f3',
+  androidOnPrimaryContainer: '#0b2742',
 } as const;
 
 export const spacing = {
@@ -21,140 +45,118 @@ export const spacing = {
   lg: 16,
   xl: 24,
   xxl: 32,
+  xxxl: 48,
 } as const;
 
 export const radii = {
-  sm: 4,
-  md: 8,
-  lg: 12,
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 22,
+  xl: 28,
   pill: 999,
 } as const;
 
 export const typography = {
-  heroTitle: { fontSize: 34, fontWeight: '700' as const, letterSpacing: 0.3 },
-  sectionTitle: { fontSize: 22, fontWeight: '700' as const },
-  cardTitle: { fontSize: 17, fontWeight: '600' as const, lineHeight: 24 },
-  body: { fontSize: 16, lineHeight: 26, fontWeight: '400' as const },
-  caption: { fontSize: 13, fontWeight: '500' as const },
-  eyebrow: { fontSize: 12, fontWeight: '700' as const, letterSpacing: 1.2 },
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: '800' as const,
+    letterSpacing: 0.37,
+    lineHeight: 41,
+  },
+  title1: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    letterSpacing: 0.36,
+    lineHeight: 34,
+  },
+  title2: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    letterSpacing: 0.35,
+    lineHeight: 28,
+  },
+  title3: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    letterSpacing: 0.38,
+    lineHeight: 25,
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    letterSpacing: -0.41,
+    lineHeight: 22,
+  },
+  body: {
+    fontSize: 17,
+    fontWeight: '400' as const,
+    letterSpacing: -0.41,
+    lineHeight: 24,
+  },
+  callout: {
+    fontSize: 16,
+    fontWeight: '400' as const,
+    letterSpacing: -0.31,
+    lineHeight: 22,
+  },
+  subheadline: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+    letterSpacing: -0.24,
+    lineHeight: 20,
+  },
+  footnote: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    letterSpacing: -0.08,
+    lineHeight: 18,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    letterSpacing: 0,
+    lineHeight: 16,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+    lineHeight: 14,
+  },
 } as const;
 
 export const shadows = {
+  none: {
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 2,
   },
   elevated: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  floating: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 18,
   },
 } as const;
 
-const isiOS = Platform.OS === 'ios';
-
-export const liquidGlass = {
-  blurType: (isiOS ? 'ultraThinMaterialLight' : 'light') as 'ultraThinMaterialLight' | 'light',
-  blurAmount: isiOS ? 26 : 0,
-  overlay: isiOS ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
-  fallbackFill: '#f2f6fc',
-  header: isiOS
-    ? {
-        backgroundColor: 'rgba(248, 251, 255, 0.74)',
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.5)',
-        shadowColor: '#0b1d2f',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 18,
-      }
-    : {
-        backgroundColor: colors.navy,
-      },
-  surface: isiOS
-    ? {
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.45)',
-        shadowColor: '#0b1d2f',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 18,
-      }
-    : {
-        backgroundColor: colors.surface,
-      },
-  button: isiOS
-    ? {
-        backgroundColor: 'rgba(255, 255, 255, 0.26)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.52)',
-        shadowColor: '#0b1d2f',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-      }
-    : {
-        backgroundColor: colors.navy,
-      },
-  buttonPrimary: isiOS
-    ? {
-        backgroundColor: 'rgba(29, 74, 117, 0.8)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.35)',
-        shadowColor: '#0b1d2f',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.18,
-        shadowRadius: 20,
-      }
-    : {
-        backgroundColor: colors.navy,
-      },
-  buttonDestructive: isiOS
-    ? {
-        backgroundColor: 'rgba(176, 0, 32, 0.18)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 108, 130, 0.35)',
-        shadowColor: '#5e0014',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 16,
-      }
-    : {
-        backgroundColor: '#b00020',
-      },
-  chip: isiOS
-    ? {
-        backgroundColor: 'rgba(255, 255, 255, 0.34)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.42)',
-      }
-    : {
-        backgroundColor: colors.navy,
-      },
-  input: isiOS
-    ? {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.62)',
-        shadowColor: '#0b1d2f',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-      }
-    : {
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.navy,
-      },
-  textOnGlass: isiOS ? '#0f243b' : colors.surface,
-  textOnPrimaryGlass: colors.surface,
-  subtleTextOnGlass: isiOS ? 'rgba(15, 36, 59, 0.8)' : colors.textSecondary,
-  destructiveTextOnGlass: isiOS ? '#8f001c' : colors.surface,
+export const fonts = {
+  display: isiOS ? 'System' : 'sans-serif',
+  text: isiOS ? 'System' : 'sans-serif',
 } as const;
-

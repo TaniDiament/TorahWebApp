@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +12,9 @@ import { api } from '../services/api';
 import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
-import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
 import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
 
 interface HomeScreenProps {
@@ -49,7 +51,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         const [a, t, r] = await Promise.all([
           api.getAuthors(),
           api.getTopics(),
-          api.getRecent(4),
+          api.getRecent(6),
         ]);
         if (cancelled) return;
         setAuthors(a);
@@ -75,23 +77,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-      <GlassSurface style={styles.hero}>
-        <Text style={styles.heroBrand}>TorahWeb</Text>
-        <Text style={styles.heroSubtitle}>
-          Divrei Torah, videos, and events with special attention to contemporary
-          religious and social issues
-        </Text>
-        <GlassButton
-          style={styles.heroCta}
-          contentStyle={styles.heroCtaInner}
-          onPress={onSearchPress}>
-          <Text style={styles.heroCtaText}>SUBSCRIBE. FREE!</Text>
-        </GlassButton>
-      </GlassSurface>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}>
+      <View style={styles.titleBlock}>
+        <Text style={styles.largeTitle}>TorahWeb</Text>
+        <Text style={styles.subtitle}>Divrei Torah, shiurim, and video.</Text>
+      </View>
 
-      <SectionHeader lead="Most" highlight="Recent" />
+      <View style={styles.quickRow}>
+        <QuickChip label="Audio" icon="waveform" onPress={onAudioPress} />
+        <QuickChip label="Video" icon="video.fill" onPress={onVideoPress} />
+        <QuickChip label="Newest" icon="sparkles" onPress={onNewestPress} />
+        <QuickChip label="Library" icon="rectangle.stack.fill" onPress={onDownloadsPress} />
+      </View>
+
+      <SectionHeader title="Recently Added" actionLabel="See All" onAction={onNewestPress} />
       <View style={styles.sectionBody}>
         {recent.map((article) => (
           <ArticleCard
@@ -109,7 +111,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         ))}
       </View>
 
-      <SectionHeader lead="Explore Our" highlight="Torah" />
+      <SectionHeader title="Topics" />
       <View style={styles.sectionBody}>
         {topics.map((topic) => (
           <TopicButton
@@ -120,70 +122,63 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         ))}
       </View>
 
-      <SectionHeader
-        lead="Our"
-        highlight="Authors & Speakers"
-        subtitle="(alphabetical order)"
-      />
-      <View style={[styles.sectionBody, styles.authorsGrid]}>
+      <SectionHeader title="Speakers" subtitle="Alphabetical" />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.speakerRow}>
         {authors.map((author) => (
           <AuthorButton
             key={author.id}
             author={author}
             onPress={() => onAuthorPress(author)}
+            variant="circle"
           />
         ))}
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          © {new Date().getFullYear()} TorahWeb Foundation. All Rights Reserved.
+          © {new Date().getFullYear()} TorahWeb Foundation
         </Text>
       </View>
-      </ScrollView>
-
-      <GlassSurface style={styles.quickLinksRow}>
-        <GlassButton
-          style={styles.quickLinkButton}
-          contentStyle={styles.quickLinkButtonInner}
-          onPress={onAudioPress}>
-          <Text style={styles.quickLinkText}>Audio</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.quickLinkButton}
-          contentStyle={styles.quickLinkButtonInner}
-          onPress={onVideoPress}>
-          <Text style={styles.quickLinkText}>Video</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.quickLinkButton}
-          contentStyle={styles.quickLinkButtonInner}
-          onPress={onNewestPress}>
-          <Text style={styles.quickLinkText}>Newest</Text>
-        </GlassButton>
-        <GlassButton
-          style={styles.quickLinkButton}
-          contentStyle={styles.quickLinkButtonInner}
-          onPress={onDownloadsPress}>
-          <Text style={styles.quickLinkText}>Downloads</Text>
-        </GlassButton>
-      </GlassSurface>
-    </View>
+    </ScrollView>
   );
 };
 
-const SectionHeader: React.FC<{ lead: string; highlight: string; subtitle?: string }> = ({
-  lead,
-  highlight,
-  subtitle,
-}) => (
+const SectionHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}> = ({ title, subtitle, actionLabel, onAction }) => (
   <View style={styles.sectionHeader}>
-    <Text style={styles.sectionLead}>
-      {lead} <Text style={styles.sectionHighlight}>{highlight}</Text>
-    </Text>
-    {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
-    <View style={styles.sectionRule} />
+    <View style={styles.sectionHeaderText}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+    </View>
+    {actionLabel && onAction ? (
+      <Pressable onPress={onAction} hitSlop={8}>
+        <Text style={styles.sectionAction}>{actionLabel}</Text>
+      </Pressable>
+    ) : null}
   </View>
+);
+
+const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }> = ({
+  label,
+  icon,
+  onPress,
+}) => (
+  <GlassButton
+    style={styles.quickChip}
+    contentStyle={styles.quickChipInner}
+    cornerRadius={radii.pill}
+    variant="regular"
+    onPress={onPress}>
+    <Icon name={icon} size={16} color={colors.text} />
+    <Text style={styles.quickChipText}>{label}</Text>
+  </GlassButton>
 );
 
 const styles = StyleSheet.create({
@@ -191,11 +186,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scroll: {
-    flex: 1,
-  },
   scrollContent: {
-    paddingBottom: 40,
+    paddingTop: spacing.xxl,
   },
   loadingContainer: {
     flex: 1,
@@ -203,103 +195,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  hero: {
-    ...liquidGlass.surface,
-    paddingVertical: 48,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    margin: spacing.lg,
-    marginBottom: 0,
-    borderRadius: radii.lg,
-  },
-  heroBrand: {
-    ...typography.heroTitle,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.md,
-  },
-  heroSubtitle: {
-    color: liquidGlass.subtleTextOnGlass,
-    textAlign: 'center',
-    opacity: 0.92,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: spacing.xl,
-  },
-  heroCta: {
-    borderRadius: radii.pill,
-  },
-  heroCtaInner: {
-    ...liquidGlass.buttonPrimary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xxl,
-    borderRadius: radii.pill,
-  },
-  heroCtaText: {
-    ...typography.eyebrow,
-    color: liquidGlass.textOnPrimaryGlass,
-  },
-  sectionHeader: {
+  titleBlock: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  sectionLead: {
-    ...typography.sectionTitle,
-    color: colors.textPrimary,
+  largeTitle: {
+    ...typography.largeTitle,
+    color: colors.text,
   },
-  sectionHighlight: {
-    color: colors.navy,
+  subtitle: {
+    ...typography.subheadline,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
+  },
+  quickChip: {
+    borderRadius: radii.pill,
+  },
+  quickChipInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    gap: 6,
+    borderRadius: radii.pill,
+  },
+  quickChipText: {
+    ...typography.footnote,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionTitle: {
+    ...typography.title2,
+    color: colors.text,
   },
   sectionSubtitle: {
-    marginTop: spacing.xs,
-    ...typography.caption,
-    color: colors.textMuted,
+    ...typography.footnote,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
-  sectionRule: {
-    marginTop: spacing.sm,
-    height: 2,
-    width: 48,
-    backgroundColor: colors.accent,
+  sectionAction: {
+    ...typography.subheadline,
+    color: colors.navy,
+    fontWeight: '600',
   },
   sectionBody: {
     paddingHorizontal: spacing.lg,
   },
-  authorsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickLinksRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  speakerRow: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    ...liquidGlass.surface,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.45)',
-  },
-  quickLinkButton: {
-    width: '48%',
-    borderRadius: radii.pill,
-  },
-  quickLinkButtonInner: {
-    ...liquidGlass.button,
-    paddingVertical: spacing.md,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-  },
-  quickLinkText: {
-    ...typography.eyebrow,
-    color: liquidGlass.textOnGlass,
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
   footer: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
   },
   footerText: {
-    ...typography.caption,
-    color: colors.textMuted,
+    ...typography.footnote,
+    color: colors.textTertiary,
   },
 });
 

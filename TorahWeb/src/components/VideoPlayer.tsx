@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { colors, liquidGlass, radii, typography } from '../theme';
+import { colors, radii, typography } from '../theme';
 import { GlassButton } from './ui/Glass';
 
 interface VideoPlayerProps {
@@ -56,9 +56,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
         <GlassButton
           style={styles.openButton}
           contentStyle={styles.openButtonInner}
+          cornerRadius={radii.pill}
+          tint="rgba(26, 58, 92, 0.92)"
           onPress={() => Linking.openURL(embedUrl)}
         >
-          <Text style={styles.openButtonText}>OPEN IN BROWSER</Text>
+          <Text style={styles.openButtonText}>Open in Browser</Text>
         </GlassButton>
       </View>
     );
@@ -102,17 +104,17 @@ const styles = StyleSheet.create({
   openButton: {
     alignSelf: 'center',
     marginTop: 16,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
   },
   openButtonInner: {
-    ...liquidGlass.button,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
   },
   openButtonText: {
-    ...typography.eyebrow,
-    color: liquidGlass.textOnGlass,
+    ...typography.subheadline,
+    color: colors.textInverse,
+    fontWeight: '700',
   },
 });
 

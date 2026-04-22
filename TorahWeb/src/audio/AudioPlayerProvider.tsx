@@ -15,15 +15,20 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import TrackPlayer, { AppKilledPlaybackBehavior, Capability, Event, State } from 'react-native-track-player';
+import TrackPlayer, {
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  State,
+} from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
+import Icon from '../components/ui/Icon';
 
-const MINI_PLAYER_BOTTOM_OFFSET = 82;
+const TAB_BAR_CLEARANCE = 90;
 
 export interface AudioTrackPayload {
   id: string;
@@ -51,9 +56,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextValue | undefined>(un
 let didSetupPlayer = false;
 
 const ensurePlayer = async () => {
-  if (didSetupPlayer) {
-    return;
-  }
+  if (didSetupPlayer) return;
 
   await TrackPlayer.setupPlayer();
   await TrackPlayer.updateOptions({
@@ -98,7 +101,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const sub = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
       setIsPlaying(event.state === State.Playing);
     });
-
     return () => {
       sub.remove();
     };
@@ -118,7 +120,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setProgress(position || 0);
         setDuration(nextDuration || 0);
       } catch {
-        // Ignore polling errors when player is transitioning.
+        /* ignore */
       }
     }, 1000);
 
@@ -147,10 +149,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const togglePlayPause = useCallback(async () => {
-    if (!currentTrack) {
-      return;
-    }
-
+    if (!currentTrack) return;
     await ensurePlayer();
     const state = await TrackPlayer.getState();
     if (state === State.Playing) {
@@ -158,28 +157,25 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsPlaying(false);
       return;
     }
-
     await TrackPlayer.play();
     setIsPlaying(true);
   }, [currentTrack]);
 
-  const seekBy = useCallback(async (deltaSeconds: number) => {
-    if (!currentTrack) {
-      return;
-    }
-
-    await ensurePlayer();
-    const current = await TrackPlayer.getPosition();
-    const max = (await TrackPlayer.getDuration()) || duration;
-    const next = Math.max(0, Math.min(max || Number.MAX_SAFE_INTEGER, current + deltaSeconds));
-    await TrackPlayer.seekTo(next);
-    setProgress(next);
-  }, [currentTrack, duration]);
+  const seekBy = useCallback(
+    async (deltaSeconds: number) => {
+      if (!currentTrack) return;
+      await ensurePlayer();
+      const current = await TrackPlayer.getPosition();
+      const max = (await TrackPlayer.getDuration()) || duration;
+      const next = Math.max(0, Math.min(max || Number.MAX_SAFE_INTEGER, current + deltaSeconds));
+      await TrackPlayer.seekTo(next);
+      setProgress(next);
+    },
+    [currentTrack, duration],
+  );
 
   const expand = useCallback(() => {
-    if (!currentTrack) {
-      return;
-    }
+    if (!currentTrack) return;
     setIsExpanded(true);
   }, [currentTrack]);
 
@@ -216,7 +212,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             collapse();
             return;
           }
-
           Animated.spring(translateY, {
             toValue: 0,
             useNativeDriver: true,
@@ -250,29 +245,58 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <AudioPlayerContext.Provider value={value}>
       <View style={styles.root}>
         {children}
+
         {currentTrack ? (
           <Pressable
+            onPress={expand}
             style={[
               styles.miniWrap,
-              { bottom: MINI_PLAYER_BOTTOM_OFFSET + Math.max(insets.bottom, spacing.sm) },
-            ]}
-            onPress={expand}>
-            <GlassSurface style={styles.miniPlayer}>
+              { bottom: TAB_BAR_CLEARANCE + Math.max(insets.bottom, 8) },
+            ]}>
+            <GlassSurface
+              variant="prominent"
+              cornerRadius={radii.lg}
+              style={styles.miniPlayer}>
               {currentTrack.artworkUrl ? (
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.miniArtwork} />
               ) : (
-                <View style={[styles.miniArtwork, styles.miniArtworkPlaceholder]} />
+                <View style={[styles.miniArtwork, styles.miniArtworkPlaceholder]}>
+                  <Icon name="waveform" size={20} color={colors.textInverse} />
+                </View>
               )}
               <View style={styles.miniTextWrap}>
                 <Text numberOfLines={1} style={styles.miniTitle}>{currentTrack.title}</Text>
                 <Text numberOfLines={1} style={styles.miniArtist}>{currentTrack.artist}</Text>
               </View>
-              <TouchableOpacity style={styles.miniAction} onPress={togglePlayPause} disabled={loading}>
-                <Text style={styles.miniActionText}>{isPlaying ? '||' : '>'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.miniAction} onPress={close}>
-                <Text style={styles.miniActionText}>x</Text>
-              </TouchableOpacity>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  togglePlayPause();
+                }}
+                disabled={loading}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.miniIconButton,
+                  pressed && { opacity: 0.6 },
+                ]}>
+                <Icon
+                  name={isPlaying ? 'pause.fill' : 'play.fill'}
+                  size={22}
+                  color={colors.text}
+                />
+              </Pressable>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  close();
+                }}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.miniIconButton,
+                  pressed && { opacity: 0.6 },
+                ]}>
+                <Icon name="xmark" size={18} color={colors.textTertiary} />
+              </Pressable>
               <View style={styles.miniProgressTrack}>
                 <View style={[styles.miniProgressFill, { width: `${progressRatio * 100}%` }]} />
               </View>
@@ -284,42 +308,81 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           <Animated.View
             style={[styles.sheetOverlay, { transform: [{ translateY }] }]}
             {...panResponder.panHandlers}>
-            <GlassSurface style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+            <GlassSurface
+              variant="prominent"
+              cornerRadius={radii.xl}
+              style={[
+                styles.sheet,
+                { paddingBottom: Math.max(insets.bottom, spacing.lg) },
+              ]}>
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeader}>
-                <Text style={styles.sheetHeaderText}>Now Playing</Text>
-                <TouchableOpacity onPress={collapse}>
-                  <Text style={styles.sheetClose}>Done</Text>
-                </TouchableOpacity>
+                <Text style={styles.sheetEyebrow}>Now Playing</Text>
+                <Pressable onPress={collapse} hitSlop={8}>
+                  <Icon name="chevron.down" size={22} color={colors.text} />
+                </Pressable>
               </View>
+
               {currentTrack?.artworkUrl ? (
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.sheetArtwork} />
               ) : (
-                <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]} />
+                <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]}>
+                  <Icon name="waveform" size={64} color={colors.textInverse} />
+                </View>
               )}
+
               <Text numberOfLines={2} style={styles.sheetTitle}>{currentTrack?.title}</Text>
               <Text numberOfLines={1} style={styles.sheetArtist}>{currentTrack?.artist}</Text>
+
               <View style={styles.sheetProgressTrack}>
                 <View style={[styles.sheetProgressFill, { width: `${progressRatio * 100}%` }]} />
               </View>
               <View style={styles.sheetTimeRow}>
                 <Text style={styles.sheetTime}>{formatClock(progress)}</Text>
-                <Text style={styles.sheetTime}>{formatClock(duration)}</Text>
+                <Text style={styles.sheetTime}>-{formatClock(Math.max(0, duration - progress))}</Text>
               </View>
+
               <View style={styles.controlsRow}>
-                <TouchableOpacity style={styles.circleButton} onPress={() => seekBy(-15)}>
-                  <Text style={styles.circleText}>-15</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.circleButton, styles.playButton]} onPress={togglePlayPause}>
-                  <Text style={[styles.circleText, styles.playText]}>{isPlaying ? 'Pause' : 'Play'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.circleButton} onPress={() => seekBy(30)}>
-                  <Text style={styles.circleText}>+30</Text>
-                </TouchableOpacity>
+                <Pressable
+                  onPress={() => seekBy(-15)}
+                  style={({ pressed }) => [
+                    styles.skipButton,
+                    pressed && { opacity: 0.6 },
+                  ]}>
+                  <Icon name="gobackward.15" size={32} color={colors.text} />
+                </Pressable>
+
+                <Pressable
+                  onPress={togglePlayPause}
+                  style={({ pressed }) => [
+                    styles.playButton,
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+                  ]}>
+                  <Icon
+                    name={isPlaying ? 'pause.fill' : 'play.fill'}
+                    size={42}
+                    color={colors.textInverse}
+                  />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => seekBy(30)}
+                  style={({ pressed }) => [
+                    styles.skipButton,
+                    pressed && { opacity: 0.6 },
+                  ]}>
+                  <Icon name="goforward.30" size={32} color={colors.text} />
+                </Pressable>
               </View>
-              <TouchableOpacity style={styles.closeTrackButton} onPress={close}>
-                <Text style={styles.closeTrackText}>Close Player</Text>
-              </TouchableOpacity>
+
+              <Pressable
+                onPress={close}
+                style={({ pressed }) => [
+                  styles.closeRow,
+                  pressed && { opacity: 0.6 },
+                ]}>
+                <Text style={styles.closeText}>Stop and Close</Text>
+              </Pressable>
             </GlassSurface>
           </Animated.View>
         </Modal>
@@ -342,186 +405,160 @@ const styles = StyleSheet.create({
   },
   miniWrap: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+    left: spacing.lg,
+    right: spacing.lg,
   },
   miniPlayer: {
-    ...liquidGlass.surface,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.lg,
+    overflow: 'hidden',
   },
   miniArtwork: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: radii.sm,
-    backgroundColor: 'rgba(26, 58, 92, 0.24)',
+    backgroundColor: colors.navyDark,
   },
   miniArtworkPlaceholder: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  miniTextWrap: {
-    flex: 1,
-    marginHorizontal: spacing.sm,
-  },
-  miniTitle: {
-    ...typography.caption,
-    fontSize: 14,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
-  },
-  miniArtist: {
-    ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
-  },
-  miniAction: {
-    ...liquidGlass.button,
-    marginLeft: spacing.xs,
-    width: 34,
-    height: 34,
-    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  miniActionText: {
-    ...typography.caption,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
+  miniTextWrap: {
+    flex: 1,
+    marginHorizontal: spacing.md,
+  },
+  miniTitle: {
+    ...typography.subheadline,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  miniArtist: {
+    ...typography.footnote,
+    color: colors.textTertiary,
+    marginTop: 1,
+  },
+  miniIconButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   miniProgressTrack: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 3,
-    backgroundColor: 'rgba(26, 58, 92, 0.1)',
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
-    overflow: 'hidden',
+    height: 2,
+    backgroundColor: 'rgba(60, 60, 67, 0.12)',
   },
   miniProgressFill: {
     height: '100%',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.navy,
   },
   sheetOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(6, 16, 28, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
   },
   sheet: {
-    ...liquidGlass.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
     paddingTop: spacing.md,
     paddingHorizontal: spacing.xl,
-    minHeight: '82%',
+    minHeight: '88%',
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
   },
   sheetHandle: {
     alignSelf: 'center',
     width: 44,
     height: 5,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(15, 36, 59, 0.25)',
-    marginBottom: spacing.md,
+    backgroundColor: 'rgba(60, 60, 67, 0.28)',
+    marginBottom: spacing.lg,
   },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  sheetHeaderText: {
+  sheetEyebrow: {
     ...typography.eyebrow,
-    color: liquidGlass.subtleTextOnGlass,
-  },
-  sheetClose: {
-    ...typography.caption,
-    color: colors.navy,
-    fontWeight: '700',
+    color: colors.textSecondary,
   },
   sheetArtwork: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: radii.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: 'rgba(26, 58, 92, 0.2)',
+    marginBottom: spacing.xl,
+    backgroundColor: colors.navyDark,
   },
   sheetArtworkPlaceholder: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetTitle: {
-    ...typography.sectionTitle,
-    color: liquidGlass.textOnGlass,
+    ...typography.title2,
+    color: colors.text,
     marginBottom: spacing.xs,
   },
   sheetArtist: {
     ...typography.body,
-    color: liquidGlass.subtleTextOnGlass,
-    marginBottom: spacing.lg,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
   },
   sheetProgressTrack: {
-    height: 5,
+    height: 6,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(26, 58, 92, 0.14)',
+    backgroundColor: 'rgba(60, 60, 67, 0.18)',
     overflow: 'hidden',
-    marginBottom: spacing.xs,
   },
   sheetProgressFill: {
     height: '100%',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.navy,
+    borderRadius: radii.pill,
   },
   sheetTimeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginTop: 6,
+    marginBottom: spacing.xl,
   },
   sheetTime: {
-    ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
+    ...typography.footnote,
+    color: colors.textTertiary,
   },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.xl,
+    marginBottom: spacing.xl,
   },
-  circleButton: {
-    ...liquidGlass.button,
-    width: 76,
-    height: 76,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
+  skipButton: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   playButton: {
-    ...liquidGlass.buttonPrimary,
     width: 92,
     height: 92,
+    borderRadius: 46,
+    backgroundColor: colors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  circleText: {
-    ...typography.caption,
-    color: liquidGlass.textOnGlass,
-    fontWeight: '700',
-  },
-  playText: {
-    color: liquidGlass.textOnPrimaryGlass,
-  },
-  closeTrackButton: {
+  closeRow: {
     alignSelf: 'center',
-    ...liquidGlass.buttonDestructive,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  closeTrackText: {
-    ...typography.caption,
-    color: liquidGlass.destructiveTextOnGlass,
-    fontWeight: '700',
+  closeText: {
+    ...typography.subheadline,
+    color: colors.destructive,
+    fontWeight: '600',
   },
 });
-

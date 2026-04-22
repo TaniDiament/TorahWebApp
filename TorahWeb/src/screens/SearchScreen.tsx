@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -10,8 +11,9 @@ import {
 import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
-import { colors, liquidGlass, radii, spacing, typography } from '../theme';
-import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import { colors, radii, spacing, typography } from '../theme';
+import { GlassSurface } from '../components/ui/Glass';
+import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
 
 interface SearchScreenProps {
@@ -24,6 +26,13 @@ interface SearchScreenProps {
 }
 
 type Filter = ContentType | 'all';
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'article', label: 'Divrei Torah' },
+  { id: 'video', label: 'Video' },
+  { id: 'audio', label: 'Audio' },
+];
 
 const SearchScreen: React.FC<SearchScreenProps> = ({
   initialAuthorId,
@@ -83,161 +92,175 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
     };
   }, [query, filter, initialAuthorId, initialTopicSlug, showAllOnMount]);
 
-  const renderFilter = (f: Filter, label: string) => (
-    <GlassButton
-      key={f}
-      style={[styles.filterButton, filter === f && styles.filterButtonActive]}
-      contentStyle={[
-        styles.filterButtonInner,
-        filter === f && styles.filterButtonInnerActive,
-      ]}
-      onPress={() => setFilter(f)}>
-      <Text
-        style={[
-          styles.filterButtonText,
-          filter === f && styles.filterButtonTextActive,
-        ]}>
-        {label}
-      </Text>
-    </GlassButton>
-  );
-
   return (
     <View style={styles.container}>
-      {headerTitle ? (
-        <GlassSurface style={styles.pageHeader}>
-          <Text style={styles.pageHeaderText}>{headerTitle}</Text>
-        </GlassSurface>
-      ) : null}
+      <FlatList
+        data={results}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.largeTitle}>{headerTitle ?? 'Search'}</Text>
+            <GlassSurface
+              variant="regular"
+              cornerRadius={radii.md}
+              style={styles.searchBox}>
+              <View style={styles.searchInner}>
+                <Icon name="magnifyingglass" size={18} color={colors.textTertiary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Shiurim, speakers, parshiyot…"
+                  placeholderTextColor={colors.textTertiary}
+                  value={query}
+                  onChangeText={setQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+                {query.length > 0 ? (
+                  <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                    <Icon name="xmark" size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ) : null}
+              </View>
+            </GlassSurface>
 
-      <GlassSurface style={styles.searchBox}>
-        <TextInput
-          style={styles.input}
-          placeholder="Search divrei Torah, shiurim, speakers…"
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </GlassSurface>
-
-      <GlassSurface style={styles.filters}>
-        {renderFilter('all', 'All')}
-        {renderFilter('article', 'Divrei Torah')}
-        {renderFilter('video', 'Video')}
-        {renderFilter('audio', 'Audio')}
-      </GlassSurface>
-
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.navy} />
-        </View>
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <ArticleCard
-              content={item}
-              onPress={() => onContentSelect(item)}
-              onDownloadPress={
-                canDownloadContent(item)
-                  ? async () => {
-                      await downloadContent(item);
-                    }
-                  : undefined
-              }
-            />
-          )}
-          ListEmptyComponent={
+            <View style={styles.filterRow}>
+              {FILTERS.map((f) => (
+                <FilterChip
+                  key={f.id}
+                  label={f.label}
+                  active={filter === f.id}
+                  onPress={() => setFilter(f.id)}
+                />
+              ))}
+            </View>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ArticleCard
+            content={item}
+            onPress={() => onContentSelect(item)}
+            onDownloadPress={
+              canDownloadContent(item)
+                ? async () => {
+                    await downloadContent(item);
+                  }
+                : undefined
+            }
+          />
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" color={colors.navy} />
+            </View>
+          ) : (
             <View style={styles.empty}>
+              <Icon name="magnifyingglass" size={48} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {query.length > 0
-                  ? 'No results.'
-                  : 'Browse by author, topic, or start typing to search.'}
+                {query.length > 0 ? 'No results.' : 'Search by author, topic, or keyword.'}
               </Text>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
     </View>
   );
 };
+
+const FilterChip: React.FC<{
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}> = ({ label, active, onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.chip,
+      active && styles.chipActive,
+      pressed && { opacity: 0.7 },
+    ]}>
+    <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+  </Pressable>
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  pageHeader: {
-    ...liquidGlass.header,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
+  list: {
+    paddingTop: spacing.xxxl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
-  pageHeaderText: {
-    ...typography.sectionTitle,
-    color: liquidGlass.textOnGlass,
+  header: {
+    marginBottom: spacing.md,
+  },
+  largeTitle: {
+    ...typography.largeTitle,
+    color: colors.text,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   searchBox: {
-    padding: spacing.lg,
-    ...liquidGlass.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.45)',
+    height: 44,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  searchInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
   input: {
-    height: 46,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.lg,
-    fontSize: 15,
-    color: colors.textPrimary,
-    ...liquidGlass.input,
+    flex: 1,
+    ...typography.body,
+    color: colors.text,
+    padding: 0,
   },
-  filters: {
+  filterRow: {
     flexDirection: 'row',
-    ...liquidGlass.surface,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
-  filterButton: {
-    borderRadius: radii.sm,
-    marginRight: spacing.sm,
-  },
-  filterButtonInner: {
-    paddingVertical: 8,
+  chip: {
     paddingHorizontal: spacing.md,
-    ...liquidGlass.chip,
-    borderRadius: radii.sm,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceTint,
   },
-  filterButtonActive: {
-    borderRadius: radii.sm,
+  chipActive: {
+    backgroundColor: colors.navy,
   },
-  filterButtonInnerActive: {
-    ...liquidGlass.buttonPrimary,
+  chipText: {
+    ...typography.footnote,
+    fontWeight: '600',
+    color: colors.text,
   },
-  filterButtonText: {
-    ...typography.caption,
-    color: liquidGlass.subtleTextOnGlass,
-  },
-  filterButtonTextActive: {
-    color: liquidGlass.textOnPrimaryGlass,
+  chipTextActive: {
+    color: colors.textInverse,
   },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  list: {
-    padding: spacing.lg,
+    paddingVertical: spacing.xxxl,
   },
   empty: {
-    padding: spacing.xxl,
     alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+    gap: spacing.md,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     textAlign: 'center',
   },
 });

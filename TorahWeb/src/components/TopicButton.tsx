@@ -1,8 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Topic } from '../types';
-import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
-import { GlassButton, GlassSurface } from './ui/Glass';
+import { colors, radii, shadows, spacing, typography } from '../theme';
+import Icon from './ui/Icon';
 
 interface TopicButtonProps {
   topic: Topic;
@@ -10,39 +10,47 @@ interface TopicButtonProps {
 }
 
 const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
-  <GlassButton style={styles.card} contentStyle={styles.cardInner} onPress={onPress}>
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [
+      styles.card,
+      pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+    ]}>
     <View style={styles.thumbWrap}>
       {topic.thumbnailUrl ? (
         <Image source={{ uri: topic.thumbnailUrl }} style={styles.thumb} />
       ) : (
         <View style={[styles.thumb, styles.thumbPlaceholder]} />
       )}
-      <GlassSurface style={styles.thumbLabel}>
-        <Text style={styles.thumbLabelText}>{topic.name.toUpperCase()}</Text>
-      </GlassSurface>
+      <View style={styles.thumbScrim} />
+      <View style={styles.thumbOverlay}>
+        <Text style={styles.eyebrow}>TOPIC</Text>
+        <Text style={styles.thumbTitle} numberOfLines={2}>{topic.name}</Text>
+      </View>
     </View>
-    <View style={styles.body}>
-      <Text style={styles.title}>{topic.name.toUpperCase()}</Text>
-      {topic.description ? (
+    {topic.description ? (
+      <View style={styles.body}>
         <Text style={styles.description} numberOfLines={3}>
           {topic.description}
         </Text>
-      ) : null}
-      {topic.cta ? <Text style={styles.cta}>{topic.cta.toUpperCase()} ...</Text> : null}
-    </View>
-  </GlassButton>
+        {topic.cta ? (
+          <View style={styles.ctaRow}>
+            <Text style={styles.cta}>{topic.cta}</Text>
+            <Icon name="chevron.right" size={14} color={colors.navy} />
+          </View>
+        ) : null}
+      </View>
+    ) : null}
+  </Pressable>
 );
 
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-  },
-  cardInner: {
-    ...liquidGlass.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
+    marginBottom: spacing.lg,
     ...shadows.card,
   },
   thumbWrap: {
@@ -58,35 +66,43 @@ const styles = StyleSheet.create({
   thumbPlaceholder: {
     backgroundColor: colors.navy,
   },
-  thumbLabel: {
-    position: 'absolute',
-    left: spacing.md,
-    bottom: spacing.md,
-    ...liquidGlass.button,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.sm,
+  thumbScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.32)',
   },
-  thumbLabelText: {
+  thumbOverlay: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
+  },
+  eyebrow: {
     ...typography.eyebrow,
-    color: liquidGlass.textOnGlass,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: 4,
+  },
+  thumbTitle: {
+    ...typography.title2,
+    color: '#fff',
   },
   body: {
-    padding: spacing.lg,
-  },
-  title: {
-    ...typography.sectionTitle,
-    color: liquidGlass.textOnGlass,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   description: {
-    ...typography.body,
-    color: liquidGlass.subtleTextOnGlass,
-    marginBottom: spacing.md,
+    ...typography.subheadline,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   cta: {
-    ...typography.eyebrow,
-    color: colors.accent,
+    ...typography.footnote,
+    color: colors.navy,
+    fontWeight: '700',
   },
 });
 
