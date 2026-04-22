@@ -10,6 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/blur": "^4.4.1",
     "@react-native/new-app-screen": "0.82.1",
     "cheerio": "^1.1.0",
     "react": "19.1.1",

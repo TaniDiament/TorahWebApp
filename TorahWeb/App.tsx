@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ContentScreen from './src/screens/ContentScreen';
 import { Article, Author, Content, ContentType, Topic } from './src/types';
-import { colors, spacing, typography } from './src/theme';
+import { colors, liquidGlass, radii, spacing, typography } from './src/theme';
+import { GlassButton, GlassSurface } from './src/components/ui/Glass';
 
 type Screen =
   | { name: 'home' }
@@ -56,22 +57,19 @@ const App = () => {
   return (
     <SafeAreaView style={styles.container}>
       {current.name !== 'home' ? (
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={pop} activeOpacity={0.7}>
+        <GlassSurface style={styles.header}>
+          <GlassButton style={styles.backButton} contentStyle={styles.iconButtonInner} onPress={pop}>
             <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
+          </GlassButton>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {current.name === 'search'
               ? current.title ?? 'Search'
               : 'TorahWeb'}
           </Text>
-          <TouchableOpacity
-            style={styles.homeButton}
-            onPress={reset}
-            activeOpacity={0.7}>
+          <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={reset}>
             <Text style={styles.homeButtonText}>⌂</Text>
-          </TouchableOpacity>
-        </View>
+          </GlassButton>
+        </GlassSurface>
       ) : null}
 
       <View style={styles.body}>
@@ -111,20 +109,20 @@ const styles = StyleSheet.create({
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.navy,
     paddingHorizontal: spacing.md,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    ...liquidGlass.header,
   },
   backButton: {
+    borderRadius: radii.pill,
+  },
+  iconButtonInner: {
+    ...liquidGlass.button,
     paddingVertical: 6,
     paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
   },
   backButtonText: {
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
     fontSize: 26,
     fontWeight: '600',
     lineHeight: 28,
@@ -132,15 +130,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     ...typography.cardTitle,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
     textAlign: 'center',
   },
   homeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
   },
   homeButtonText: {
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
     fontSize: 22,
     fontWeight: '600',
   },

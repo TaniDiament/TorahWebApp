@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton, GlassSurface } from './ui/Glass';
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -25,22 +26,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, title }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <GlassSurface style={styles.container}>
       <Text style={styles.eyebrow}>PLAY AUDIO ONLY</Text>
       <Text style={styles.title} numberOfLines={3}>
         {title}
       </Text>
-      <TouchableOpacity style={styles.playButton} onPress={open} activeOpacity={0.85}>
+      <GlassButton style={styles.playButton} contentStyle={styles.playButtonInner} onPress={open}>
         <Text style={styles.playButtonText}>▶   LISTEN</Text>
-      </TouchableOpacity>
+      </GlassButton>
       {error ? <Text style={styles.errorText}>Unable to play this audio file.</Text> : null}
-    </View>
+    </GlassSurface>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
+    ...liquidGlass.surface,
     padding: spacing.xl,
     borderRadius: radii.md,
     alignItems: 'center',
@@ -53,18 +54,21 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.cardTitle,
-    color: colors.navy,
+    color: liquidGlass.textOnGlass,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },
   playButton: {
-    backgroundColor: colors.navy,
+    borderRadius: radii.pill,
+  },
+  playButtonInner: {
+    ...liquidGlass.buttonPrimary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xxl,
     borderRadius: radii.pill,
   },
   playButtonText: {
-    color: colors.surface,
+    color: liquidGlass.textOnPrimaryGlass,
     fontWeight: '700',
     letterSpacing: 2,
   },

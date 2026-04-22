@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Author } from '../types';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton, GlassSurface } from './ui/Glass';
 
 interface AuthorButtonProps {
   author: Author;
@@ -9,7 +10,7 @@ interface AuthorButtonProps {
 }
 
 const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress }) => (
-  <TouchableOpacity style={styles.tile} onPress={onPress} activeOpacity={0.85}>
+  <GlassButton style={styles.tile} contentStyle={styles.tileInner} onPress={onPress}>
     <View style={styles.imageWrap}>
       {author.portraitUrl ? (
         <Image source={{ uri: author.portraitUrl }} style={styles.image} />
@@ -24,13 +25,13 @@ const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress }) => (
           </Text>
         </View>
       )}
-      <View style={styles.overlay}>
+      <GlassSurface style={styles.overlay}>
         <Text style={styles.name} numberOfLines={2}>
           {author.name}
         </Text>
-      </View>
+      </GlassSurface>
     </View>
-  </TouchableOpacity>
+  </GlassButton>
 );
 
 const styles = StyleSheet.create({
@@ -38,7 +39,10 @@ const styles = StyleSheet.create({
     width: '31%',
     marginBottom: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: colors.surface,
+  },
+  tileInner: {
+    ...liquidGlass.surface,
+    borderRadius: radii.md,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -65,13 +69,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.overlay,
+    backgroundColor: 'rgba(242, 247, 255, 0.5)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
   name: {
     ...typography.caption,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
     textAlign: 'center',
   },
 });

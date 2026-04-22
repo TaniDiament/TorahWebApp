@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Topic } from '../types';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton, GlassSurface } from './ui/Glass';
 
 interface TopicButtonProps {
   topic: Topic;
@@ -9,16 +10,16 @@ interface TopicButtonProps {
 }
 
 const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
-  <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+  <GlassButton style={styles.card} contentStyle={styles.cardInner} onPress={onPress}>
     <View style={styles.thumbWrap}>
       {topic.thumbnailUrl ? (
         <Image source={{ uri: topic.thumbnailUrl }} style={styles.thumb} />
       ) : (
         <View style={[styles.thumb, styles.thumbPlaceholder]} />
       )}
-      <View style={styles.thumbLabel}>
+      <GlassSurface style={styles.thumbLabel}>
         <Text style={styles.thumbLabelText}>{topic.name.toUpperCase()}</Text>
-      </View>
+      </GlassSurface>
     </View>
     <View style={styles.body}>
       <Text style={styles.title}>{topic.name.toUpperCase()}</Text>
@@ -29,15 +30,18 @@ const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
       ) : null}
       {topic.cta ? <Text style={styles.cta}>{topic.cta.toUpperCase()} ...</Text> : null}
     </View>
-  </TouchableOpacity>
+  </GlassButton>
 );
 
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    backgroundColor: colors.surface,
     borderRadius: radii.md,
     marginBottom: spacing.lg,
+  },
+  cardInner: {
+    ...liquidGlass.surface,
+    borderRadius: radii.md,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -58,26 +62,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.md,
     bottom: spacing.md,
-    backgroundColor: colors.navy,
+    ...liquidGlass.button,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.sm,
   },
   thumbLabelText: {
     ...typography.eyebrow,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
   },
   body: {
     padding: spacing.lg,
   },
   title: {
     ...typography.sectionTitle,
-    color: colors.navy,
+    color: liquidGlass.textOnGlass,
     marginBottom: spacing.sm,
   },
   description: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: liquidGlass.subtleTextOnGlass,
     marginBottom: spacing.md,
   },
   cta: {

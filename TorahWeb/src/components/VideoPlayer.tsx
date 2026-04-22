@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { colors, radii, typography } from '../theme';
+import { colors, liquidGlass, radii, typography } from '../theme';
+import { GlassButton } from './ui/Glass';
 
 interface VideoPlayerProps {
   vimeoId?: string;
@@ -52,12 +53,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>Unable to load the embedded player.</Text>
-        <TouchableOpacity
+        <GlassButton
           style={styles.openButton}
+          contentStyle={styles.openButtonInner}
           onPress={() => Linking.openURL(embedUrl)}
-          activeOpacity={0.85}>
+        >
           <Text style={styles.openButtonText}>OPEN IN BROWSER</Text>
-        </TouchableOpacity>
+        </GlassButton>
       </View>
     );
   }
@@ -100,14 +102,17 @@ const styles = StyleSheet.create({
   openButton: {
     alignSelf: 'center',
     marginTop: 16,
-    backgroundColor: colors.accent,
+    borderRadius: radii.sm,
+  },
+  openButtonInner: {
+    ...liquidGlass.button,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: radii.sm,
   },
   openButtonText: {
     ...typography.eyebrow,
-    color: colors.navyDark,
+    color: liquidGlass.textOnGlass,
   },
 });
 

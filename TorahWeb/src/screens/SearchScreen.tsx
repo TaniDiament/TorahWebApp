@@ -5,13 +5,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { GlassButton, GlassSurface } from '../components/ui/Glass';
 
 interface SearchScreenProps {
   initialAuthorId?: string;
@@ -83,9 +83,13 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
   }, [query, filter, initialAuthorId, initialTopicSlug, showAllOnMount]);
 
   const renderFilter = (f: Filter, label: string) => (
-    <TouchableOpacity
+    <GlassButton
       key={f}
       style={[styles.filterButton, filter === f && styles.filterButtonActive]}
+      contentStyle={[
+        styles.filterButtonInner,
+        filter === f && styles.filterButtonInnerActive,
+      ]}
       onPress={() => setFilter(f)}>
       <Text
         style={[
@@ -94,18 +98,18 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
         ]}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </GlassButton>
   );
 
   return (
     <View style={styles.container}>
       {headerTitle ? (
-        <View style={styles.pageHeader}>
+        <GlassSurface style={styles.pageHeader}>
           <Text style={styles.pageHeaderText}>{headerTitle}</Text>
-        </View>
+        </GlassSurface>
       ) : null}
 
-      <View style={styles.searchBox}>
+      <GlassSurface style={styles.searchBox}>
         <TextInput
           style={styles.input}
           placeholder="Search divrei Torah, shiurim, speakers…"
@@ -115,14 +119,14 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
           autoCapitalize="none"
           autoCorrect={false}
         />
-      </View>
+      </GlassSurface>
 
-      <View style={styles.filters}>
+      <GlassSurface style={styles.filters}>
         {renderFilter('all', 'All')}
         {renderFilter('article', 'Divrei Torah')}
         {renderFilter('video', 'Video')}
         {renderFilter('audio', 'Audio')}
-      </View>
+      </GlassSurface>
 
       {loading ? (
         <View style={styles.loading}>
@@ -157,52 +161,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   pageHeader: {
-    backgroundColor: colors.navy,
+    ...liquidGlass.header,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
   pageHeaderText: {
     ...typography.sectionTitle,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
   },
   searchBox: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    ...liquidGlass.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.45)',
   },
   input: {
     height: 46,
-    borderWidth: 1,
-    borderColor: colors.navy,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.lg,
     fontSize: 15,
     color: colors.textPrimary,
-    backgroundColor: colors.surface,
+    ...liquidGlass.input,
   },
   filters: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    ...liquidGlass.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
   filterButton: {
+    borderRadius: radii.sm,
+    marginRight: spacing.sm,
+  },
+  filterButtonInner: {
     paddingVertical: 8,
     paddingHorizontal: spacing.md,
-    marginRight: spacing.sm,
+    ...liquidGlass.chip,
     borderRadius: radii.sm,
-    backgroundColor: '#ececec',
   },
   filterButtonActive: {
-    backgroundColor: colors.navy,
+    borderRadius: radii.sm,
+  },
+  filterButtonInnerActive: {
+    ...liquidGlass.buttonPrimary,
   },
   filterButtonText: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: liquidGlass.subtleTextOnGlass,
   },
   filterButtonTextActive: {
-    color: colors.surface,
+    color: liquidGlass.textOnPrimaryGlass,
   },
   loading: {
     flex: 1,

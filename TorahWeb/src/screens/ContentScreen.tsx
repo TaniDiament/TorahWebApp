@@ -3,7 +3,8 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
 import AudioPlayer from '../components/AudioPlayer';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { GlassSurface } from '../components/ui/Glass';
 
 interface ContentScreenProps {
   content: Content;
@@ -23,7 +24,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
         <View style={styles.heroFallback} />
       )}
 
-      <View style={styles.titleBlock}>
+      <GlassSurface style={styles.titleBlock}>
         <Text style={styles.authorLink}>{content.author.name}</Text>
         <Text style={styles.title}>{content.title}</Text>
         {'parshaLabel' in content && content.parshaLabel ? (
@@ -32,7 +33,7 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
         <Text style={styles.date}>
           {new Date(content.publishedDate).toLocaleDateString()}
         </Text>
-      </View>
+      </GlassSurface>
 
       {isVideo(content) ? (
         <View style={styles.playerWrap}>
@@ -66,9 +67,9 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
       {content.topics.length > 0 ? (
         <View style={styles.topicsRow}>
           {content.topics.map((t) => (
-            <View key={t.id} style={styles.topicChip}>
+            <GlassSurface key={t.id} style={styles.topicChip}>
               <Text style={styles.topicChipText}>{t.name}</Text>
-            </View>
+            </GlassSurface>
           ))}
         </View>
       ) : null}
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
   titleBlock: {
     padding: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.45)',
   },
   authorLink: {
     ...typography.caption,
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     lineHeight: 34,
-    color: colors.textPrimary,
+    color: liquidGlass.textOnGlass,
     marginBottom: spacing.sm,
   },
   parshaTag: {
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   topicChip: {
-    backgroundColor: colors.navy,
+    ...liquidGlass.chip,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: radii.sm,
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
   },
   topicChipText: {
     ...typography.caption,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
   },
 });
 

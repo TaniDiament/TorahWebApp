@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const colors = {
   navy: '#1a3a5c',
   navyDark: '#122a44',
@@ -53,3 +55,92 @@ export const shadows = {
     elevation: 4,
   },
 } as const;
+
+const isiOS = Platform.OS === 'ios';
+
+export const liquidGlass = {
+  blurType: isiOS ? 'systemUltraThinMaterialLight' : 'light',
+  blurAmount: isiOS ? 26 : 0,
+  overlay: isiOS ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
+  fallbackFill: '#f2f6fc',
+  header: isiOS
+    ? {
+        backgroundColor: 'rgba(248, 251, 255, 0.74)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+        shadowColor: '#0b1d2f',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+      }
+    : {
+        backgroundColor: colors.navy,
+      },
+  surface: isiOS
+    ? {
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.45)',
+        shadowColor: '#0b1d2f',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+      }
+    : {
+        backgroundColor: colors.surface,
+      },
+  button: isiOS
+    ? {
+        backgroundColor: 'rgba(255, 255, 255, 0.26)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.52)',
+        shadowColor: '#0b1d2f',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+      }
+    : {
+        backgroundColor: colors.navy,
+      },
+  buttonPrimary: isiOS
+    ? {
+        backgroundColor: 'rgba(29, 74, 117, 0.8)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.35)',
+        shadowColor: '#0b1d2f',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.18,
+        shadowRadius: 20,
+      }
+    : {
+        backgroundColor: colors.navy,
+      },
+  chip: isiOS
+    ? {
+        backgroundColor: 'rgba(255, 255, 255, 0.34)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.42)',
+      }
+    : {
+        backgroundColor: colors.navy,
+      },
+  input: isiOS
+    ? {
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.62)',
+        shadowColor: '#0b1d2f',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+      }
+    : {
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.navy,
+      },
+  textOnGlass: isiOS ? '#0f243b' : colors.surface,
+  textOnPrimaryGlass: colors.surface,
+  subtleTextOnGlass: isiOS ? 'rgba(15, 36, 59, 0.8)' : colors.textSecondary,
+} as const;
+

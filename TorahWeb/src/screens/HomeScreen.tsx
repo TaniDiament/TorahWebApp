@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Article, Author, Topic } from '../types';
@@ -12,7 +11,8 @@ import { api } from '../services/api';
 import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, spacing, typography } from '../theme';
+import { GlassButton, GlassSurface } from '../components/ui/Glass';
 
 interface HomeScreenProps {
   onAuthorPress: (author: Author) => void;
@@ -74,16 +74,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.hero}>
+      <GlassSurface style={styles.hero}>
         <Text style={styles.heroBrand}>TorahWeb</Text>
         <Text style={styles.heroSubtitle}>
           Divrei Torah, videos, and events with special attention to contemporary
           religious and social issues
         </Text>
-        <TouchableOpacity style={styles.heroCta} onPress={onSearchPress} activeOpacity={0.85}>
+        <GlassButton
+          style={styles.heroCta}
+          contentStyle={styles.heroCtaInner}
+          onPress={onSearchPress}>
           <Text style={styles.heroCtaText}>SUBSCRIBE. FREE!</Text>
-        </TouchableOpacity>
-      </View>
+        </GlassButton>
+      </GlassSurface>
 
       <SectionHeader lead="Most" highlight="Recent" />
       <View style={styles.sectionBody}>
@@ -129,26 +132,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       </View>
       </ScrollView>
 
-      <View style={styles.quickLinksRow}>
-        <TouchableOpacity
+      <GlassSurface style={styles.quickLinksRow}>
+        <GlassButton
           style={styles.quickLinkButton}
-          onPress={onAudioPress}
-          activeOpacity={0.85}>
+          contentStyle={styles.quickLinkButtonInner}
+          onPress={onAudioPress}>
           <Text style={styles.quickLinkText}>Audio</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </GlassButton>
+        <GlassButton
           style={styles.quickLinkButton}
-          onPress={onVideoPress}
-          activeOpacity={0.85}>
+          contentStyle={styles.quickLinkButtonInner}
+          onPress={onVideoPress}>
           <Text style={styles.quickLinkText}>Video</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </GlassButton>
+        <GlassButton
           style={styles.quickLinkButton}
-          onPress={onNewestPress}
-          activeOpacity={0.85}>
+          contentStyle={styles.quickLinkButtonInner}
+          onPress={onNewestPress}>
           <Text style={styles.quickLinkText}>Newest</Text>
-        </TouchableOpacity>
-      </View>
+        </GlassButton>
+      </GlassSurface>
     </View>
   );
 };
@@ -185,18 +188,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   hero: {
-    backgroundColor: colors.navy,
+    ...liquidGlass.surface,
     paddingVertical: 48,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
+    margin: spacing.lg,
+    marginBottom: 0,
+    borderRadius: radii.lg,
   },
   heroBrand: {
     ...typography.heroTitle,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
     marginBottom: spacing.md,
   },
   heroSubtitle: {
-    color: colors.surface,
+    color: liquidGlass.subtleTextOnGlass,
     textAlign: 'center',
     opacity: 0.92,
     fontSize: 15,
@@ -204,14 +210,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   heroCta: {
-    backgroundColor: colors.accent,
+    borderRadius: radii.pill,
+  },
+  heroCtaInner: {
+    ...liquidGlass.buttonPrimary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xxl,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
   },
   heroCtaText: {
     ...typography.eyebrow,
-    color: colors.navyDark,
+    color: liquidGlass.textOnPrimaryGlass,
   },
   sectionHeader: {
     paddingHorizontal: spacing.lg,
@@ -250,20 +259,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    ...liquidGlass.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
   },
   quickLinkButton: {
     flex: 1,
-    backgroundColor: colors.navy,
+    borderRadius: radii.pill,
+  },
+  quickLinkButtonInner: {
+    ...liquidGlass.button,
     paddingVertical: spacing.md,
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
     alignItems: 'center',
   },
   quickLinkText: {
     ...typography.eyebrow,
-    color: colors.surface,
+    color: liquidGlass.textOnGlass,
   },
   footer: {
     paddingVertical: spacing.xl,

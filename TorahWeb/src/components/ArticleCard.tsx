@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
+import { GlassButton } from './ui/Glass';
 
 interface ArticleCardProps {
   content: Content;
@@ -17,10 +18,11 @@ const eyebrowFor = (c: Content): string => {
 };
 
 const ArticleCard: React.FC<ArticleCardProps> = ({ content, onPress, compact }) => (
-  <TouchableOpacity
+  <GlassButton
     style={[styles.card, compact && styles.cardCompact]}
+    contentStyle={[styles.cardInner, compact && styles.cardInnerCompact]}
     onPress={onPress}
-    activeOpacity={0.85}>
+  >
     <Text style={styles.eyebrow}>{eyebrowFor(content)}</Text>
     <Text style={styles.title} numberOfLines={3}>
       {content.title}
@@ -28,21 +30,26 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ content, onPress, compact }) 
     <View style={styles.meta}>
       <Text style={styles.author}>{content.author.name}</Text>
     </View>
-  </TouchableOpacity>
+  </GlassButton>
 );
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
+  },
+  cardInner: {
+    ...liquidGlass.surface,
     borderRadius: radii.md,
     padding: spacing.lg,
-    marginBottom: spacing.md,
     borderLeftWidth: 4,
-    borderLeftColor: colors.navy,
+    borderLeftColor: 'rgba(26, 58, 92, 0.72)',
     ...shadows.card,
   },
   cardCompact: {
     marginBottom: spacing.sm,
+  },
+  cardInnerCompact: {
     padding: spacing.md,
   },
   eyebrow: {
@@ -52,7 +59,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.cardTitle,
-    color: colors.navy,
+    color: liquidGlass.textOnGlass,
     marginBottom: spacing.sm,
   },
   meta: {
@@ -61,7 +68,7 @@ const styles = StyleSheet.create({
   },
   author: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: liquidGlass.subtleTextOnGlass,
   },
 });
 
