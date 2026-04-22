@@ -62,6 +62,21 @@ export interface SearchParams {
   contentType?: ContentType;
 }
 
+export type DownloadKind = 'article' | 'audio';
+
+export interface DownloadItem {
+  id: string;
+  contentId: string;
+  title: string;
+  authorName: string;
+  publishedDate: string;
+  kind: DownloadKind;
+  filePath: string;
+  mimeType: string;
+  createdAt: string;
+  sourceUrl?: string;
+}
+
 export const isArticle = (c: Content): c is Article => 'content' in c;
 export const isVideo = (c: Content): c is Video =>
   'vimeoId' in c || ('videoUrl' in c && !('audioUrl' in c));

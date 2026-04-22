@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import { colors, liquidGlass, radii, shadows, spacing, typography } from '../theme';
 import { GlassButton } from './ui/Glass';
@@ -8,6 +8,7 @@ interface ArticleCardProps {
   content: Content;
   onPress: () => void;
   compact?: boolean;
+  onDownloadPress?: () => Promise<void> | void;
 }
 
 const eyebrowFor = (c: Content): string => {
@@ -17,21 +18,51 @@ const eyebrowFor = (c: Content): string => {
   return '';
 };
 
-const ArticleCard: React.FC<ArticleCardProps> = ({ content, onPress, compact }) => (
-  <GlassButton
-    style={[styles.card, compact && styles.cardCompact]}
-    contentStyle={[styles.cardInner, compact && styles.cardInnerCompact]}
-    onPress={onPress}
-  >
-    <Text style={styles.eyebrow}>{eyebrowFor(content)}</Text>
-    <Text style={styles.title} numberOfLines={3}>
-      {content.title}
-    </Text>
-    <View style={styles.meta}>
-      <Text style={styles.author}>{content.author.name}</Text>
-    </View>
-  </GlassButton>
-);
+const ArticleCard: React.FC<ArticleCardProps> = ({
+  content,
+  onPress,
+  compact,
+  onDownloadPress,
+}) => {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!onDownloadPress || downloading) {
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      await onDownloadPress();
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <GlassButton
+      style={[styles.card, compact && styles.cardCompact]}
+      contentStyle={[styles.cardInner, compact && styles.cardInnerCompact]}
+      onPress={onPress}>
+      <Text style={styles.eyebrow}>{eyebrowFor(content)}</Text>
+      <Text style={styles.title} numberOfLines={3}>
+        {content.title}
+      </Text>
+      <View style={styles.meta}>
+        <Text style={styles.author}>{content.author.name}</Text>
+        {onDownloadPress ? (
+          <TouchableOpacity
+            style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
+            onPress={handleDownload}
+            disabled={downloading}
+            activeOpacity={0.85}>
+            <Text style={styles.downloadText}>{downloading ? 'DOWNLOADING' : 'DOWNLOAD'}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </GlassButton>
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -65,10 +96,27 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   author: {
     ...typography.caption,
     color: liquidGlass.subtleTextOnGlass,
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  downloadButton: {
+    ...liquidGlass.button,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  downloadButtonDisabled: {
+    opacity: 0.6,
+  },
+  downloadText: {
+    ...typography.caption,
+    color: liquidGlass.textOnGlass,
+    fontWeight: '700',
   },
 });
 

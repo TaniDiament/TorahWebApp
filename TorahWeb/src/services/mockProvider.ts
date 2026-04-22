@@ -84,6 +84,7 @@ const RECENT: Article[] = [
       'The parsha repetitively refers to the metzora as the "m\'taher" — the one becoming cleansed.',
     content:
       'The parsha repetitively refers to the metzora, once the kohein enters him into the process of communal rehabilitation (14:4), as the "m\'taher — the one becoming cleansed". In place of the expected pronoun or referring to him as a metzora the Torah calls him a m\'taher eleven times...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+    url: `${TW_BASE}/torah/2026/parsha/rneu/metzora/`,
   },
   {
     id: 'rsob_shmini_2026',
@@ -96,6 +97,7 @@ const RECENT: Article[] = [
       'Parshas Shmini introduces the laws of kashrus and their role in creating a life of kedusha.',
     content:
       'Parshas Shmini introduces the laws of kashrus and the path toward becoming a nation of purity...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+    url: `${TW_BASE}/torah/2026/parsha/rsob/shmini/`,
   },
   {
     id: 'rkoe_pesach_2026',
@@ -107,6 +109,7 @@ const RECENT: Article[] = [
     excerpt: 'The lessons of Shabbos Hagadol and what they demand of every Jew.',
     content:
       'Shabbos Hagadol marks the moment klal Yisrael stepped forward as a nation of leaders...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+    url: `${TW_BASE}/torah/2026/moadim/rkoe/pesach/`,
   },
   {
     id: 'ryud_vayikra_2026',
@@ -118,6 +121,7 @@ const RECENT: Article[] = [
     excerpt: 'Opening Sefer Vayikra with a mixture of awe and closeness.',
     content:
       'As we open Sefer Vayikra, we encounter the tension between the awe of the mishkan and the closeness it invites...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+    url: `${TW_BASE}/torah/2026/parsha/ryud/vayikra/`,
   },
 ];
 

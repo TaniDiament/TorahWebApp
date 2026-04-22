@@ -12,6 +12,7 @@ import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
 import { colors, liquidGlass, radii, spacing, typography } from '../theme';
 import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import { canDownloadContent, downloadContent } from '../services/download';
 
 interface SearchScreenProps {
   initialAuthorId?: string;
@@ -138,7 +139,13 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <ArticleCard content={item} onPress={() => onContentSelect(item)} />
+            <ArticleCard
+              content={item}
+              onPress={() => onContentSelect(item)}
+              onDownloadPress={
+                canDownloadContent(item) ? () => downloadContent(item) : undefined
+              }
+            />
           )}
           ListEmptyComponent={
             <View style={styles.empty}>

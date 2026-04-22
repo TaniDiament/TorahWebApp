@@ -13,6 +13,7 @@ import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
 import { colors, liquidGlass, radii, spacing, typography } from '../theme';
 import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import { canDownloadContent, downloadContent } from '../services/download';
 
 interface HomeScreenProps {
   onAuthorPress: (author: Author) => void;
@@ -22,6 +23,7 @@ interface HomeScreenProps {
   onAudioPress: () => void;
   onVideoPress: () => void;
   onNewestPress: () => void;
+  onDownloadsPress: () => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -32,6 +34,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onAudioPress,
   onVideoPress,
   onNewestPress,
+  onDownloadsPress,
 }) => {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -95,6 +98,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             key={article.id}
             content={article}
             onPress={() => onArticlePress(article)}
+            onDownloadPress={
+              canDownloadContent(article) ? () => downloadContent(article) : undefined
+            }
           />
         ))}
       </View>
@@ -150,6 +156,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           contentStyle={styles.quickLinkButtonInner}
           onPress={onNewestPress}>
           <Text style={styles.quickLinkText}>Newest</Text>
+        </GlassButton>
+        <GlassButton
+          style={styles.quickLinkButton}
+          contentStyle={styles.quickLinkButtonInner}
+          onPress={onDownloadsPress}>
+          <Text style={styles.quickLinkText}>Downloads</Text>
         </GlassButton>
       </GlassSurface>
     </View>
@@ -255,7 +267,7 @@ const styles = StyleSheet.create({
   },
   quickLinksRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
@@ -264,7 +276,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 255, 255, 0.45)',
   },
   quickLinkButton: {
-    flex: 1,
+    width: '48%',
     borderRadius: radii.pill,
   },
   quickLinkButtonInner: {

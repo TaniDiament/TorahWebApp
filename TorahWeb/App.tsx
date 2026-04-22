@@ -4,9 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ContentScreen from './src/screens/ContentScreen';
+import DownloadsScreen from './src/screens/DownloadsScreen';
 import { Article, Author, Content, ContentType, Topic } from './src/types';
 import { colors, liquidGlass, radii, spacing, typography } from './src/theme';
 import { GlassButton, GlassSurface } from './src/components/ui/Glass';
+import { AudioPlayerProvider, useAudioPlayer } from './src/audio/AudioPlayerProvider';
 
 type Screen =
   | { name: 'home' }
@@ -18,9 +20,11 @@ type Screen =
       showAll?: boolean;
       title?: string;
     }
-  | { name: 'content'; content: Content };
+  | { name: 'content'; content: Content }
+  | { name: 'downloads' };
 
-const App = () => {
+const AppShell = () => {
+  const { currentTrack, expand } = useAudioPlayer();
   const [stack, setStack] = useState<Screen[]>([{ name: 'home' }]);
 
   const current = stack[stack.length - 1];
@@ -53,6 +57,9 @@ const App = () => {
     push({ name: 'search', contentType: 'video', title: 'Video' });
   const openNewest = () =>
     push({ name: 'search', showAll: true, title: 'Newest' });
+  const openDownloads = () => push({ name: 'downloads' });
+  const openRootSearch = () => setStack([{ name: 'search', title: 'Search TorahWeb' }]);
+  const openRootDownloads = () => setStack([{ name: 'downloads' }]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,11 +71,18 @@ const App = () => {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {current.name === 'search'
               ? current.title ?? 'Search'
-              : 'TorahWeb'}
+              : current.name === 'downloads'
+                ? 'Downloads'
+                : 'TorahWeb'}
           </Text>
-          <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={reset}>
-            <Text style={styles.homeButtonText}>⌂</Text>
-          </GlassButton>
+          <View style={styles.headerActions}>
+            <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={openDownloads}>
+              <Text style={styles.homeButtonText}>↓</Text>
+            </GlassButton>
+            <GlassButton style={styles.homeButton} contentStyle={styles.iconButtonInner} onPress={reset}>
+              <Text style={styles.homeButtonText}>⌂</Text>
+            </GlassButton>
+          </View>
         </GlassSurface>
       ) : null}
 
@@ -82,6 +96,7 @@ const App = () => {
             onAudioPress={openAudio}
             onVideoPress={openVideo}
             onNewestPress={openNewest}
+            onDownloadsPress={openDownloads}
           />
         )}
         {current.name === 'search' && (
@@ -95,10 +110,41 @@ const App = () => {
           />
         )}
         {current.name === 'content' && <ContentScreen content={current.content} />}
+        {current.name === 'downloads' && <DownloadsScreen />}
       </View>
+      <GlassSurface style={styles.bottomBar}>
+        <GlassButton style={styles.tabButton} contentStyle={styles.tabButtonInner} onPress={reset}>
+          <Text style={styles.tabLabel}>Home</Text>
+        </GlassButton>
+        <GlassButton
+          style={styles.tabButton}
+          contentStyle={styles.tabButtonInner}
+          onPress={openRootSearch}>
+          <Text style={styles.tabLabel}>Search</Text>
+        </GlassButton>
+        <GlassButton
+          style={styles.tabButton}
+          contentStyle={styles.tabButtonInner}
+          onPress={openRootDownloads}>
+          <Text style={styles.tabLabel}>Downloads</Text>
+        </GlassButton>
+        <GlassButton
+          style={styles.tabButton}
+          contentStyle={styles.tabButtonInner}
+          onPress={expand}
+          disabled={!currentTrack}>
+          <Text style={styles.tabLabel}>Now Playing</Text>
+        </GlassButton>
+      </GlassSurface>
     </SafeAreaView>
   );
 };
+
+const App = () => (
+  <AudioPlayerProvider>
+    <AppShell />
+  </AudioPlayerProvider>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -136,6 +182,10 @@ const styles = StyleSheet.create({
   homeButton: {
     borderRadius: radii.pill,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
   homeButtonText: {
     color: liquidGlass.textOnGlass,
     fontSize: 22,
@@ -143,6 +193,34 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    paddingBottom: 74,
+  },
+  bottomBar: {
+    ...liquidGlass.surface,
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: radii.pill,
+  },
+  tabButtonInner: {
+    ...liquidGlass.button,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  tabLabel: {
+    ...typography.caption,
+    color: liquidGlass.textOnGlass,
+    fontWeight: '700',
   },
 });
 

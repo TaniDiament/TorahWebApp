@@ -1,10 +1,11 @@
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
 import AudioPlayer from '../components/AudioPlayer';
 import { colors, liquidGlass, radii, spacing, typography } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
+import { canDownloadContent, downloadContent } from '../services/download';
 
 interface ContentScreenProps {
   content: Content;
@@ -12,6 +13,21 @@ interface ContentScreenProps {
 
 const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
   const showHeroImage = content.author.portraitUrl;
+  const [downloading, setDownloading] = useState(false);
+  const showDownload = canDownloadContent(content);
+
+  const onDownload = async () => {
+    if (downloading || !showDownload) {
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      await downloadContent(content);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -33,6 +49,17 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
         <Text style={styles.date}>
           {new Date(content.publishedDate).toLocaleDateString()}
         </Text>
+        {showDownload ? (
+          <TouchableOpacity
+            style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
+            onPress={onDownload}
+            disabled={downloading}
+            activeOpacity={0.85}>
+            <Text style={styles.downloadButtonText}>
+              {downloading ? 'DOWNLOADING...' : 'DOWNLOAD'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </GlassSurface>
 
       {isVideo(content) ? (
@@ -50,7 +77,13 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
 
       {isAudio(content) ? (
         <View style={styles.playerWrap}>
-          <AudioPlayer audioUrl={content.audioUrl} title={content.title} />
+          <AudioPlayer
+            audioId={content.id}
+            audioUrl={content.audioUrl}
+            title={content.title}
+            authorName={content.author.name}
+            artworkUrl={content.author.portraitUrl}
+          />
           {content.description ? (
             <Text style={styles.body}>{content.description}</Text>
           ) : null}
@@ -128,6 +161,21 @@ const styles = StyleSheet.create({
   date: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  downloadButton: {
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+    ...liquidGlass.buttonPrimary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  downloadButtonDisabled: {
+    opacity: 0.6,
+  },
+  downloadButtonText: {
+    ...typography.eyebrow,
+    color: liquidGlass.textOnPrimaryGlass,
   },
   playerWrap: {
     paddingHorizontal: spacing.lg,

@@ -115,6 +115,19 @@ export const liquidGlass = {
     : {
         backgroundColor: colors.navy,
       },
+  buttonDestructive: isiOS
+    ? {
+        backgroundColor: 'rgba(176, 0, 32, 0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 108, 130, 0.35)',
+        shadowColor: '#5e0014',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+      }
+    : {
+        backgroundColor: '#b00020',
+      },
   chip: isiOS
     ? {
         backgroundColor: 'rgba(255, 255, 255, 0.34)',
@@ -142,5 +155,6 @@ export const liquidGlass = {
   textOnGlass: isiOS ? '#0f243b' : colors.surface,
   textOnPrimaryGlass: colors.surface,
   subtleTextOnGlass: isiOS ? 'rgba(15, 36, 59, 0.8)' : colors.textSecondary,
+  destructiveTextOnGlass: isiOS ? '#8f001c' : colors.surface,
 } as const;
 
