@@ -28,7 +28,7 @@ interface DownloadRowProps {
 }
 
 const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => {
-  const swipeRef = useRef<Swipeable | null>(null);
+  const swipeRef = useRef<React.ElementRef<typeof Swipeable> | null>(null);
 
   const onDeletePress = async () => {
     await onDelete(item);

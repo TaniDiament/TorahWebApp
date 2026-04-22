@@ -59,7 +59,7 @@ export const shadows = {
 const isiOS = Platform.OS === 'ios';
 
 export const liquidGlass = {
-  blurType: isiOS ? 'systemUltraThinMaterialLight' : 'light',
+  blurType: (isiOS ? 'ultraThinMaterialLight' : 'light') as 'ultraThinMaterialLight' | 'light',
   blurAmount: isiOS ? 26 : 0,
   overlay: isiOS ? 'rgba(255, 255, 255, 0.14)' : 'transparent',
   fallbackFill: '#f2f6fc',

@@ -99,7 +99,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             content={article}
             onPress={() => onArticlePress(article)}
             onDownloadPress={
-              canDownloadContent(article) ? () => downloadContent(article) : undefined
+              canDownloadContent(article)
+                ? async () => {
+                    await downloadContent(article);
+                  }
+                : undefined
             }
           />
         ))}

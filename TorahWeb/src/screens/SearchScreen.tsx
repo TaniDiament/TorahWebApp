@@ -143,7 +143,11 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
               content={item}
               onPress={() => onContentSelect(item)}
               onDownloadPress={
-                canDownloadContent(item) ? () => downloadContent(item) : undefined
+                canDownloadContent(item)
+                  ? async () => {
+                      await downloadContent(item);
+                    }
+                  : undefined
               }
             />
           )}

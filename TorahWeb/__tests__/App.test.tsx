@@ -25,6 +25,6 @@ test('renders correctly', async () => {
         <App />
       </SafeAreaProvider>,
     );
-    await global.flushAsync();
+    await (globalThis as any).flushAsync();
   });
 });
