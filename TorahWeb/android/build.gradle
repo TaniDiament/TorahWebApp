@@ -19,3 +19,16 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs += ["-Xlint:-deprecation", "-Xlint:-unchecked"]
+    }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            suppressWarnings = true
+        }
+    }
+}
+
