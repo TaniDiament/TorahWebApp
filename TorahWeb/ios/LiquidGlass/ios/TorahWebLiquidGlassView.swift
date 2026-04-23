@@ -98,24 +98,9 @@ import UIKit
   }
 
   private func makeGlassEffect() -> UIVisualEffect {
-    if #available(iOS 26.0, *) {
-      let glassClass: AnyClass? = NSClassFromString("UIGlassEffect")
-      if let cls = glassClass as? UIVisualEffect.Type {
-        let instance = cls.init()
-        let style: String
-        switch variant as String {
-        case "clear": style = "clear"
-        case "tinted": style = "regular"
-        default: style = "regular"
-        }
-        instance.setValue(style, forKey: "style")
-        if isInteractive {
-          instance.setValue(true, forKey: "isInteractive")
-        }
-        return instance
-      }
-    }
-
+    // UIBlurEffect fallback works from iOS 15.1 through iOS 26+.
+    // A native UIGlassEffect integration for iOS 26 can be added once the
+    // project can be compiled against the iOS 26 SDK on a Mac.
     let style: UIBlurEffect.Style
     switch variant as String {
     case "clear": style = .systemUltraThinMaterial
