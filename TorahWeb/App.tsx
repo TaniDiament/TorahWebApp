@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BackHandler,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -112,15 +111,9 @@ const AppShell = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {showBackButton ? (
-        <View style={styles.floatingBackWrap} pointerEvents="box-none">
-          <GlassButton
-            style={styles.floatingBack}
-            contentStyle={styles.floatingBackInner}
-            cornerRadius={radii.pill}
-            variant="regular"
-            onPress={pop}>
-            <Icon name="chevron.left" size={22} color={colors.text} />
-          </GlassButton>
+        <View
+          style={[styles.floatingBackWrap, { top: insets.top + 8 }]}
+          pointerEvents="box-none">
           {headerTitle ? (
             <View style={styles.floatingTitleWrap} pointerEvents="none">
               <GlassSurface
@@ -133,6 +126,14 @@ const AppShell = () => {
               </GlassSurface>
             </View>
           ) : null}
+          <GlassButton
+            style={styles.floatingBack}
+            contentStyle={styles.floatingBackInner}
+            cornerRadius={radii.pill}
+            variant="regular"
+            onPress={pop}>
+            <Icon name="chevron.left" size={22} color={colors.text} />
+          </GlassButton>
         </View>
       ) : null}
 
@@ -221,7 +222,6 @@ const styles = StyleSheet.create({
   },
   floatingBackWrap: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 8 : 16,
     left: 0,
     right: 0,
     paddingHorizontal: spacing.md,
@@ -233,6 +233,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.pill,
+    zIndex: 2,
+    elevation: 4,
   },
   floatingBackInner: {
     width: 40,
