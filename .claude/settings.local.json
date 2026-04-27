@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"import ast; ast.parse\\(open\\('_common.py'\\).read\\(\\)\\); ast.parse\\(open\\('build_all.py'\\).read\\(\\)\\); ast.parse\\(open\\('add_content.py'\\).read\\(\\)\\); print\\('ok'\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('_common.py'\\).read\\(\\)\\); ast.parse\\(open\\('build_all.py'\\).read\\(\\)\\); ast.parse\\(open\\('add_content.py'\\).read\\(\\)\\); print\\('ok'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('_common.py'\\).read\\(\\)\\); ast.parse\\(open\\('build_all.py'\\).read\\(\\)\\); ast.parse\\(open\\('add_content.py'\\).read\\(\\)\\); print\\('python ok'\\)\")"
     ]
   }
 }

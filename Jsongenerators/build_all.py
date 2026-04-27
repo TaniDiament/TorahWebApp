@@ -1,8 +1,8 @@
 """Full rebuild of the static-JSON backend.
 
 Reads every record under `source/` and writes a fresh `dist/api/v1/` tree.
-The search index is reset to version 1 with a single `full-v1.json`; no
-deltas are emitted by a from-scratch build.
+The Tantivy search index is reset to `version: 1` at
+`dist/api/v1/search/tantivy-v1/`.
 """
 from __future__ import annotations
 
@@ -10,11 +10,10 @@ import shutil
 import sys
 
 from _common import (
-    API, DIST, SEARCH_DIR,
-    index_by, load_source_records,
-    search_entry, summarize,
-    write_index_manifest, write_json, write_lunr, write_manifest,
-    write_search_full,
+    API, DIST, SEARCH_DIR, SOURCE,
+    all_docs, all_summaries, build_tantivy_index, index_by,
+    load_source_records, read_json,
+    write_index_manifest, write_json, write_manifest,
 )
 
 
@@ -36,12 +35,7 @@ def main() -> int:
     for record in videos:
         write_json(API / "videos" / f"{record['id']}.json", record)
 
-    # content.json — newest first
-    summaries: list[dict] = []
-    summaries += [summarize(r, "article") for r in articles]
-    summaries += [summarize(r, "audio") for r in audio]
-    summaries += [summarize(r, "video") for r in videos]
-    summaries.sort(key=lambda s: s["publishedDate"], reverse=True)
+    summaries = all_summaries(articles, audio, videos)
 
     h_authors = write_json(API / "authors.json", authors)
     h_topics = write_json(API / "topics.json", topics)
@@ -50,25 +44,16 @@ def main() -> int:
 
     this_week_path = API / "this-week.json"
     try:
-        from _common import SOURCE, read_json
         h_this_week = write_json(this_week_path, read_json(SOURCE / "this-week.json"))
     except FileNotFoundError:
         h_this_week = write_json(this_week_path, {"articleId": None})
 
-    # search: build entries + version-1 full file + Lunr index
-    entries = []
-    for r in articles:
-        entries.append(search_entry(r, "article", authors_by_id, topics_by_slug))
-    for r in audio:
-        entries.append(search_entry(r, "audio", authors_by_id, topics_by_slug))
-    for r in videos:
-        entries.append(search_entry(r, "video", authors_by_id, topics_by_slug))
-    entries.sort(key=lambda e: e["date"], reverse=True)
-
+    # search: build the Tantivy index at version 1
+    docs = all_docs(articles, audio, videos, authors_by_id, topics_by_slug)
     version = 1
-    full_path, full_bytes = write_search_full(version, entries)
-    write_lunr(version, entries)
-    h_search = write_index_manifest(version, full_path, full_bytes, deltas=[])
+    index_dir = SEARCH_DIR / f"tantivy-v{version}"
+    build_tantivy_index(index_dir, docs)
+    h_search = write_index_manifest(version, index_dir)
 
     write_manifest(
         hashes={
