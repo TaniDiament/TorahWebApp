@@ -1,0 +1,2 @@
+lunr==0.7.0.post1
+beautifulsoup4>=4.12
