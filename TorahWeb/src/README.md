@@ -16,10 +16,19 @@ src/
 ├── screens/          # Main application screens
 │   ├── HomeScreen.tsx        # Home page with authors and topics
 │   ├── SearchScreen.tsx      # Search interface with filtering
-│   └── ContentScreen.tsx     # Display individual content items
+│   ├── ContentScreen.tsx     # Display individual content items
+│   └── DownloadsScreen.tsx   # Offline downloads / library
 │
 ├── services/         # API and external service integrations
-│   └── api.ts               # API service for fetching data from TorahWeb.org
+│   ├── api.ts               # Provider switch (mock ↔ real backend)
+│   ├── provider.ts          # ContentProvider interface
+│   ├── mockProvider.ts      # Mock data for offline development
+│   ├── realProvider.ts      # Real provider — fetches static JSON backend
+│   ├── searchIndexCache.ts  # On-device delta-synced search index cache
+│   ├── luceneSearch.ts      # Client-side Lucene inverted-index search
+│   └── download.ts          # Offline download manager
+│
+├── audio/            # Audio playback provider and hooks
 │
 └── types/            # TypeScript type definitions
     └── index.ts             # Shared interfaces and types
@@ -56,21 +65,45 @@ Components for playing media content. Currently use Linking to open in external 
 - Shows article text, or video/audio players
 - Displays author information and topics
 
+### DownloadsScreen
+- Offline library for downloaded articles and audio
+
 ## Services
 
 ### api.ts
-Service layer for communicating with TorahWeb.org API.
+Provider switch: flip `USE_REAL_BACKEND` to toggle between mock data
+and the live static-JSON backend on torahweb.org.
 
-**Current Status**: Using mock data
-**TODO**: Replace mock data with actual API endpoints from TorahWeb.org
+### realProvider.ts
+Fetches static JSON files published by `build_all.py` / `add_content.py`
+(see `Jsongenerators/README.md`). All endpoints are plain files — no
+query strings — so every request is cacheable by any CDN.
 
-Available methods:
-- `getAuthors()` - Fetch all authors
-- `getTopics()` - Fetch all topics
-- `searchContent(params)` - Search content with filters
-- `getArticles()` - Fetch all articles
-- `getVideos()` - Fetch all videos
-- `getAudio()` - Fetch all audio
+### searchIndexCache.ts
+On-device cache for the full-text search index. Implements the delta
+protocol documented in `/BACKEND_SCHEMA.md`:
+- Syncs `search/full-v{N}.json` (entries) and `search/lucene-v{N}.json`
+  (pre-computed inverted index) to the device's document directory.
+- Applies delta updates when available to avoid re-downloading the full
+  index on every content publish.
+
+### luceneSearch.ts
+**Client-side search over a Lucene-produced inverted index.**
+
+At build time, Apache Lucene (Java) tokenizes each document with
+`EnglishAnalyzer` (lowercase → stop-word removal → Porter stemming),
+scores every term per document using BM25, and exports the results as
+JSON: `{ terms: { "<stem>": [{ id, s: score }, …] }, … }`.
+
+At query time, this module:
+1. Applies the same pipeline to the query (lowercase → stop words →
+   Porter stemmer).
+2. Looks up each stemmed term in the pre-computed `Map`.
+3. Intersects posting lists (AND semantics) and sums BM25 scores.
+4. Returns ranked results.
+
+No native Lucene dependency — pure TypeScript with a built-in Porter
+stemmer.
 
 ## Types
 
@@ -83,6 +116,7 @@ All TypeScript interfaces are defined in `types/index.ts`:
 - `Content` - Union type of Article | Video | Audio
 - `ContentType` - Literal type for filtering
 - `SearchParams` - Search query parameters
+- `DownloadItem` - Offline download metadata
 
 ## Next Steps
 
@@ -121,4 +155,3 @@ All TypeScript interfaces are defined in `types/index.ts`:
    - Download for offline viewing
    - Push notifications
    - User accounts
-

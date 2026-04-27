@@ -13,7 +13,7 @@ from _common import (
     API, DIST, SEARCH_DIR,
     index_by, load_source_records,
     search_entry, summarize,
-    write_index_manifest, write_json, write_lunr, write_manifest,
+    write_index_manifest, write_json, write_lucene_index, write_manifest,
     write_search_full,
 )
 
@@ -55,7 +55,7 @@ def main() -> int:
     except FileNotFoundError:
         h_this_week = write_json(this_week_path, {"articleId": None})
 
-    # search: build entries + version-1 full file + Lunr index
+    # search: build entries + version-1 full file + Lucene index
     entries = []
     for r in articles:
         entries.append(search_entry(r, "article", authors_by_id, topics_by_slug))
@@ -67,7 +67,7 @@ def main() -> int:
 
     version = 1
     full_path, full_bytes = write_search_full(version, entries)
-    write_lunr(version, entries)
+    write_lucene_index(version, entries)
     h_search = write_index_manifest(version, full_path, full_bytes, deltas=[])
 
     write_manifest(

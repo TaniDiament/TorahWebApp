@@ -1,25 +1,28 @@
 """Shared helpers for build_all.py and add_content.py.
 
-Everything that touches disk, hashes JSON, builds haystacks, or talks to
-Lunr lives here so the two entry-point scripts stay short.
+Everything that touches disk, hashes JSON, builds haystacks, or invokes
+the Lucene indexer lives here so the two entry-point scripts stay short.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 from bs4 import BeautifulSoup
-from lunr import lunr
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "source"
 DIST = ROOT / "dist"
 API = DIST / "api" / "v1"
 SEARCH_DIR = API / "search"
+
+LUCENE_JAR = ROOT / "lucene-indexer" / "target" / "lucene-indexer-1.0.0.jar"
 
 DELTA_TIERS = (1, 5, 50, 500)
 
@@ -122,40 +125,42 @@ def search_entry(record: dict, kind: str, authors: dict, topics: dict) -> dict:
     }
 
 
-# --- lunr index --------------------------------------------------------
+# --- Lucene index ------------------------------------------------------
 
-def build_lunr_index(entries: Iterable[dict]) -> dict:
-    """Build a Lunr index over the search entries.
-
-    The serialized dict is `lunr.Index.load`-compatible on the JS side.
-    Field boosts roughly mirror the ranking heuristic in the schema doc:
-    metadata terms outweigh body terms.
-    """
-    docs = []
-    for e in entries:
-        # Split haystack at the first ~512 chars: front half is metadata-heavy
-        # (title/author/topic/parsha/excerpt are concatenated first), tail is
-        # body. Boosting `meta` over `body` mirrors the schema's ranking note.
-        meta, _, body = e["haystack"].partition(" ")
-        # actually keep the full haystack as `body` and a leading slice as `meta`
-        meta_slice = e["haystack"][:512]
-        docs.append({
-            "id": e["id"],
-            "meta": meta_slice,
-            "body": e["haystack"],
-            "date": e["date"],
-            "type": e["type"],
-        })
-
-    idx = lunr(
-        ref="id",
-        fields=[
-            {"field_name": "meta", "boost": 5},
-            {"field_name": "body", "boost": 1},
-        ],
-        documents=docs,
+def _ensure_lucene_jar() -> None:
+    """Check that the Lucene indexer JAR exists; abort with a helpful
+    message if it hasn't been built yet."""
+    if LUCENE_JAR.exists():
+        return
+    print(
+        "error: Lucene indexer JAR not found.\n"
+        "       Run:  cd lucene-indexer && mvn package\n"
+        f"       Expected at: {LUCENE_JAR}",
+        file=sys.stderr,
     )
-    return idx.serialize()
+    sys.exit(1)
+
+
+def build_lucene_index(entries: list[dict]) -> dict:
+    """Invoke the Lucene indexer JAR to build a pre-computed inverted index.
+
+    Sends the entries array as JSON on stdin, reads the inverted index
+    JSON from stdout.
+    """
+    _ensure_lucene_jar()
+    input_json = json.dumps(entries, ensure_ascii=False)
+    result = subprocess.run(
+        ["java", "-jar", str(LUCENE_JAR)],
+        input=input_json,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        print(f"Lucene indexer failed (exit {result.returncode}):", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+    return json.loads(result.stdout)
 
 
 # --- manifest writing --------------------------------------------------
@@ -200,12 +205,12 @@ def write_search_delta(from_v: int, to_v: int, added: list[dict],
     return path, path.stat().st_size
 
 
-def write_lunr(version: int, entries: list[dict]) -> Path:
-    """Serialize a Lunr index alongside the full file. The app loads this
-    with `lunr.Index.load(json)` and queries it locally."""
-    serialized = build_lunr_index(entries)
-    path = SEARCH_DIR / f"lunr-v{version}.json"
-    write_json(path, serialized)
+def write_lucene_index(version: int, entries: list[dict]) -> Path:
+    """Build and write a Lucene inverted index alongside the full file.
+    The app loads this JSON and performs fast term look-ups locally."""
+    index_data = build_lucene_index(entries)
+    path = SEARCH_DIR / f"lucene-v{version}.json"
+    write_json(path, index_data)
     return path
 
 
@@ -217,7 +222,7 @@ def write_index_manifest(version: int, full_path: Path, full_bytes: int,
         "generatedAt": now_iso(),
         "fullUrl": f"search/{full_path.name}",
         "fullBytes": full_bytes,
-        "lunrUrl": f"search/lunr-v{version}.json",
+        "luceneUrl": f"search/lucene-v{version}.json",
         "deltas": deltas,
     }
     return write_json(SEARCH_DIR / "index-manifest.json", payload)

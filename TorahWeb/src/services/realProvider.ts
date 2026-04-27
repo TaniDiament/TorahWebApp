@@ -291,23 +291,50 @@ export class RealProvider implements ContentProvider {
 
     const normalized = params.query ? normalizeQuery(params.query) : '';
     if (normalized) {
-      const entries = await this.searchCache.getEntries();
-      const terms = normalized.split(' ').filter(Boolean);
-      const scored: { summary: ContentSummary; score: number }[] = [];
-      for (const e of entries) {
-        if (!terms.every((t) => e.haystack.includes(t))) continue;
-        const summary = byId.get(e.id);
-        if (!summary) continue;
-        const title = summary.title.toLowerCase();
-        let score = 0;
-        if (title === normalized) score += 1000;
-        else if (title.startsWith(normalized)) score += 500;
-        else if (terms.every((t) => title.includes(t))) score += 200;
-        score += Date.parse(summary.publishedDate) / 1e11;
-        scored.push({ summary, score });
+      // Try Lucene index first (BM25-scored, stemmed, proper relevance)
+      let luceneResults: { id: string; score: number }[] | null = null;
+      try {
+        const luceneIndex = await this.searchCache.getLuceneIndex();
+        const results = luceneIndex.search(normalized);
+        if (results.length > 0) {
+          luceneResults = results;
+        }
+      } catch {
+        // Lucene index unavailable — fall back to haystack matching
       }
-      scored.sort((a, b) => b.score - a.score);
-      ordered = scored.map((s) => s.summary);
+
+      if (luceneResults) {
+        // Use Lucene-ranked results
+        const scored: { summary: ContentSummary; score: number }[] = [];
+        for (const r of luceneResults) {
+          const summary = byId.get(r.id);
+          if (!summary) continue;
+          // Add a recency bonus on top of Lucene's BM25 score
+          const recencyBonus = Date.parse(summary.publishedDate) / 1e14;
+          scored.push({ summary, score: r.score + recencyBonus });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        ordered = scored.map((s) => s.summary);
+      } else {
+        // Fallback: haystack substring matching (no Lucene index available)
+        const entries = await this.searchCache.getEntries();
+        const terms = normalized.split(' ').filter(Boolean);
+        const scored: { summary: ContentSummary; score: number }[] = [];
+        for (const e of entries) {
+          if (!terms.every((t) => e.haystack.includes(t))) continue;
+          const summary = byId.get(e.id);
+          if (!summary) continue;
+          const title = summary.title.toLowerCase();
+          let score = 0;
+          if (title === normalized) score += 1000;
+          else if (title.startsWith(normalized)) score += 500;
+          else if (terms.every((t) => title.includes(t))) score += 200;
+          score += Date.parse(summary.publishedDate) / 1e11;
+          scored.push({ summary, score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        ordered = scored.map((s) => s.summary);
+      }
     } else {
       ordered = all;
     }

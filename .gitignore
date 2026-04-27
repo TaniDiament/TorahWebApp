@@ -82,3 +82,10 @@ coverage/
 *.tmp
 .cache/
 .temp/
+
+# Maven (Lucene indexer)
+Jsongenerators/lucene-indexer/target/
+
+# Python
+__pycache__/
+*.pyc

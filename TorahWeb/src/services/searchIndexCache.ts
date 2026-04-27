@@ -1,4 +1,5 @@
 import RNBlobUtil from 'react-native-blob-util';
+import { LuceneSearchIndex, LuceneIndexData } from './luceneSearch';
 
 /**
  * On-device cache for the full-text search index. Follows the delta protocol
@@ -7,11 +8,13 @@ import RNBlobUtil from 'react-native-blob-util';
  * Layout on disk (DocumentDir):
  *   search-index.json      - full entries array, JSON serialized
  *   search-index.meta.json - { schemaVersion, version, generatedAt }
+ *   search-lucene.json     - Lucene pre-computed inverted index
  */
 
 const { fs } = RNBlobUtil;
 const INDEX_PATH = `${fs.dirs.DocumentDir}/search-index.json`;
 const META_PATH = `${fs.dirs.DocumentDir}/search-index.meta.json`;
+const LUCENE_PATH = `${fs.dirs.DocumentDir}/search-lucene.json`;
 
 export interface SearchEntry {
   id: string;
@@ -32,6 +35,7 @@ interface Manifest {
   generatedAt: string;
   fullUrl: string;
   fullBytes: number;
+  luceneUrl: string;
   deltas: { from: number; url: string; bytes: number }[];
 }
 
@@ -54,6 +58,7 @@ interface DeltaFile {
 
 export class SearchIndexCache {
   private entriesP?: Promise<SearchEntry[]>;
+  private luceneP?: Promise<LuceneSearchIndex>;
 
   constructor(private readonly baseUrl: string) {}
 
@@ -93,12 +98,30 @@ export class SearchIndexCache {
     await fs.writeFile(META_PATH, JSON.stringify(meta), 'utf8');
   }
 
+  private async writeLucene(data: LuceneIndexData) {
+    await fs.writeFile(LUCENE_PATH, JSON.stringify(data), 'utf8');
+  }
+
+  private async readLucene(): Promise<LuceneSearchIndex | null> {
+    try {
+      if (!(await fs.exists(LUCENE_PATH))) return null;
+      const raw = await fs.readFile(LUCENE_PATH, 'utf8');
+      const data = JSON.parse(raw) as LuceneIndexData;
+      return LuceneSearchIndex.load(data);
+    } catch {
+      return null;
+    }
+  }
+
   private async clear() {
     try {
       if (await fs.exists(INDEX_PATH)) await fs.unlink(INDEX_PATH);
     } catch {}
     try {
       if (await fs.exists(META_PATH)) await fs.unlink(META_PATH);
+    } catch {}
+    try {
+      if (await fs.exists(LUCENE_PATH)) await fs.unlink(LUCENE_PATH);
     } catch {}
   }
 
@@ -124,6 +147,43 @@ export class SearchIndexCache {
    */
   async getEntries(): Promise<SearchEntry[]> {
     return (this.entriesP ??= this.sync());
+  }
+
+  /**
+   * Return a ready-to-query LuceneSearchIndex. Downloads and caches the
+   * Lucene inverted index JSON alongside the entries.
+   */
+  async getLuceneIndex(): Promise<LuceneSearchIndex> {
+    return (this.luceneP ??= this.syncLucene());
+  }
+
+  private async syncLucene(): Promise<LuceneSearchIndex> {
+    // Trigger the entries sync first — it handles manifest fetching,
+    // delta application, and version tracking.
+    await this.getEntries();
+
+    // After entries sync, the Lucene file should already be cached from
+    // the sync() call. Try reading the local cache first.
+    const cached = await this.readLucene();
+    if (cached) return cached;
+
+    // Fallback: fetch the Lucene index directly from the manifest URL.
+    try {
+      const manifest = await this.fetchJson<Manifest>('search/index-manifest.json');
+      if (manifest.luceneUrl) {
+        const data = await this.fetchJson<LuceneIndexData>(manifest.luceneUrl);
+        await this.writeLucene(data);
+        return LuceneSearchIndex.load(data);
+      }
+    } catch {
+      // If Lucene index unavailable, return an empty index
+    }
+    return LuceneSearchIndex.load({
+      version: 0,
+      analyzer: 'EnglishAnalyzer',
+      docCount: 0,
+      terms: {},
+    });
   }
 
   private async sync(): Promise<SearchEntry[]> {
@@ -158,6 +218,8 @@ export class SearchIndexCache {
               version: manifest.version,
               generatedAt: manifest.generatedAt,
             });
+            // Also refresh the Lucene index when entries change
+            await this.fetchAndCacheLucene(manifest);
             return next;
           }
         } catch {
@@ -173,7 +235,22 @@ export class SearchIndexCache {
       version: full.version,
       generatedAt: full.generatedAt,
     });
+    // Download and cache the Lucene index alongside the full entries
+    await this.fetchAndCacheLucene(manifest);
     return full.entries;
+  }
+
+  private async fetchAndCacheLucene(manifest: Manifest) {
+    try {
+      if (manifest.luceneUrl) {
+        const data = await this.fetchJson<LuceneIndexData>(manifest.luceneUrl);
+        await this.writeLucene(data);
+        // Reset memoized promise so next getLuceneIndex() picks up fresh data
+        this.luceneP = undefined;
+      }
+    } catch {
+      // Lucene index is optional — search degrades to haystack matching
+    }
   }
 }
 

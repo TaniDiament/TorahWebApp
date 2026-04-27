@@ -22,7 +22,7 @@ from pathlib import Path
 from _common import (
     API, SEARCH_DIR, DELTA_TIERS, SOURCE,
     index_by, read_json, search_entry, summarize,
-    write_index_manifest, write_json, write_lunr, write_manifest,
+    write_index_manifest, write_json, write_lucene_index, write_manifest,
     write_search_delta, write_search_full,
 )
 
@@ -103,7 +103,7 @@ def main() -> int:
     new_entries = sorted(new_entries_map.values(), key=lambda e: e["date"], reverse=True)
 
     full_path, full_bytes = write_search_full(new_version, new_entries)
-    write_lunr(new_version, new_entries)
+    write_lucene_index(new_version, new_entries)
 
     # 5. delta tiers — diff each tier-boundary full against the new full.
     # Tier-boundary fulls are kept on disk for exactly this purpose.
@@ -129,11 +129,11 @@ def main() -> int:
     deltas_meta.sort(key=lambda d: d["from"], reverse=True)
 
     # 6. prune old search files no longer referenced. We keep:
-    #    - the new full + its lunr index
+    #    - the new full + its Lucene index
     #    - the index manifest
     #    - the four tier-boundary full files (so the *next* publish can diff)
     #    - the deltas we just emitted
-    keep = {full_path.name, f"lunr-v{new_version}.json", "index-manifest.json"}
+    keep = {full_path.name, f"lucene-v{new_version}.json", "index-manifest.json"}
     keep |= {Path(d["url"]).name for d in deltas_meta}
     for tier in DELTA_TIERS:
         boundary = new_version + 1 - tier  # boundary the *next* publish will need

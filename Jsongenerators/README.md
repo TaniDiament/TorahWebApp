@@ -11,24 +11,50 @@ Two scripts produce the static-JSON backend described in
   `manifest.json`, writes a new full file, and rebuilds the four delta tiers
   (1 / 5 / 50 / 500) pointing at the new version.
 
-## Search: Apache Lucene → Lunr
+## Search: Apache Lucene
 
-Apache Lucene proper is Java and won't run inside React Native. The drop-in
-client equivalent is **Lunr.js**, which is modeled on Lucene (inverted index,
-BM25-style scoring, English stemming, configurable field boosts). Python
-builds the index with `lunr-py` and emits a serialized JSON file; the app
-calls `lunr.Index.load(json)` and queries it offline.
+Search indexing is powered by **Apache Lucene** (Java). A small CLI tool
+(`lucene-indexer/`) reads the search entries JSON, builds an in-memory
+Lucene index using `EnglishAnalyzer` (lowercase, stop-word removal,
+Porter stemming) with BM25 scoring, and exports a **pre-computed inverted
+index** as JSON. Each publish writes a `lucene-v{N}.json` next to
+`full-v{N}.json`.
 
-That gives us proper relevance ranking (not the "haystack contains every
-term" heuristic in the schema doc) while still meeting the schema's
-delta-update contract — the entries array shape is unchanged, we just also
-publish a `lunr-v{N}.json` next to `full-v{N}.json`.
+The React Native app downloads this JSON and queries it locally in pure
+TypeScript — no native Lucene dependency at runtime. A matching Porter
+stemmer in TypeScript ensures query terms map to the same stems Lucene
+used at build time.
+
+**Why Lucene instead of Lunr?**
+- Lucene's `EnglishAnalyzer` produces higher-quality tokenization and
+  stemming than Lunr's default pipeline.
+- BM25 scoring is computed once at build time; query-time look-up is a
+  simple `Map.get()` — faster than Lunr's in-memory index traversal.
+- The output is a plain JSON file with no library-specific format — the
+  app has zero search-library dependencies.
+
+## Prerequisites
+
+- **Python 3.10+** with `pip`
+- **JDK 21+** (for the Lucene indexer)
+- **Maven 3.8+** (or use the Maven wrapper if included)
 
 ## Install
 
-```
+```bash
 pip install -r requirements.txt
 ```
+
+## Build the Lucene indexer (one-time)
+
+```bash
+cd lucene-indexer
+mvn package
+cd ..
+```
+
+This produces `lucene-indexer/target/lucene-indexer-1.0.0.jar`. The
+Python scripts call it via `java -jar`.
 
 ## Source layout
 
@@ -60,25 +86,26 @@ schema change, manual fix-ups, etc.).
    - `source/audio/{id}.json` — one file per audio record.
    - `source/videos/{id}.json` — one file per video record.
 2. **Install deps:** `pip install -r requirements.txt`.
-3. **Run the full build:** `python build_all.py`.
+3. **Build the Lucene indexer:** `cd lucene-indexer && mvn package && cd ..`
+4. **Run the full build:** `python build_all.py`.
    This wipes `dist/` and writes a complete `dist/api/v1/` tree. Search
-   index resets to `version: 1` with `full-v1.json` + `lunr-v1.json` and
-   no deltas.
-4. **Deploy:** upload `dist/api/v1/` to `https://www.torahweb.org/api/v1/`,
+   index resets to `version: 1` with `full-v1.json` + `lucene-v1.json`
+   and no deltas.
+5. **Deploy:** upload `dist/api/v1/` to `https://www.torahweb.org/api/v1/`,
    preserving paths. Cache headers per the schema doc:
    - `manifest.json`, `content.json`, `recent.json`, `this-week.json`,
      `index-manifest.json` → `Cache-Control: public, max-age=300, stale-while-revalidate=86400`
      with a strong ETag.
    - `articles/*`, `audio/*`, `videos/*`, `search/full-v*.json`,
-     `search/lunr-v*.json`, `search/delta-*.json` →
+     `search/lucene-v*.json`, `search/delta-*.json` →
      `Cache-Control: public, max-age=31536000, immutable` (filenames
      already encode version/id).
-   - Serve `search/full-v*.json` and `search/lunr-v*.json` with
+   - Serve `search/full-v*.json` and `search/lucene-v*.json` with
      `Content-Encoding: gzip`.
-5. **Verify:** open `https://www.torahweb.org/api/v1/manifest.json` in a
+6. **Verify:** open `https://www.torahweb.org/api/v1/manifest.json` in a
    browser; confirm the hashes line up with the files. Launch the app —
    it should fetch `manifest.json`, then everything else, then
-   `index-manifest.json` → `lunr-v1.json`.
+   `index-manifest.json` → `lucene-v1.json`.
 
 ## Subsequent publishes (adding or updating one item)
 
@@ -99,7 +126,7 @@ per item.
    - Write `dist/api/v1/articles/{id}.json` (or audio/videos equivalent).
    - Rebuild `content.json` (sorted newest-first) and `recent.json`.
    - Bump `search/index-manifest.json` `version` by 1.
-   - Write a fresh `search/full-v{N}.json` and `search/lunr-v{N}.json`.
+   - Write a fresh `search/full-v{N}.json` and `search/lucene-v{N}.json`.
    - Diff against the tier-boundary full files on disk (1 / 5 / 50 / 500
      versions back) and emit one `search/delta-{from}-{N}.json` per tier
      that has history.
@@ -109,7 +136,7 @@ per item.
 4. **Deploy the changed files.** Only files inside `dist/api/v1/` whose
    mtime advanced need to ship. In practice that's:
    `manifest.json`, `content.json`, `recent.json`, `articles|audio|videos/{id}.json`,
-   `search/index-manifest.json`, `search/full-v{N}.json`, `search/lunr-v{N}.json`,
+   `search/index-manifest.json`, `search/full-v{N}.json`, `search/lucene-v{N}.json`,
    the new `search/delta-*-{N}.json` files, **and** any `search/full-v{N-tier}.json`
    that the prune step kept (used as a build input next time, not served
    to clients but uploading is harmless).

@@ -256,6 +256,7 @@ app launch) to decide whether the local cache is stale.
   "generatedAt": "2026-04-24T14:00:00Z",
   "fullUrl": "search/full-v847.json",
   "fullBytes": 10485760,
+  "luceneUrl": "search/lucene-v847.json",
   "deltas": [
     { "from": 846, "url": "search/delta-846-847.json", "bytes": 4120 },
     { "from": 840, "url": "search/delta-840-847.json", "bytes": 38200 },
@@ -370,15 +371,42 @@ On every search (or at app launch, whichever is preferred):
    download `fullUrl`.
 5. On any parse error or missing file → fall back to `fullUrl`.
 
-#### Search behavior over the cached index
+#### Lucene inverted index (`search/lucene-v{N}.json`)
 
-- Normalize query: lowercase, replace any non-letter/non-digit with whitespace,
-  split on whitespace, drop empties.
-- An entry matches if its `haystack` contains **every** term (AND semantics).
-- Rank by: exact id match → term in metadata half of haystack → recency.
-  (A simple heuristic; no TF-IDF.)
-- Then apply `authorId`, `topicSlug`, `contentType` filters by joining the
-  matched ids against the in-memory `content.json`.
+Alongside each `full-v{N}.json`, the build script publishes a
+`lucene-v{N}.json` — a pre-computed inverted index built by Apache
+Lucene's `EnglishAnalyzer` (lowercase, stop-word removal, Porter
+stemming) with BM25 scoring.
+
+```json
+{
+  "version": 1,
+  "analyzer": "EnglishAnalyzer",
+  "docCount": 5000,
+  "terms": {
+    "lesson": [
+      { "id": "rsch-20260418-01", "s": 8.42 },
+      ...
+    ],
+    ...
+  }
+}
+```
+
+The app downloads this file (URL from `index-manifest.json`'s
+`luceneUrl` field), caches it to disk, and queries it at search time:
+
+1. Tokenize the query: lowercase → remove stop words → Porter stem.
+2. Look up each stemmed term in the `terms` map.
+3. Intersect posting lists (AND semantics), sum BM25 scores.
+4. Return ranked results.
+5. Apply `authorId`, `topicSlug`, `contentType` filters by joining
+   matched IDs against the in-memory `content.json`.
+
+Same `immutable` cache headers as full/delta files.
+
+If the Lucene index is unavailable, the app falls back to the haystack
+substring-matching approach over the entries array.
 
 ---
 
@@ -419,6 +447,7 @@ literal — the app joins it with the filenames above.
 └── search/
     ├── index-manifest.json
     ├── full-v{N}.json         one file per published version (immutable)
+    ├── lucene-v{N}.json       pre-computed Lucene inverted index (immutable)
     └── delta-{from}-{to}.json four live files (tiers 1, 5, 50, 500)
 ```
 
@@ -432,7 +461,7 @@ The `{id}` in per-item filenames is the same `id` used everywhere else
 | `manifest.json`, `search/index-manifest.json` | `public, max-age=60, stale-while-revalidate=86400` | Revalidated on every app launch. |
 | `authors.json`, `topics.json`, `content.json`, `recent.json`, `this-week.json` | `public, max-age=300, stale-while-revalidate=86400` | App uses `ETag` for revalidation. |
 | `articles/**`, `audio/**`, `videos/**` | `public, max-age=3600, stale-while-revalidate=86400` | Only fetched on user demand. |
-| `search/full-v*.json`, `search/delta-*.json` | `public, max-age=31536000, immutable` | Filename contains version — never changes. |
+| `search/full-v*.json`, `search/lucene-v*.json`, `search/delta-*.json` | `public, max-age=31536000, immutable` | Filename contains version — never changes. |
 
 Also required on every file:
 
@@ -535,6 +564,8 @@ separate file needed.
   in-memory; the site doesn't have to pre-bake per-author/per-topic files.
 - **Full bodies live in their own files** so that scrolling a list of 5000
   items doesn't pull down 500 MB of article HTML.
-- **Full-text search is client-side** over a delta-synced haystack. First
-  launch pays a one-time ~10 MB download; every launch after fetches a small
-  delta instead of re-downloading the corpus.
+- **Full-text search is client-side** using a pre-computed Apache Lucene
+  inverted index (BM25-scored, stemmed). First launch downloads the
+  entries (~10 MB gzipped) plus the Lucene index; every launch after
+  fetches a small delta for entries and a fresh Lucene index only when
+  the version changes.
