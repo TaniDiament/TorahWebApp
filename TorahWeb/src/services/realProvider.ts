@@ -9,7 +9,10 @@ import {
   Video,
 } from '../types';
 import { ContentProvider } from './provider';
-import { SearchIndexCache, normalizeQuery } from './searchIndexCache';
+import { TantivyIndexCache } from './tantivyIndexCache';
+import { isNativeSearchAvailable } from '../native/TorahSearch';
+
+const NATIVE_SEARCH_LIMIT = 200;
 
 /**
  * RealProvider — fetches static JSON files published by torahweb.org.
@@ -82,10 +85,10 @@ export class RealProvider implements ContentProvider {
   private contentP?: Promise<ContentSummary[]>;
   private recentP?: Promise<string[]>;
   private thisWeekP?: Promise<string | null>;
-  private readonly searchCache: SearchIndexCache;
+  private readonly tantivy: TantivyIndexCache;
 
   constructor(private readonly baseUrl: string) {
-    this.searchCache = new SearchIndexCache(baseUrl);
+    this.tantivy = new TantivyIndexCache(baseUrl);
   }
 
   private url(path: string) {
@@ -286,30 +289,17 @@ export class RealProvider implements ContentProvider {
   async searchContent(params: SearchParams): Promise<Content[]> {
     const all = await this.content();
     const byId = new Map(all.map((c) => [c.id, c]));
+    const rawQuery = (params.query ?? '').trim();
 
     let ordered: ContentSummary[];
 
-    const normalized = params.query ? normalizeQuery(params.query) : '';
-    if (normalized) {
-      const entries = await this.searchCache.getEntries();
-      const terms = normalized.split(' ').filter(Boolean);
-      const scored: { summary: ContentSummary; score: number }[] = [];
-      for (const e of entries) {
-        if (!terms.every((t) => e.haystack.includes(t))) continue;
-        const summary = byId.get(e.id);
-        if (!summary) continue;
-        const title = summary.title.toLowerCase();
-        let score = 0;
-        if (title === normalized) score += 1000;
-        else if (title.startsWith(normalized)) score += 500;
-        else if (terms.every((t) => title.includes(t))) score += 200;
-        score += Date.parse(summary.publishedDate) / 1e11;
-        scored.push({ summary, score });
-      }
-      scored.sort((a, b) => b.score - a.score);
-      ordered = scored.map((s) => s.summary);
+    if (rawQuery) {
+      ordered = (await this.runQuery(rawQuery, all, byId)) ?? [];
     } else {
-      ordered = all;
+      ordered = [...all].sort(
+        (a, b) =>
+          Date.parse(b.publishedDate) - Date.parse(a.publishedDate),
+      );
     }
 
     if (params.authorId) {
@@ -323,5 +313,52 @@ export class RealProvider implements ContentProvider {
     }
 
     return Promise.all(ordered.map((s) => this.hydrateSummary(s)));
+  }
+
+  /**
+   * Try the native Tantivy engine first; fall back to a metadata-only scan
+   * over `content.json` when the native module is missing (Jest, web preview)
+   * or the index hasn't synced yet.
+   */
+  private async runQuery(
+    rawQuery: string,
+    all: ContentSummary[],
+    byId: Map<string, ContentSummary>,
+  ): Promise<ContentSummary[]> {
+    if (isNativeSearchAvailable) {
+      try {
+        const ready = await this.tantivy.ensureReady();
+        if (ready) {
+          const hits = await this.tantivy.query(rawQuery, NATIVE_SEARCH_LIMIT);
+          const out: ContentSummary[] = [];
+          for (const h of hits) {
+            const s = byId.get(h.id);
+            if (s) out.push(s);
+          }
+          return out;
+        }
+      } catch (e) {
+        console.warn('Tantivy search failed, falling back:', e);
+      }
+    }
+    return this.metadataFallback(rawQuery, all);
+  }
+
+  private metadataFallback(
+    rawQuery: string,
+    all: ContentSummary[],
+  ): ContentSummary[] {
+    const terms = rawQuery
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean);
+    if (!terms.length) return [];
+    const matches = all.filter((c) => {
+      const hay = `${c.title} ${c.parshaLabel ?? ''} ${c.excerpt ?? ''} ${c.topicSlugs.join(' ')}`.toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+    return matches.sort(
+      (a, b) => Date.parse(b.publishedDate) - Date.parse(a.publishedDate),
+    );
   }
 }
