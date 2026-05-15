@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -11,14 +12,21 @@ import {
   View,
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { DownloadItem } from '../types';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Content, DownloadItem } from '../types';
+import type { LibraryStackParamList } from '../navigation/types';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import {
   getDownloadedItems,
+  loadDownloadedArticle,
   openDownloadedItem,
   removeDownloadedItem,
 } from '../services/download';
 import Icon from '../components/ui/Icon';
+import { useAudioPlayer } from '../audio/AudioPlayerProvider';
+
+type Nav = NativeStackNavigationProp<LibraryStackParamList, 'Library'>;
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -96,9 +104,13 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
           styles.row,
           pressed && { opacity: 0.85 },
         ]}>
-        <View style={styles.kindBadge}>
-          <Icon name={kindIcon(item.kind) as any} size={20} color={colors.textInverse} />
-        </View>
+        {item.artworkUrl ? (
+          <Image source={{ uri: item.artworkUrl }} style={styles.portrait} />
+        ) : (
+          <View style={styles.kindBadge}>
+            <Icon name={kindIcon(item.kind) as any} size={20} color={colors.textInverse} />
+          </View>
+        )}
         <View style={styles.body}>
           <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
@@ -113,9 +125,51 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
 };
 
 const DownloadsScreen: React.FC = () => {
+  const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { playTrack, expand } = useAudioPlayer();
+  const onContentSelect = (content: Content) =>
+    navigation.navigate('Content', { content });
+
+  const onOpen = useCallback(
+    async (item: DownloadItem) => {
+      if (item.kind === 'audio') {
+        try {
+          await playTrack({
+            id: item.contentId,
+            // file:// URI keeps playback strictly local — TrackPlayer hands
+            // this to ExoPlayer/AVPlayer in-process; the OS never gets a
+            // chance to route it to a default audio app.
+            url: `file://${item.filePath}`,
+            title: item.title,
+            artist: item.authorName,
+            artworkUrl: item.artworkUrl,
+          });
+          expand();
+        } catch (err) {
+          const message =
+            err instanceof Error && err.message ? err.message : 'Please try again.';
+          Alert.alert("Couldn't play audio", message);
+        }
+        return;
+      }
+
+      if (item.kind === 'article') {
+        const article = await loadDownloadedArticle(item);
+        if (article) {
+          onContentSelect(article);
+          return;
+        }
+        // Legacy article downloads (pre-snapshot format) fall through to the
+        // OS hand-off in openDownloadedItem.
+      }
+
+      await openDownloadedItem(item);
+    },
+    [expand, navigation, playTrack],
+  );
 
   const load = useCallback(async () => {
     const next = await getDownloadedItems();
@@ -168,7 +222,7 @@ const DownloadsScreen: React.FC = () => {
         </View>
       }
       renderItem={({ item }) => (
-        <DownloadRow item={item} onOpen={openDownloadedItem} onDelete={onRemove} />
+        <DownloadRow item={item} onOpen={onOpen} onDelete={onRemove} />
       )}
       ListEmptyComponent={
         <View style={styles.emptyWrap}>
@@ -229,6 +283,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.navy,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  portrait: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceTint,
   },
   body: {
     flex: 1,

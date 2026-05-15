@@ -75,6 +75,7 @@ export interface DownloadItem {
   mimeType: string;
   createdAt: string;
   sourceUrl?: string;
+  artworkUrl?: string;
 }
 
 export const isArticle = (c: Content): c is Article => 'content' in c;
