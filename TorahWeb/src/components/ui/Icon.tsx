@@ -29,6 +29,8 @@ export type IconName =
   | 'sparkles'
   | 'person.crop.circle'
   | 'rectangle.stack.fill'
+  | 'square.and.arrow.up'
+  | 'wifi.slash'
   | 'torah.scroll';
 
 interface IconProps {
@@ -66,6 +68,10 @@ const GLYPHS: Record<IconName, string> = {
   sparkles: '✨',
   'person.crop.circle': '○',
   'rectangle.stack.fill': '▤',
+  // square.and.arrow.up and wifi.slash are rendered as shapes — these
+  // entries are placeholders so the GLYPHS map stays exhaustive.
+  'square.and.arrow.up': '',
+  'wifi.slash': '',
   // torah.scroll is rendered as a shape — this entry is just a placeholder
   // so the GLYPHS map stays exhaustive across all IconName values.
   'torah.scroll': '',
@@ -143,6 +149,127 @@ const TorahScrollShape: React.FC<{ size: number; color: string }> = ({ size, col
   );
 };
 
+/**
+ * iOS-style share icon: a box opening upward with an arrow rising out of
+ * the top. Built from absolutely-positioned primitives so the silhouette
+ * is identical across platforms (the SF-Symbols ⇪ unicode fallback renders
+ * inconsistently in system fonts). Each layer is centered horizontally
+ * via an explicit `left = (size - width) / 2` — alignItems:center won't
+ * center absolute children since they're out of flow.
+ */
+const ShareShape: React.FC<{ size: number; color: string }> = ({ size, color }) => {
+  const stroke = Math.max(1.5, size * 0.09);
+  const headSize = size * 0.34;
+  const shaftHeight = size * 0.5;
+  const boxH = size * 0.42;
+  const boxW = size * 0.78;
+  // The ┌ corner with rotate(+45°) places its apex at top-center, slightly
+  // above the bounding box (y ≈ -0.207 * headSize). Nudge it down so the
+  // apex sits exactly at the wrapper's top edge.
+  const headTopOffset = headSize * 0.21;
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        style={{
+          position: 'absolute',
+          top: headTopOffset,
+          left: (size - headSize) / 2,
+          width: headSize,
+          height: headSize,
+          borderTopWidth: stroke,
+          borderLeftWidth: stroke,
+          borderColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          top: headSize * 0.5,
+          left: (size - stroke) / 2,
+          width: stroke,
+          height: shaftHeight,
+          backgroundColor: color,
+          borderRadius: stroke / 2,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: (size - boxW) / 2,
+          width: boxW,
+          height: boxH,
+          borderWidth: stroke,
+          borderTopWidth: 0,
+          borderColor: color,
+          borderBottomLeftRadius: Math.max(2, size * 0.1),
+          borderBottomRightRadius: Math.max(2, size * 0.1),
+        }}
+      />
+    </View>
+  );
+};
+
+/**
+ * Offline indicator: three concentric arcs (rendered as nested rings) with
+ * a diagonal slash overlay. Communicates "no network" at glance sizes
+ * without depending on emoji fonts.
+ */
+const WifiSlashShape: React.FC<{ size: number; color: string }> = ({ size, color }) => {
+  const stroke = Math.max(1.5, size * 0.09);
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'flex-end' }}>
+      <View
+        style={{
+          width: size * 0.92,
+          height: size * 0.46,
+          borderTopLeftRadius: size,
+          borderTopRightRadius: size,
+          borderWidth: stroke,
+          borderBottomWidth: 0,
+          borderColor: color,
+          position: 'absolute',
+          bottom: size * 0.22,
+        }}
+      />
+      <View
+        style={{
+          width: size * 0.55,
+          height: size * 0.28,
+          borderTopLeftRadius: size,
+          borderTopRightRadius: size,
+          borderWidth: stroke,
+          borderBottomWidth: 0,
+          borderColor: color,
+          position: 'absolute',
+          bottom: size * 0.22,
+        }}
+      />
+      <View
+        style={{
+          width: stroke * 1.6,
+          height: stroke * 1.6,
+          borderRadius: stroke,
+          backgroundColor: color,
+          position: 'absolute',
+          bottom: size * 0.12,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: size * 1.15,
+          height: stroke,
+          backgroundColor: color,
+          top: size * 0.5,
+          transform: [{ rotate: '-32deg' }],
+        }}
+      />
+    </View>
+  );
+};
+
 const WaveformShape: React.FC<{ size: number; color: string }> = ({ size, color }) => {
   const barWidth = Math.max(1.5, size * 0.12);
   const gap = Math.max(1, Math.round(size * 0.07));
@@ -181,6 +308,20 @@ export const Icon: React.FC<IconProps> = ({ name, size = 22, color = '#0a0a0a', 
     return (
       <View style={[styles.wrap, { width: size, height: size }, style]}>
         <TorahScrollShape size={size} color={color} />
+      </View>
+    );
+  }
+  if (name === 'square.and.arrow.up') {
+    return (
+      <View style={[styles.wrap, { width: size, height: size }, style]}>
+        <ShareShape size={size} color={color} />
+      </View>
+    );
+  }
+  if (name === 'wifi.slash') {
+    return (
+      <View style={[styles.wrap, { width: size, height: size }, style]}>
+        <WifiSlashShape size={size} color={color} />
       </View>
     );
   }

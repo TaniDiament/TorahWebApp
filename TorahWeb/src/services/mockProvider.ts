@@ -183,7 +183,12 @@ export class MockProvider implements ContentProvider {
     return delay(TOPICS);
   }
   getRecent(limit = 4) {
-    return delay(RECENT.slice(0, limit));
+    // Mix articles, audio, and video into a single chronological feed so the
+    // Home "Recently Added" rail shows every type, not just divrei torah.
+    const mixed = [...ALL_CONTENT].sort(
+      (a, b) => new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
+    );
+    return delay(mixed.slice(0, limit));
   }
   getThisWeek() {
     return delay(RECENT[0] ?? null);

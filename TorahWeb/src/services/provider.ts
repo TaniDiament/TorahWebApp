@@ -6,7 +6,7 @@ export interface ContentProvider {
 
   getTopics(): Promise<Topic[]>;
 
-  getRecent(limit?: number): Promise<Article[]>;
+  getRecent(limit?: number): Promise<Content[]>;
   getThisWeek(): Promise<Article | null>;
 
   getContentByAuthor(authorId: string): Promise<Content[]>;
