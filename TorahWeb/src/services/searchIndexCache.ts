@@ -27,6 +27,8 @@ interface IndexMeta {
   schemaVersion: number;
   version: number;
   generatedAt: string;
+  /** Version of the Lucene index file currently on disk, or null if absent. */
+  luceneVersion: number | null;
 }
 
 interface Manifest {
@@ -76,7 +78,23 @@ export class SearchIndexCache {
     try {
       if (!(await fs.exists(META_PATH))) return null;
       const raw = await fs.readFile(META_PATH, 'utf8');
-      return JSON.parse(raw) as IndexMeta;
+      const parsed = JSON.parse(raw) as Partial<IndexMeta>;
+      if (
+        typeof parsed.schemaVersion !== 'number' ||
+        typeof parsed.version !== 'number' ||
+        typeof parsed.generatedAt !== 'string'
+      ) {
+        return null;
+      }
+      // luceneVersion was added later — treat any pre-existing meta file
+      // as "Lucene index unknown / stale" so we re-fetch on next sync.
+      return {
+        schemaVersion: parsed.schemaVersion,
+        version: parsed.version,
+        generatedAt: parsed.generatedAt,
+        luceneVersion:
+          typeof parsed.luceneVersion === 'number' ? parsed.luceneVersion : null,
+      };
     } catch {
       return null;
     }
@@ -93,8 +111,11 @@ export class SearchIndexCache {
     }
   }
 
-  private async write(entries: SearchEntry[], meta: IndexMeta) {
+  private async writeEntries(entries: SearchEntry[]) {
     await fs.writeFile(INDEX_PATH, JSON.stringify(entries), 'utf8');
+  }
+
+  private async writeMeta(meta: IndexMeta) {
     await fs.writeFile(META_PATH, JSON.stringify(meta), 'utf8');
   }
 
@@ -162,26 +183,39 @@ export class SearchIndexCache {
     // delta application, and version tracking.
     await this.getEntries();
 
-    // After entries sync, the Lucene file should already be cached from
-    // the sync() call. Try reading the local cache first.
-    const cached = await this.readLucene();
-    if (cached) return cached;
+    // Only trust the cached Lucene index if meta records that it was
+    // successfully fetched for the same version as the entries cache.
+    const meta = await this.readMeta();
+    if (meta && meta.luceneVersion === meta.version) {
+      const cached = await this.readLucene();
+      if (cached) return cached;
+    }
 
-    // Fallback: fetch the Lucene index directly from the manifest URL.
+    // Stale or missing — try a fresh fetch.
     try {
       const manifest = await this.fetchJson<Manifest>('search/index-manifest.json');
       if (manifest.luceneUrl) {
         const data = await this.fetchJson<LuceneIndexData>(manifest.luceneUrl);
-        await this.writeLucene(data);
+        // Only commit the Lucene file (and update meta.luceneVersion) when
+        // it lines up with the entries we have on disk. If something raced
+        // and the entries are at a different version, return the freshly
+        // downloaded index for this query but don't poison the cache.
+        if (meta && meta.version === manifest.version) {
+          await this.writeLucene(data);
+          await this.writeMeta({ ...meta, luceneVersion: manifest.version });
+        }
         return LuceneSearchIndex.load(data);
       }
     } catch {
       // If Lucene index unavailable, return an empty index
     }
     return LuceneSearchIndex.load({
-      version: 0,
+      schemaVersion: 2,
       analyzer: 'EnglishAnalyzer',
+      scoring: { scorer: 'BM25', k1: 1.2, b: 0.75 },
       docCount: 0,
+      fields: [],
+      docLens: {},
       terms: {},
     });
   }
@@ -203,6 +237,11 @@ export class SearchIndexCache {
     const cacheUsable = !!meta && !!cachedEntries && !schemaMismatch;
 
     if (cacheUsable && meta!.version === manifest.version) {
+      // Entries are current; the Lucene cache may still be stale (e.g. a
+      // previous sync failed mid-flight). Top it up opportunistically.
+      if (meta!.luceneVersion !== meta!.version) {
+        await this.fetchAndCacheLucene(manifest, meta!);
+      }
       return cachedEntries!;
     }
 
@@ -213,13 +252,18 @@ export class SearchIndexCache {
           const payload = await this.fetchJson<DeltaFile>(delta.url);
           if (payload.schemaVersion === manifest.schemaVersion) {
             const next = this.applyDelta(cachedEntries!, payload);
-            await this.write(next, {
+            await this.writeEntries(next);
+            // Mark meta as advanced but the Lucene index as not-yet-fetched.
+            // fetchAndCacheLucene will flip luceneVersion to the new version
+            // iff its download succeeds.
+            const nextMeta: IndexMeta = {
               schemaVersion: manifest.schemaVersion,
               version: manifest.version,
               generatedAt: manifest.generatedAt,
-            });
-            // Also refresh the Lucene index when entries change
-            await this.fetchAndCacheLucene(manifest);
+              luceneVersion: null,
+            };
+            await this.writeMeta(nextMeta);
+            await this.fetchAndCacheLucene(manifest, nextMeta);
             return next;
           }
         } catch {
@@ -230,26 +274,37 @@ export class SearchIndexCache {
 
     if (schemaMismatch) await this.clear();
     const full = await this.fetchJson<FullIndexFile>(manifest.fullUrl);
-    await this.write(full.entries, {
+    await this.writeEntries(full.entries);
+    const nextMeta: IndexMeta = {
       schemaVersion: full.schemaVersion,
       version: full.version,
       generatedAt: full.generatedAt,
-    });
-    // Download and cache the Lucene index alongside the full entries
-    await this.fetchAndCacheLucene(manifest);
+      luceneVersion: null,
+    };
+    await this.writeMeta(nextMeta);
+    await this.fetchAndCacheLucene(manifest, nextMeta);
     return full.entries;
   }
 
-  private async fetchAndCacheLucene(manifest: Manifest) {
+  /**
+   * Download the Lucene index referenced by `manifest` and persist it,
+   * but only flip `meta.luceneVersion` to the new value after the file is
+   * safely on disk. If the fetch fails, the entries cache moves forward
+   * while `meta.luceneVersion` stays behind — the next call to
+   * `getLuceneIndex()` will retry the download.
+   */
+  private async fetchAndCacheLucene(manifest: Manifest, meta: IndexMeta) {
     try {
-      if (manifest.luceneUrl) {
-        const data = await this.fetchJson<LuceneIndexData>(manifest.luceneUrl);
-        await this.writeLucene(data);
-        // Reset memoized promise so next getLuceneIndex() picks up fresh data
-        this.luceneP = undefined;
-      }
+      if (!manifest.luceneUrl) return;
+      const data = await this.fetchJson<LuceneIndexData>(manifest.luceneUrl);
+      await this.writeLucene(data);
+      await this.writeMeta({ ...meta, luceneVersion: manifest.version });
+      // Reset memoized promise so next getLuceneIndex() picks up fresh data.
+      this.luceneP = undefined;
     } catch {
-      // Lucene index is optional — search degrades to haystack matching
+      // Lucene index is optional — search degrades to haystack matching.
+      // meta.luceneVersion stays null/stale; readLucene() in syncLucene()
+      // will fall through to a fresh fetch attempt.
     }
   }
 }

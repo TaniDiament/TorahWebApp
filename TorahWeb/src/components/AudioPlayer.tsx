@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { GlassButton } from './ui/Glass';
 import Icon from './ui/Icon';
@@ -20,26 +20,53 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   authorName,
   artworkUrl,
 }) => {
-  const { currentTrack, isPlaying, playTrack, togglePlayPause, expand } = useAudioPlayer();
+  const {
+    currentTrack,
+    isPlaying,
+    loading,
+    progress,
+    duration,
+    playTrack,
+    togglePlayPause,
+    seekBy,
+    expand,
+  } = useAudioPlayer();
 
   const isCurrent = currentTrack?.id === audioId;
+  // Treat a track sitting at the very end as "needs replay" instead of resume,
+  // so users don't tap a button that silently no-ops.
+  const isAtEnd =
+    isCurrent && duration > 0 && progress >= duration - 0.5 && !isPlaying;
   const playLabel = useMemo(() => {
     if (!isCurrent) return 'Play';
+    if (isAtEnd) return 'Replay';
     return isPlaying ? 'Pause' : 'Resume';
-  }, [isCurrent, isPlaying]);
+  }, [isCurrent, isAtEnd, isPlaying]);
 
   const onPrimaryAction = async () => {
-    if (isCurrent) {
-      await togglePlayPause();
-      return;
+    if (loading) return;
+    try {
+      if (isAtEnd) {
+        await seekBy(-duration);
+        await togglePlayPause();
+        return;
+      }
+      if (isCurrent) {
+        await togglePlayPause();
+        return;
+      }
+      await playTrack({
+        id: audioId,
+        url: audioUrl,
+        title,
+        artist: authorName,
+        artworkUrl,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Please try again.';
+      Alert.alert("Couldn't play audio", message);
     }
-    await playTrack({
-      id: audioId,
-      url: audioUrl,
-      title,
-      artist: authorName,
-      artworkUrl,
-    });
   };
 
   return (
@@ -50,17 +77,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           contentStyle={styles.playButtonInner}
           cornerRadius={radii.pill}
           tint="rgba(26, 58, 92, 0.94)"
+          accessibilityRole="button"
+          accessibilityLabel={`${playLabel} ${title}`}
+          accessibilityState={{ disabled: loading, busy: loading }}
+          disabled={loading}
           onPress={onPrimaryAction}>
-          <Icon
-            name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
-            size={18}
-            color={colors.textInverse}
-          />
+          {loading ? (
+            <ActivityIndicator color={colors.textInverse} size="small" />
+          ) : (
+            <Icon
+              name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
+              size={18}
+              color={colors.textInverse}
+            />
+          )}
           <Text style={styles.playText}>{playLabel}</Text>
         </GlassButton>
-        {currentTrack ? (
+        {isCurrent ? (
           <Pressable
             onPress={expand}
+            accessibilityRole="button"
+            accessibilityLabel="Open Now Playing"
+            hitSlop={6}
+            android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
             style={({ pressed }) => [
               styles.queueButton,
               pressed && { opacity: 0.7 },
@@ -70,9 +109,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </Pressable>
         ) : null}
       </View>
-      {!currentTrack ? (
-        <Text style={styles.hint}>The mini player will stay active while you browse.</Text>
-      ) : null}
     </View>
   );
 };
@@ -87,6 +123,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.md,
   },
   playButton: {
@@ -116,11 +153,6 @@ const styles = StyleSheet.create({
     ...typography.subheadline,
     color: colors.navy,
     fontWeight: '600',
-  },
-  hint: {
-    ...typography.footnote,
-    color: colors.textTertiary,
-    marginTop: spacing.md,
   },
 });
 

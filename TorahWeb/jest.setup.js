@@ -12,18 +12,15 @@ jest.mock('react-native-webview', () => {
   return { WebView };
 });
 
-jest.mock('@react-native-community/blur', () => {
+jest.mock('./src/components/ui/TorahWebLiquidGlassViewNativeComponent', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const BlurView = React.forwardRef((props, ref) =>
-    React.createElement(View, {
-      ...props,
-      ref,
-    }),
+  const LiquidGlass = React.forwardRef((props, ref) =>
+    React.createElement(View, { ...props, ref }),
   );
 
-  return { BlurView };
+  return { __esModule: true, default: LiquidGlass };
 });
 
 

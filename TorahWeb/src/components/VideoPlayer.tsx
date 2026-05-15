@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors, radii, typography } from '../theme';
 import { GlassButton } from './ui/Glass';
@@ -7,6 +7,7 @@ import { GlassButton } from './ui/Glass';
 interface VideoPlayerProps {
   vimeoId?: string;
   videoUrl?: string;
+  /** Optional poster; currently unused but reserved for future preview UI. */
   thumbnailUrl?: string;
 }
 
@@ -41,6 +42,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
     ? `https://player.vimeo.com/video/${vimeoId}`
     : videoUrl ?? null;
 
+  const openInBrowser = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert("Can't open link", 'No browser is available to handle this URL.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message ? err.message : 'Please try again.';
+      Alert.alert("Couldn't open link", message);
+    }
+  };
+
   if (!embedUrl) {
     return (
       <View style={styles.container}>
@@ -58,7 +74,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
           contentStyle={styles.openButtonInner}
           cornerRadius={radii.pill}
           tint="rgba(26, 58, 92, 0.92)"
-          onPress={() => Linking.openURL(embedUrl)}
+          accessibilityRole="button"
+          accessibilityLabel="Open video in browser"
+          onPress={() => openInBrowser(embedUrl)}
         >
           <Text style={styles.openButtonText}>Open in Browser</Text>
         </GlassButton>

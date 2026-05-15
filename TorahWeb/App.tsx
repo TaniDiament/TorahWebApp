@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BackHandler,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -83,6 +84,8 @@ const AppShell = () => {
     push({ name: 'search', contentType: 'audio', title: 'Audio' });
   const openVideo = () =>
     push({ name: 'search', contentType: 'video', title: 'Video' });
+  const openDivreiTorah = () =>
+    push({ name: 'search', contentType: 'article', title: 'Divrei Torah' });
   const openNewest = () =>
     push({ name: 'search', showAll: true, title: 'Newest' });
   const openLibrary = () => {
@@ -91,11 +94,10 @@ const AppShell = () => {
   };
 
   const onTabPress = (tab: Tab) => {
-    if (tab === activeTab) {
-      resetTab(tab);
-      return;
-    }
-    setActiveTab(tab);
+    // Each tab button means "go to that section's root". Tapping a different
+    // tab switches and resets it; tapping the active tab also pops to root.
+    resetTab(tab);
+    if (tab !== activeTab) setActiveTab(tab);
   };
 
   const showBackButton = stack.length > 1;
@@ -131,8 +133,14 @@ const AppShell = () => {
             contentStyle={styles.floatingBackInner}
             cornerRadius={radii.pill}
             variant="regular"
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={12}
             onPress={pop}>
-            <Icon name="chevron.left" size={22} color={colors.text} />
+            {/* Hand-drawn chevron via a rotated square — the unicode ‹ glyph
+                has off-centre metrics in many fonts so we draw it ourselves
+                to guarantee the apex sits at the centre of the button. */}
+            <View style={styles.backChevron} />
           </GlassButton>
         </View>
       ) : null}
@@ -146,6 +154,7 @@ const AppShell = () => {
             onSearchPress={openSearch}
             onAudioPress={openAudio}
             onVideoPress={openVideo}
+            onDivreiTorahPress={openDivreiTorah}
             onNewestPress={openNewest}
             onDownloadsPress={openLibrary}
           />
@@ -191,9 +200,13 @@ const TabItem: React.FC<{
 }> = ({ label, icon, active, onPress }) => (
   <Pressable
     onPress={onPress}
+    accessibilityRole="tab"
+    accessibilityLabel={label}
+    accessibilityState={{ selected: active }}
+    android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
     style={({ pressed }) => [
       styles.tabItem,
-      pressed && { opacity: 0.7 },
+      pressed && { opacity: Platform.OS === 'ios' ? 0.7 : 1 },
     ]}>
     <Icon name={icon} size={22} color={active ? colors.navy : colors.textTertiary} />
     <Text
@@ -230,18 +243,31 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   floatingBack: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.pill,
     zIndex: 2,
     elevation: 4,
   },
   floatingBackInner: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backChevron: {
+    // A 12×12 square with two adjacent borders, rotated -45° → looks like
+    // a `<` chevron. The visible apex of a rotated `┌` sits at the left of
+    // the bounding box, so the translateX offsets the geometry back to the
+    // visual centre of the parent button.
+    width: 11,
+    height: 11,
+    borderTopWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.text,
+    borderTopLeftRadius: 1,
+    transform: [{ translateX: 2 }, { rotate: '-45deg' }],
   },
   floatingTitleWrap: {
     position: 'absolute',

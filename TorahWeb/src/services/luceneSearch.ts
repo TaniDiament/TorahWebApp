@@ -1,27 +1,38 @@
 /**
- * Client-side search over a Lucene-produced pre-computed inverted index.
+ * Client-side search over a Lucene-produced inverted index (schema v2).
  *
- * At build time, the Python scripts invoke an Apache Lucene Java CLI that
- * tokenizes every search entry with Lucene's EnglishAnalyzer (lower-case,
- * stop-word removal, Porter stemming) and scores each document per term
- * using BM25. The result is a JSON file mapping stemmed terms to ranked
- * posting lists:
+ * The build-time Java tool emits a JSON file that contains every raw BM25
+ * input — per-(term, field) postings as `[id, tf]` pairs, per-doc field
+ * lengths, per-field collection averages, and the BM25 hyperparameters —
+ * but **does not** pre-compute scores. The schema:
  *
  * ```json
  * {
- *   "version": 1,
+ *   "schemaVersion": 2,
  *   "analyzer": "EnglishAnalyzer",
+ *   "scoring": { "scorer": "BM25", "k1": 1.2, "b": 0.75 },
  *   "docCount": 5000,
+ *   "fields": [
+ *     { "name": "meta", "boost": 5.0, "avgLen": 48.7 },
+ *     { "name": "body", "boost": 1.0, "avgLen": 412.3 }
+ *   ],
+ *   "docLens": { "rsch-20260418-01": [52, 410], … },
  *   "terms": {
- *     "lesson": [{ "id": "rsch-20260418-01", "s": 8.42 }, …],
- *     …
+ *     "lesson": {
+ *       "df": [312, 894],
+ *       "postings": [ [["rsch-…", 2], …], [["rsch-…", 5], …] ]
+ *     }
  *   }
  * }
  * ```
  *
- * At query time the app applies the same stemming to the query terms,
- * looks up each stem in the map, intersects the posting lists (AND
- * semantics), sums the scores, and returns ranked results.
+ * At query time we tokenize the query the same way Lucene did at index
+ * time (lowercase → strip possessive 's → split → stop-word filter →
+ * Porter stem), look up each stem, and compute BM25 per (term, field, doc)
+ * with the published hyperparameters. Scores across fields are summed
+ * with the field's boost; scores across query terms are AND-intersected
+ * and summed. This keeps every contribution to a hit's total score
+ * within the same similarity context.
  */
 
 // ---------------------------------------------------------------------------
@@ -149,17 +160,30 @@ function porterStem(w: string): string {
 // LuceneSearchIndex
 // ---------------------------------------------------------------------------
 
-interface PostingEntry {
-  id: string;
-  /** BM25 score computed at build time. */
-  s: number;
+/** A single posting: tuple of [entryId, termFrequency]. */
+type Posting = [string, number];
+
+interface FieldStats {
+  name: string;
+  boost: number;
+  avgLen: number;
+}
+
+interface TermData {
+  /** Document frequency per field, indexed by field position. */
+  df: number[];
+  /** Postings per field, indexed by field position. */
+  postings: Posting[][];
 }
 
 export interface LuceneIndexData {
-  version: number;
+  schemaVersion: number;
   analyzer: string;
+  scoring: { scorer: 'BM25'; k1: number; b: number };
   docCount: number;
-  terms: Record<string, PostingEntry[]>;
+  fields: FieldStats[];
+  docLens: Record<string, number[]>;
+  terms: Record<string, TermData>;
 }
 
 export interface SearchResult {
@@ -168,8 +192,9 @@ export interface SearchResult {
 }
 
 /**
- * English stop words matching Lucene's EnglishAnalyzer default stop set.
- * Query terms that appear in this set are dropped before lookup.
+ * English stop words matching Lucene's EnglishAnalyzer default stop set
+ * (`EnglishAnalyzer.ENGLISH_STOP_WORDS_SET`). Query terms in this set are
+ * dropped before stemming and lookup.
  */
 const STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'if',
@@ -179,14 +204,22 @@ const STOP_WORDS = new Set([
 ]);
 
 export class LuceneSearchIndex {
-  private terms: Map<string, PostingEntry[]>;
   readonly docCount: number;
+  private readonly k1: number;
+  private readonly b: number;
+  private readonly fields: FieldStats[];
+  private readonly docLens: Record<string, number[]>;
+  private readonly terms: Map<string, TermData>;
 
   private constructor(data: LuceneIndexData) {
     this.docCount = data.docCount;
+    this.k1 = data.scoring?.k1 ?? 1.2;
+    this.b = data.scoring?.b ?? 0.75;
+    this.fields = data.fields ?? [];
+    this.docLens = data.docLens ?? {};
     this.terms = new Map();
-    for (const [term, postings] of Object.entries(data.terms)) {
-      this.terms.set(term, postings);
+    for (const [term, td] of Object.entries(data.terms ?? {})) {
+      this.terms.set(term, td);
     }
   }
 
@@ -197,70 +230,98 @@ export class LuceneSearchIndex {
 
   /**
    * Tokenize a query string the same way Lucene's EnglishAnalyzer does:
-   * lowercase → split on non-alphanumeric → drop stop words → Porter stem.
+   * lowercase → strip English possessive 's → split on non-alphanumeric →
+   * drop stop words / single-char residue → Porter stem.
+   *
+   * The possessive strip mirrors Lucene's EnglishPossessiveFilter. Without
+   * it "Schachter's lecture" would tokenize to ["schachter", "s", "lectur"]
+   * and the AND-search would exclude any doc whose haystack happens not to
+   * contain the noise token "s".
    */
   static tokenize(query: string): string[] {
     return query
       .toLowerCase()
+      .replace(/(\w)['’]s\b/g, '$1')
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
-      .filter((t) => t.length > 0 && !STOP_WORDS.has(t))
+      .filter((t) => t.length > 1 && !STOP_WORDS.has(t))
       .map(porterStem);
+  }
+
+  /**
+   * Score one query term across every field it appears in and accumulate
+   * per-doc totals. BM25 with the published `k1`/`b` and per-field boost.
+   *
+   * Formula (Lucene-style):
+   *   idf = ln(1 + (N - df + 0.5) / (df + 0.5))
+   *   tfNorm = tf * (k1 + 1) / (tf + k1 * (1 - b + b * |d_f| / avgLen_f))
+   *   score(t, f, d) = boost_f * idf * tfNorm
+   */
+  private scoreTerm(term: string): Map<string, number> {
+    const data = this.terms.get(term);
+    const out = new Map<string, number>();
+    if (!data) return out;
+
+    for (let f = 0; f < this.fields.length; f++) {
+      const postings = data.postings[f];
+      if (!postings || postings.length === 0) continue;
+      const df = data.df[f];
+      if (df <= 0) continue;
+
+      const idf = Math.log(1 + (this.docCount - df + 0.5) / (df + 0.5));
+      const { avgLen, boost } = this.fields[f];
+      // BM25 with avgLen = 0 is degenerate; treat as length-normalization-off.
+      const denom1 = avgLen > 0 ? 1 - this.b : 1;
+      const bOverAvg = avgLen > 0 ? this.b / avgLen : 0;
+
+      for (let i = 0; i < postings.length; i++) {
+        const [id, tf] = postings[i];
+        const lens = this.docLens[id];
+        if (!lens) continue;
+        const len = lens[f] ?? 0;
+        const tfNorm =
+          (tf * (this.k1 + 1)) /
+          (tf + this.k1 * (denom1 + bOverAvg * len));
+        const contribution = boost * idf * tfNorm;
+        const prev = out.get(id);
+        out.set(id, prev === undefined ? contribution : prev + contribution);
+      }
+    }
+    return out;
   }
 
   /**
    * Search the index. Returns document IDs ranked by total BM25 score.
    *
    * Semantics: AND across all query terms — a document must appear in
-   * every term's posting list to be included. Scores are summed across
-   * matching terms.
+   * every term's union of field postings to be included. Scores are
+   * summed across matching terms.
    */
   search(query: string): SearchResult[] {
     const stems = LuceneSearchIndex.tokenize(query);
     if (stems.length === 0) return [];
 
-    // Gather posting lists for each stem
-    const postingLists: PostingEntry[][] = [];
+    let acc: Map<string, number> | null = null;
     for (const stem of stems) {
-      const list = this.terms.get(stem);
-      if (!list || list.length === 0) return []; // AND: missing term → no results
-      postingLists.push(list);
-    }
-
-    if (postingLists.length === 1) {
-      // Single-term fast path
-      return postingLists[0].map((p) => ({ id: p.id, score: p.s }));
-    }
-
-    // Multi-term: intersect and sum scores
-    // Start with the shortest posting list for efficiency
-    postingLists.sort((a, b) => a.length - b.length);
-
-    // Build a score map from the first (shortest) list
-    const scores = new Map<string, number>();
-    for (const p of postingLists[0]) {
-      scores.set(p.id, p.s);
-    }
-
-    // Intersect with remaining lists
-    for (let i = 1; i < postingLists.length; i++) {
-      const listIds = new Set(postingLists[i].map((p) => p.id));
-      const listScores = new Map(postingLists[i].map((p) => [p.id, p.s]));
-
-      for (const id of scores.keys()) {
-        if (!listIds.has(id)) {
-          scores.delete(id);
-        } else {
-          scores.set(id, scores.get(id)! + listScores.get(id)!);
-        }
+      const termScores = this.scoreTerm(stem);
+      if (termScores.size === 0) return []; // AND: missing term → no results
+      if (acc === null) {
+        acc = termScores;
+        continue;
       }
+      // Intersect: keep only docs present in both, summing scores.
+      const next = new Map<string, number>();
+      for (const [id, prev] of acc) {
+        const add = termScores.get(id);
+        if (add !== undefined) next.set(id, prev + add);
+      }
+      if (next.size === 0) return [];
+      acc = next;
     }
 
-    // Sort by score descending
-    const results: SearchResult[] = [];
-    for (const [id, score] of scores) {
-      results.push({ id, score });
-    }
+    const results: SearchResult[] = new Array(acc!.size);
+    let i = 0;
+    for (const [id, score] of acc!) results[i++] = { id, score };
     results.sort((a, b) => b.score - a.score);
     return results;
   }

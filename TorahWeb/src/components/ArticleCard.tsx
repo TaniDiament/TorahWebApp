@@ -52,6 +52,9 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${kindLabel(content)}: ${content.title}, by ${content.author.name}`}
+      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
       style={({ pressed }) => [
         styles.card,
         compact && styles.cardCompact,
@@ -81,7 +84,12 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
       {onDownloadPress ? (
         <Pressable
           onPress={handleDownload}
-          hitSlop={8}
+          hitSlop={12}
+          disabled={downloading}
+          accessibilityRole="button"
+          accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
+          accessibilityState={{ disabled: downloading, busy: downloading }}
+          android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
           style={({ pressed }) => [
             styles.downloadButton,
             pressed && { opacity: 0.6 },

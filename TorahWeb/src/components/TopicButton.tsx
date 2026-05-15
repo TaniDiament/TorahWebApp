@@ -12,6 +12,9 @@ interface TopicButtonProps {
 const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
   <Pressable
     onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={`Open topic ${topic.name}`}
+    android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
     style={({ pressed }) => [
       styles.card,
       pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
@@ -19,11 +22,9 @@ const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
     <View style={styles.thumbWrap}>
       {topic.thumbnailUrl ? (
         <Image source={{ uri: topic.thumbnailUrl }} style={styles.thumb} />
-      ) : (
-        <View style={[styles.thumb, styles.thumbPlaceholder]} />
-      )}
+      ) : null}
       <View style={styles.thumbScrim} />
-      <View style={styles.thumbOverlay}>
+      <View style={styles.thumbContent}>
         <Text style={styles.eyebrow}>TOPIC</Text>
         <Text style={styles.thumbTitle} numberOfLines={2}>{topic.name}</Text>
       </View>
@@ -35,7 +36,9 @@ const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
         </Text>
         {topic.cta ? (
           <View style={styles.ctaRow}>
-            <Text style={styles.cta}>{topic.cta}</Text>
+            <Text style={styles.cta} numberOfLines={1}>
+              {topic.cta}
+            </Text>
             <Icon name="chevron.right" size={14} color={colors.navy} />
           </View>
         ) : null}
@@ -54,27 +57,24 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   thumbWrap: {
+    // No aspectRatio — height is driven entirely by the text inside, so
+    // the coloured band wraps just the eyebrow + title with breathing
+    // room. The optional thumbnail becomes a background fill.
     width: '100%',
-    aspectRatio: 16 / 9,
     backgroundColor: colors.navyDark,
+    overflow: 'hidden',
   },
   thumb: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
     resizeMode: 'cover',
-  },
-  thumbPlaceholder: {
-    backgroundColor: colors.navy,
   },
   thumbScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.32)',
   },
-  thumbOverlay: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
+  thumbContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   eyebrow: {
     ...typography.eyebrow,
@@ -97,12 +97,16 @@ const styles = StyleSheet.create({
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   cta: {
     ...typography.footnote,
     color: colors.navy,
     fontWeight: '700',
+    marginRight: 4,
+    // Android sometimes adds extra padding around the glyphs which throws off
+    // the measure pass for short bold strings inside a flex row, causing the
+    // tail of the word to get clipped. Disabling it gives consistent layout.
+    includeFontPadding: false,
   },
 });
 

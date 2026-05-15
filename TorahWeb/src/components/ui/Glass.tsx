@@ -6,37 +6,35 @@ import {
   StyleProp,
   StyleSheet,
   View,
-  ViewProps,
   ViewStyle,
-  requireNativeComponent,
-  UIManager,
 } from 'react-native';
-import { BlurView } from '@react-native-community/blur';
 import { colors, radii, shadows } from '../../theme';
 
 export type GlassVariant = 'regular' | 'clear' | 'tinted' | 'prominent';
 
-interface NativeGlassProps extends ViewProps {
+const isiOS = Platform.OS === 'ios';
+
+// Pull in the native component lazily — `require` lets us swallow the load
+// error on Android (where the view isn't registered) without crashing the
+// JS bundle. On iOS the build links the LiquidGlass pod, so the import
+// always succeeds.
+const NativeLiquidGlass: React.ComponentType<NativeGlassProps> | null = (() => {
+  if (!isiOS) return null;
+  try {
+    return require('./TorahWebLiquidGlassViewNativeComponent').default;
+  } catch {
+    return null;
+  }
+})();
+
+interface NativeGlassProps {
   variant?: GlassVariant;
   glassTintColor?: string;
   cornerRadius?: number;
   isInteractive?: boolean;
+  style?: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
 }
-
-const isiOS = Platform.OS === 'ios';
-
-const HAS_NATIVE_GLASS = (() => {
-  if (!isiOS) return false;
-  try {
-    return UIManager?.getViewManagerConfig?.('TorahWebLiquidGlassView') != null;
-  } catch {
-    return false;
-  }
-})();
-
-const NativeLiquidGlass: React.ComponentType<NativeGlassProps> | null = HAS_NATIVE_GLASS
-  ? requireNativeComponent<NativeGlassProps>('TorahWebLiquidGlassView')
-  : null;
 
 interface GlassProps {
   children?: React.ReactNode;
@@ -45,6 +43,8 @@ interface GlassProps {
   tint?: string;
   cornerRadius?: number;
   interactive?: boolean;
+  /** Drop the drop shadow (e.g., for surfaces embedded in scroll content). */
+  shadow?: boolean;
 }
 
 const flattenStyle = (style: StyleProp<ViewStyle>): ViewStyle =>
@@ -77,13 +77,23 @@ export const GlassSurface: React.FC<GlassProps> = ({
   tint,
   cornerRadius,
   interactive,
+  shadow,
 }) => {
   const flat = flattenStyle(style);
   const corner = cornerFromStyle(flat, cornerRadius);
+  // Shadows are heavy on stacked surfaces; opt in by default only for the
+  // "prominent" variant, where it's part of the visual identity.
+  const wantsShadow = shadow ?? variant === 'prominent';
 
-  if (NativeLiquidGlass) {
+  if (isiOS && NativeLiquidGlass) {
     return (
-      <View style={[style, { borderRadius: corner }, styles.iosShadow, styles.clip]}>
+      <View
+        style={[
+          style,
+          { borderRadius: corner },
+          wantsShadow && styles.iosShadow,
+          styles.clip,
+        ]}>
         <NativeLiquidGlass
           style={StyleSheet.absoluteFillObject}
           variant={variant}
@@ -96,32 +106,8 @@ export const GlassSurface: React.FC<GlassProps> = ({
     );
   }
 
-  if (isiOS) {
-    return (
-      <View style={[style, { borderRadius: corner }, styles.iosShadow, styles.clip]}>
-        <BlurView
-          style={[StyleSheet.absoluteFillObject]}
-          blurType={variant === 'prominent' ? 'materialLight' : 'ultraThinMaterialLight'}
-          blurAmount={variant === 'clear' ? 18 : 28}
-          reducedTransparencyFallbackColor="#f5f6fa"
-        />
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              backgroundColor: tint ?? 'rgba(255,255,255,0.18)',
-              borderWidth: StyleSheet.hairlineWidth,
-              borderColor: 'rgba(255,255,255,0.6)',
-              borderRadius: corner,
-            },
-          ]}
-        />
-        {children}
-      </View>
-    );
-  }
-
+  // Android (and the very unlikely iOS-without-native-module path) gets a
+  // flat surface tuned to Material's tonal color roles.
   return (
     <View
       style={[
@@ -146,6 +132,7 @@ interface GlassButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   variant?: GlassVariant;
   tint?: string;
   cornerRadius?: number;
+  shadow?: boolean;
 }
 
 export const GlassButton: React.FC<GlassButtonProps> = ({
@@ -155,19 +142,18 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   variant = 'regular',
   tint,
   cornerRadius,
+  shadow,
   ...rest
 }) => (
   <Pressable
     {...rest}
-    style={({ pressed }) => [
-      style,
-      pressed && styles.pressed,
-    ]}>
+    style={({ pressed }) => [style, pressed && styles.pressed]}>
     <GlassSurface
       style={contentStyle}
       variant={variant}
       tint={tint}
       cornerRadius={cornerRadius}
+      shadow={shadow}
       interactive>
       {children}
     </GlassSurface>

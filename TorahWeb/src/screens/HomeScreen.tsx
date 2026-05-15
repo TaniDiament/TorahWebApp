@@ -24,6 +24,7 @@ interface HomeScreenProps {
   onSearchPress: () => void;
   onAudioPress: () => void;
   onVideoPress: () => void;
+  onDivreiTorahPress: () => void;
   onNewestPress: () => void;
   onDownloadsPress: () => void;
 }
@@ -35,6 +36,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onSearchPress,
   onAudioPress,
   onVideoPress,
+  onDivreiTorahPress,
   onNewestPress,
   onDownloadsPress,
 }) => {
@@ -83,13 +85,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       showsVerticalScrollIndicator={false}>
       <View style={styles.titleBlock}>
         <Text style={styles.largeTitle}>TorahWeb</Text>
-        <Text style={styles.subtitle}>Divrei Torah, shiurim, and video.</Text>
       </View>
 
       <View style={styles.quickRow}>
         <QuickChip label="Audio" icon="waveform" onPress={onAudioPress} />
         <QuickChip label="Video" icon="video.fill" onPress={onVideoPress} />
-        <QuickChip label="Newest" icon="sparkles" onPress={onNewestPress} />
+        <QuickChip label="Divrei Torah" icon="torah.scroll" onPress={onDivreiTorahPress} />
         <QuickChip label="Library" icon="rectangle.stack.fill" onPress={onDownloadsPress} />
       </View>
 
@@ -122,7 +123,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         ))}
       </View>
 
-      <SectionHeader title="Speakers" subtitle="Alphabetical" />
+      <SectionHeader title="Authors & Speakers" subtitle="Alphabetical" />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -158,7 +159,11 @@ const SectionHeader: React.FC<{
       {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
     </View>
     {actionLabel && onAction ? (
-      <Pressable onPress={onAction} hitSlop={8}>
+      <Pressable
+        onPress={onAction}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={actionLabel}>
         <Text style={styles.sectionAction}>{actionLabel}</Text>
       </Pressable>
     ) : null}
@@ -173,11 +178,19 @@ const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }
   <GlassButton
     style={styles.quickChip}
     contentStyle={styles.quickChipInner}
-    cornerRadius={radii.pill}
+    cornerRadius={radii.md}
     variant="regular"
+    accessibilityRole="button"
+    accessibilityLabel={label}
     onPress={onPress}>
-    <Icon name={icon} size={16} color={colors.text} />
-    <Text style={styles.quickChipText}>{label}</Text>
+    <Icon name={icon} size={20} color={colors.text} />
+    <Text
+      style={styles.quickChipText}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.75}>
+      {label}
+    </Text>
   </GlassButton>
 );
 
@@ -199,38 +212,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
+    alignItems: 'center',
   },
   largeTitle: {
     ...typography.largeTitle,
     color: colors.text,
-  },
-  subtitle: {
-    ...typography.subheadline,
-    color: colors.textSecondary,
-    marginTop: 4,
+    textAlign: 'center',
   },
   quickRow: {
+    // Four chips share the row equally — no wrapping. The icon-over-label
+    // layout below keeps each chip narrow enough that "Divrei Torah" can
+    // sit on one line on phone screens.
     flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   quickChip: {
-    borderRadius: radii.pill,
+    flex: 1,
+    borderRadius: radii.md,
   },
   quickChipInner: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    gap: 6,
-    borderRadius: radii.pill,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
+    gap: 4,
+    borderRadius: radii.md,
   },
   quickChipText: {
-    ...typography.footnote,
+    ...typography.caption,
     fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
   },
   sectionHeader: {
     flexDirection: 'row',

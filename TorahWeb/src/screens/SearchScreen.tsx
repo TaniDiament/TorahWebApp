@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -76,10 +77,14 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
                   return 'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
                 return true;
               });
-        const sorted = [...typed].sort(
-          (a, b) =>
-            new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
-        );
+        const hasQuery = query.trim().length > 0;
+        const sorted = hasQuery
+          ? typed
+          : [...typed].sort(
+              (a, b) =>
+                new Date(b.publishedDate).getTime() -
+                new Date(a.publishedDate).getTime(),
+            );
         setResults(sorted);
       } catch (e) {
         console.error('Search failed:', e);
@@ -116,25 +121,38 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="search"
+                  accessibilityLabel="Search"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 {query.length > 0 ? (
-                  <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                  <Pressable
+                    onPress={() => setQuery('')}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search">
                     <Icon name="xmark" size={16} color={colors.textTertiary} />
                   </Pressable>
                 ) : null}
               </View>
             </GlassSurface>
 
-            <View style={styles.filterRow}>
-              {FILTERS.map((f) => (
-                <FilterChip
-                  key={f.id}
-                  label={f.label}
-                  active={filter === f.id}
-                  onPress={() => setFilter(f.id)}
-                />
-              ))}
-            </View>
+            {/* When the screen is opened with a preset content type (the
+                Audio / Video / Divrei Torah quick chips on Home), the page
+                is already scoped — surfacing the All/Article/Video/Audio
+                chips would just let the user undo the filter they came in
+                with. Show only the search bar and the results list. */}
+            {initialContentType ? null : (
+              <View style={styles.filterRow}>
+                {FILTERS.map((f) => (
+                  <FilterChip
+                    key={f.id}
+                    label={f.label}
+                    active={filter === f.id}
+                    onPress={() => setFilter(f.id)}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         }
         renderItem={({ item }) => (
@@ -176,6 +194,10 @@ const FilterChip: React.FC<{
 }> = ({ label, active, onPress }) => (
   <Pressable
     onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{ selected: active }}
+    android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
     style={({ pressed }) => [
       styles.chip,
       active && styles.chipActive,

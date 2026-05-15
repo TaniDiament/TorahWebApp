@@ -59,6 +59,10 @@ const ContentScreen: React.FC<ContentScreenProps> = ({ content }) => {
             contentStyle={styles.downloadButtonInner}
             cornerRadius={radii.pill}
             tint="rgba(26, 58, 92, 0.92)"
+            disabled={downloading}
+            accessibilityRole="button"
+            accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
+            accessibilityState={{ disabled: downloading, busy: downloading }}
             onPress={onDownload}>
             <Icon
               name="arrow.down.circle.fill"

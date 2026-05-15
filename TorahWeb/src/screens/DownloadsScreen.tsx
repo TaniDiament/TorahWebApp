@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -37,14 +38,36 @@ const kindIcon = (kind: string) => {
 const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => {
   const swipeRef = useRef<React.ElementRef<typeof Swipeable> | null>(null);
 
-  const onDeletePress = async () => {
-    await onDelete(item);
-    swipeRef.current?.close();
+  const performDelete = async () => {
+    try {
+      await onDelete(item);
+    } finally {
+      // Some versions of ReanimatedSwipeable don't expose .close(); guard it.
+      swipeRef.current?.close?.();
+    }
+  };
+
+  const onDeletePress = () => {
+    Alert.alert(
+      'Delete this download?',
+      `"${item.title}" will be removed from your device.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => swipeRef.current?.close?.(),
+        },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ],
+    );
   };
 
   const renderRightAction = () => (
     <View style={styles.swipeActionWrap}>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${item.title}`}
+        android_ripple={{ color: 'rgba(255,255,255,0.18)', borderless: false }}
         style={({ pressed }) => [
           styles.swipeDeleteAction,
           pressed && { opacity: 0.85 },
@@ -65,6 +88,10 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
       renderRightActions={renderRightAction}>
       <Pressable
         onPress={() => onOpen(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${item.title}, ${item.kind}, by ${item.authorName}`}
+        accessibilityHint="Swipe left to delete"
+        android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
         style={({ pressed }) => [
           styles.row,
           pressed && { opacity: 0.85 },

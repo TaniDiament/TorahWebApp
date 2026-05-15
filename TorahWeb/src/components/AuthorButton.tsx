@@ -23,6 +23,9 @@ const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress, variant = 
     return (
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Open speaker ${author.name}`}
+        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
         style={({ pressed }) => [
           styles.circleWrap,
           pressed && { opacity: 0.7 },
@@ -46,6 +49,9 @@ const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress, variant = 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open speaker ${author.name}`}
+      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
       style={({ pressed }) => [
         styles.tile,
         pressed && { opacity: 0.85 },

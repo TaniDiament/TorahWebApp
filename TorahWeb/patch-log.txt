@@ -1,0 +1,309 @@
+patch-package 8.0.1
+• Creating temporary folder
+• Installing react-native-track-player@4.1.2 with npm
+• Diffing your files with clean files
+warning: could not open directory 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/extensions/': Filename too long
+warning: could not open directory 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/model/': Filename too long
+warning: could not open directory 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/module/': Filename too long
+warning: could not open directory 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/service/': Filename too long
+warning: could not open directory 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/utils/': Filename too long
+warning: in the working copy of 'node_modules/react-native-track-player/LICENSE', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/build.gradle', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/proguard-rules.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/AndroidManifest.xml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/TrackPlayer.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/extensions/AudioPlayerStateExt.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/extensions/EnumExtensions.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/extensions/NumberExt.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/MetadataAdapter.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/NowPlayingMetadata.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/PlaybackMetadata.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/State.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/Track.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackAudioItem.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/model/TrackMetadata.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicEvents.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/AppForegroundTracker.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/BundleUtils.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/utils/RejectionException.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/res/drawable/forward.xml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/res/drawable/rewind.xml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/android/src/main/res/values/strings.xml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer.xcodeproj/project.pbxproj', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer.xcodeproj/project.xcworkspace/contents.xcworkspacedata', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/Capabilities.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/MediaURL.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/MetadataAdapter.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/PitchAlgorithms.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/SessionCategories.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/State.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Models/Track.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/RNTrackPlayer.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/RNTrackPlayerBridge.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/RNTrackPlayerBridge.m', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Support/RNTrackPlayer-Bridging-Header.h', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Utils/EventEmitter.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Utils/EventType.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Utils/Metadata.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Vendor/SwiftAudio/Classes/RepeatMode.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/ios/RNTrackPlayer/Vendor/SwiftAudio/Classes/Utils/DispatchQueueType.swift', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/TrackPlayerModule.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/TrackPlayerModule.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/TrackPlayerModule.web.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/TrackPlayerModule.web.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/AndroidAudioContentType.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/AndroidAudioContentType.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/AppKilledPlaybackBehavior.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/AppKilledPlaybackBehavior.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/Capability.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/Capability.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/Event.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/Event.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategory.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategory.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategoryMode.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategoryMode.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategoryOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/IOSCategoryOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/PitchAlgorithm.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/PitchAlgorithm.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/RatingType.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/RatingType.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/RepeatMode.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/RepeatMode.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/State.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/State.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/TrackType.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/TrackType.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/constants/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useActiveTrack.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useActiveTrack.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useAppIsInBackground.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useAppIsInBackground.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useIsPlaying.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useIsPlaying.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/usePlayWhenReady.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/usePlayWhenReady.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/usePlaybackState.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/usePlaybackState.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useProgress.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useProgress.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useTrackPlayerEvents.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/hooks/useTrackPlayerEvents.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/AndroidOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/AndroidOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/FeedbackOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/FeedbackOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/MetadataOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/MetadataOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/NowPlayingMetadata.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/NowPlayingMetadata.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/PlaybackState.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/PlaybackState.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/PlayerOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/PlayerOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/Progress.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/Progress.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/ResourceObject.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/ResourceObject.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/ServiceHandler.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/ServiceHandler.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/Track.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/Track.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/TrackMetadataBase.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/TrackMetadataBase.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/UpdateOptions.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/UpdateOptions.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/AudioMetadataReceivedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/AudioMetadataReceivedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/EventPayloadByEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/EventPayloadByEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackActiveTrackChangedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackActiveTrackChangedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackErrorEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackErrorEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackMetadataReceivedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackMetadataReceivedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackPlayWhenReadyChangedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackPlayWhenReadyChangedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackProgressUpdatedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackProgressUpdatedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackQueueEndedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackQueueEndedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackTrackChangedEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlaybackTrackChangedEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlayerErrorEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/PlayerErrorEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteDuckEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteDuckEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteJumpBackwardEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteJumpBackwardEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteJumpForwardEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteJumpForwardEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemotePlayIdEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemotePlayIdEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemotePlaySearchEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemotePlaySearchEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSeekEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSeekEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSetRatingEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSetRatingEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSkipEvent.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/RemoteSkipEvent.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/events/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/interfaces/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/resolveAssetSource.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/resolveAssetSource.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/resolveAssetSource.web.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/resolveAssetSource.web.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/trackPlayer.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/src/trackPlayer.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/Player.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/Player.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/PlaylistPlayer.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/PlaylistPlayer.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/RepeatMode.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/RepeatMode.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/SetupNotCalledError.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/SetupNotCalledError.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayer/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayerModule.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/TrackPlayerModule.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/index.d.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/lib/web/index.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/react-native-track-player.podspec', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/TrackPlayerModule.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/TrackPlayerModule.web.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/AndroidAudioContentType.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/AppKilledPlaybackBehavior.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/Capability.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/Event.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/IOSCategory.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/IOSCategoryMode.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/IOSCategoryOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/PitchAlgorithm.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/RatingType.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/RepeatMode.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/State.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/TrackType.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/constants/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/useActiveTrack.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/useAppIsInBackground.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/useIsPlaying.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/usePlayWhenReady.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/usePlaybackState.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/useProgress.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/hooks/useTrackPlayerEvents.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/AndroidOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/FeedbackOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/MetadataOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/NowPlayingMetadata.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/PlaybackState.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/PlayerOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/Progress.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/ResourceObject.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/ServiceHandler.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/Track.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/TrackMetadataBase.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/UpdateOptions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/AudioMetadataReceivedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/EventPayloadByEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackActiveTrackChangedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackErrorEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackMetadataReceivedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackPlayWhenReadyChangedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackProgressUpdatedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackQueueEndedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlaybackTrackChangedEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/PlayerErrorEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteDuckEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteJumpBackwardEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteJumpForwardEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemotePlayIdEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemotePlaySearchEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteSeekEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteSetRatingEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/RemoteSkipEvent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/events/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/interfaces/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/resolveAssetSource.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/resolveAssetSource.web.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/src/trackPlayer.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayer/Player.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayer/PlaylistPlayer.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayer/RepeatMode.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayer/SetupNotCalledError.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayer/index.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/TrackPlayerModule.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/react-native-track-player/web/index.ts', LF will be replaced by CRLF the next time Git touches it
+error: open("node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/BuildConfig.dex"): Filename too long
+error: unable to index file 'node_modules/react-native-track-player/android/build/.transforms/5fcca4174df1312bb894212f0110850b/transformed/bundleLibRuntimeToDirDebug/bundleLibRuntimeToDirDebug_dex/com/doublesymmetry/trackplayer/BuildConfig.dex'
+fatal: adding files failed
+
+{
+  status: 128,
+  signal: null,
+  output: [
+    null,
+    <Buffer >,
+    <Buffer 77 61 72 6e 69 6e 67 3a 20 63 6f 75 6c 64 20 6e 6f 74 20 6f 70 65 6e 20 64 69 72 65 63 74 6f 72 79 20 27 6e 6f 64 65 5f 6d 6f 64 75 6c 65 73 2f 72 65 ... 43343 more bytes>
+  ],
+  pid: 24872,
+  stdout: <Buffer >,
+  stderr: <Buffer 77 61 72 6e 69 6e 67 3a 20 63 6f 75 6c 64 20 6e 6f 74 20 6f 70 65 6e 20 64 69 72 65 63 74 6f 72 79 20 27 6e 6f 64 65 5f 6d 6f 64 75 6c 65 73 2f 72 65 ... 43343 more bytes>,
+  error: null
+}
+
+C:\Users\tani\IdeaProjects\TorahWeb\TorahWebApp\TorahWeb\node_modules\patch-package\dist\makePatch.js:395
+        throw e;
+        ^
+{
+  status: 128,
+  signal: null,
+  output: [
+    null,
+    Buffer(0) [Uint8Array] [],
+    Buffer(43393) [Uint8Array] [
+      119,  97, 114, 110, 105, 110, 103,  58,  32,  99, 111, 117,
+      108, 100,  32, 110, 111, 116,  32, 111, 112, 101, 110,  32,
+      100, 105, 114, 101,  99, 116, 111, 114, 121,  32,  39, 110,
+      111, 100, 101,  95, 109, 111, 100, 117, 108, 101, 115,  47,
+      114, 101,  97,  99, 116,  45, 110,  97, 116, 105, 118, 101,
+       45, 116, 114,  97,  99, 107,  45, 112, 108,  97, 121, 101,
+      114,  47,  97, 110, 100, 114, 111, 105, 100,  47,  98, 117,
+      105, 108, 100,  47,  46, 116, 114,  97, 110, 115, 102, 111,
+      114, 109, 115,  47,
+      ... 43293 more items
+    ]
+  ],
+  pid: 24872,
+  stdout: Buffer(0) [Uint8Array] [],
+  stderr: Buffer(43393) [Uint8Array] [
+    119,  97, 114, 110, 105, 110, 103,  58,  32,  99, 111, 117,
+    108, 100,  32, 110, 111, 116,  32, 111, 112, 101, 110,  32,
+    100, 105, 114, 101,  99, 116, 111, 114, 121,  32,  39, 110,
+    111, 100, 101,  95, 109, 111, 100, 117, 108, 101, 115,  47,
+    114, 101,  97,  99, 116,  45, 110,  97, 116, 105, 118, 101,
+     45, 116, 114,  97,  99, 107,  45, 112, 108,  97, 121, 101,
+    114,  47,  97, 110, 100, 114, 111, 105, 100,  47,  98, 117,
+    105, 108, 100,  47,  46, 116, 114,  97, 110, 115, 102, 111,
+    114, 109, 115,  47,
+    ... 43293 more items
+  ],
+  error: null
+}
+
+Node.js v20.15.1

@@ -6,9 +6,9 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/yydiamen/TorahWebApp'
   s.license          = { :type => 'MIT' }
   s.author           = { 'TorahWeb' => 'tanidiament@gmail.com' }
-  s.source           = { :git => '' }
+  s.source           = { :path => '.' }
   s.platforms        = { :ios => '15.1' }
   s.source_files     = 'ios/**/*.{swift,h,m,mm}'
-  s.swift_version    = '5.0'
+  s.swift_version    = '5.9'
   s.dependency 'React-Core'
 end
