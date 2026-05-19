@@ -154,6 +154,7 @@ def build_lucene_index(entries: list[dict]) -> dict:
         input=input_json,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=120,
     )
     if result.returncode != 0:
@@ -179,7 +180,7 @@ def write_manifest(hashes: dict, counts: dict) -> None:
 
 def write_search_full(version: int, entries: list[dict]) -> tuple[Path, int]:
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "version": version,
         "generatedAt": now_iso(),
         "entries": entries,
@@ -192,7 +193,7 @@ def write_search_full(version: int, entries: list[dict]) -> tuple[Path, int]:
 def write_search_delta(from_v: int, to_v: int, added: list[dict],
                        updated: list[dict], removed: list[str]) -> tuple[Path, int]:
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "from": from_v,
         "to": to_v,
         "generatedAt": now_iso(),
@@ -217,7 +218,7 @@ def write_lucene_index(version: int, entries: list[dict]) -> Path:
 def write_index_manifest(version: int, full_path: Path, full_bytes: int,
                          deltas: list[dict]) -> str:
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "version": version,
         "generatedAt": now_iso(),
         "fullUrl": f"search/{full_path.name}",

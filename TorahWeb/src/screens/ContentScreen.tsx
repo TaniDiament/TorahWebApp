@@ -20,6 +20,7 @@ import Icon from '../components/ui/Icon';
 import { api } from '../services/api';
 import { canDownloadContent, downloadContent } from '../services/download';
 import type { HomeStackParamList } from '../navigation/types';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 // Pick the most "preview-friendly" URL for the share sheet. Vimeo and most
 // publisher URLs unfurl into a rich card in Messages / WhatsApp / Mail;
@@ -50,6 +51,7 @@ const formatDate = (iso: string) =>
 
 const ContentScreen: React.FC = () => {
   const route = useRoute<ContentRoute>();
+  const chrome = useScreenChromeInsets();
   const params = route.params;
   const [content, setContent] = useState<Content | null>(
     'content' in params ? params.content : null,
@@ -122,7 +124,10 @@ const ContentScreen: React.FC = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+      ]}
       showsVerticalScrollIndicator={false}>
       <View style={styles.heroBlock}>
         {artwork ? (
@@ -238,8 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingTop: spacing.xxxl,
-    paddingBottom: spacing.xl,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   heroBlock: {
     paddingHorizontal: spacing.lg,

@@ -25,6 +25,7 @@ import {
 } from '../services/download';
 import Icon from '../components/ui/Icon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Nav = NativeStackNavigationProp<LibraryStackParamList, 'Library'>;
 
@@ -126,6 +127,7 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
 
 const DownloadsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
+  const chrome = useScreenChromeInsets();
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -214,7 +216,10 @@ const DownloadsScreen: React.FC = () => {
       data={items}
       keyExtractor={(item) => item.id}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+      ]}
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.largeTitle}>Library</Text>
@@ -249,10 +254,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContent: {
-    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxxl,
     flexGrow: 1,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   header: {
     paddingTop: spacing.sm,

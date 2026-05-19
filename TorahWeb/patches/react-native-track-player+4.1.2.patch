@@ -56,3 +56,37 @@ index b2409a0..1ba3ad3 100644
              )
          )
      }
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+index afa6b0f..9cb9ded 100644
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+@@ -739,9 +739,19 @@ class MusicService : HeadlessJsTaskService() {
+         return bundle
+     }
+ 
++    // ReactApplication.getReactNativeHost() throws under Bridgeless / New
++    // Architecture, so prefer ReactHost and fall back to the legacy host
++    // only when reactHost is unavailable (old arch builds).
++    @MainThread
++    private fun currentReactContext(): com.facebook.react.bridge.ReactContext? {
++        val app = application as? com.facebook.react.ReactApplication ?: return null
++        runCatching { app.reactHost?.currentReactContext }.getOrNull()?.let { return it }
++        return runCatching { reactNativeHost.reactInstanceManager.currentReactContext }.getOrNull()
++    }
++
+     @MainThread
+     private fun emit(event: String, data: Bundle? = null) {
+-        reactNativeHost.reactInstanceManager.currentReactContext
++        currentReactContext()
+             ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+             ?.emit(event, data?.let { Arguments.fromBundle(it) })
+     }
+@@ -751,7 +761,7 @@ class MusicService : HeadlessJsTaskService() {
+         val payload = Arguments.createArray()
+         data.forEach { payload.pushMap(Arguments.fromBundle(it)) }
+ 
+-        reactNativeHost.reactInstanceManager.currentReactContext
++        currentReactContext()
+             ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+             ?.emit(event, payload)
+     }

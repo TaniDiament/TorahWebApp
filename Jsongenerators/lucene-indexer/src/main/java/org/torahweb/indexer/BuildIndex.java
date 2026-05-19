@@ -8,6 +8,8 @@ import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.ByteBuffersDirectory;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.SmallFloat;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -15,8 +17,10 @@ import java.util.*;
 
 /**
  * CLI tool: reads a JSON array of search entries from stdin, builds an
- * Apache Lucene in-memory index, extracts per-term posting lists with
- * BM25 scores, and writes the result as JSON to stdout.
+ * Apache Lucene in-memory index, and emits a JSON file containing raw
+ * BM25 inputs (per-field posting lists, per-doc field lengths, per-field
+ * collection stats). The client computes BM25 scores at query time using
+ * the hyperparameters embedded in the output.
  *
  * <h3>Input format (stdin)</h3>
  * <pre>
@@ -27,25 +31,37 @@ import java.util.*;
  * ]
  * </pre>
  *
- * <h3>Output format (stdout)</h3>
+ * <h3>Output format (stdout) — schema v2</h3>
  * <pre>
  * {
- *   "version": 1,
+ *   "schemaVersion": 2,
  *   "analyzer": "EnglishAnalyzer",
+ *   "scoring": { "scorer": "BM25", "k1": 1.2, "b": 0.75 },
  *   "docCount": 5000,
+ *   "fields": [
+ *     { "name": "meta", "boost": 5.0, "avgLen": 48.7 },
+ *     { "name": "body", "boost": 1.0, "avgLen": 412.3 }
+ *   ],
+ *   "docLens": {
+ *     "rsch-20260418-01": [52, 410],
+ *     ...
+ *   },
  *   "terms": {
- *     "lesson": [
- *       { "id": "rsch-20260418-01", "score": 8.42 },
- *       ...
- *     ],
+ *     "lesson": {
+ *       "df": [312, 894],
+ *       "postings": [
+ *         [["rsch-20260418-01", 2], ...],   meta postings (may be empty)
+ *         [["rsch-20260418-01", 5], ...]    body postings
+ *       ]
+ *     },
  *     ...
  *   }
  * }
  * </pre>
  *
- * The app loads this JSON into a {@code Map<String, {id, score}[]>} and
- * performs fast look-ups at query time, applying the same analyzer
- * (English stemmer) to the query to match stem forms.
+ * Doc lengths use Lucene's {@code SmallFloat.byte4ToInt} decoded form —
+ * the same quantized length BM25Similarity uses internally — so client-
+ * side scores match what Lucene would compute.
  */
 public class BuildIndex {
 
@@ -57,12 +73,22 @@ public class BuildIndex {
     private static final int META_SLICE = 512;
     /** Boost applied to the meta field relative to body. */
     private static final float META_BOOST = 5.0f;
+    /** BM25 saturation parameter. Lucene default. */
+    private static final float BM25_K1 = 1.2f;
+    /** BM25 length-normalization parameter. Lucene default. */
+    private static final float BM25_B = 0.75f;
 
     public static void main(String[] args) throws Exception {
+        // Force stdout to UTF-8 — on Windows the JVM otherwise inherits the
+        // platform code page (cp1252) and mangles non-ASCII characters in
+        // the JSON we emit. The Python wrapper reads us back as UTF-8.
+        PrintStream stdout = new PrintStream(System.out, false, StandardCharsets.UTF_8);
+
         // 1. Parse input entries from stdin
         List<Entry> entries = readEntries(System.in);
         if (entries.isEmpty()) {
-            System.out.println("{\"version\":1,\"analyzer\":\"EnglishAnalyzer\",\"docCount\":0,\"terms\":{}}");
+            stdout.println(emptyOutput());
+            stdout.flush();
             return;
         }
 
@@ -89,80 +115,183 @@ public class BuildIndex {
                 writer.addDocument(doc);
                 docIdToEntryId.add(entry.id);
             }
+            // Merge to a single segment so we can walk postings against one
+            // LeafReader below without per-leaf score aggregation.
+            writer.forceMerge(1);
         }
 
-        // 3. Score every document for every unique term using BM25
+        // 3. Walk postings and gather raw BM25 inputs (no scoring here).
+        //
+        // For each (term, field) we emit [docId, tf] pairs. We also collect
+        // each doc's per-field length (decoded from Lucene's norm byte via
+        // SmallFloat.byte4ToInt, the same quantized form BM25Similarity
+        // consumes internally — so client-side scores match Lucene's).
+        //
+        // CollectionStatistics gives us sumTotalTermFreq and docCount per
+        // field; we publish avgLen = sumTotalTermFreq / docCount so the
+        // client doesn't have to derive it from docLens.
         DirectoryReader reader = DirectoryReader.open(directory);
         IndexSearcher searcher = new IndexSearcher(reader);
-        // BM25Similarity is the default, but be explicit
-        searcher.setSimilarity(new org.apache.lucene.search.similarities.BM25Similarity());
 
         int docCount = reader.numDocs();
+        LeafReader leaf = reader.leaves().get(0).reader();
 
-        // Collect all unique terms across meta + body fields
-        Set<String> allTerms = new TreeSet<>();
-        for (LeafReaderContext ctx : reader.leaves()) {
-            LeafReader leaf = ctx.reader();
-            for (String field : List.of(F_META, F_BODY)) {
-                Terms terms = leaf.terms(field);
-                if (terms == null) continue;
-                TermsEnum te = terms.iterator();
-                while (te.next() != null) {
-                    allTerms.add(te.term().utf8ToString());
+        String[] fieldNames = { F_META, F_BODY };
+        float[] fieldBoosts = { META_BOOST, 1.0f };
+
+        // Per-field collection stats and norm readers.
+        CollectionStatistics[] fieldStats = new CollectionStatistics[fieldNames.length];
+        NumericDocValues[] fieldNorms = new NumericDocValues[fieldNames.length];
+        float[] avgLens = new float[fieldNames.length];
+        for (int f = 0; f < fieldNames.length; f++) {
+            fieldStats[f] = searcher.collectionStatistics(fieldNames[f]);
+            fieldNorms[f] = leaf.getNormValues(fieldNames[f]);
+            avgLens[f] = fieldStats[f] == null
+                    ? 0f
+                    : (float) fieldStats[f].sumTotalTermFreq() / Math.max(1L, fieldStats[f].docCount());
+        }
+
+        // Per-doc field lengths, keyed by entry id.
+        // docLens[entryId] = [metaLen, bodyLen] (decoded from norm byte).
+        Map<String, int[]> docLens = new LinkedHashMap<>();
+        for (int doc = 0; doc < docCount; doc++) {
+            String entryId = docIdToEntryId.get(doc);
+            int[] lens = new int[fieldNames.length];
+            for (int f = 0; f < fieldNames.length; f++) {
+                NumericDocValues norms = fieldNorms[f];
+                if (norms != null && norms.advanceExact(doc)) {
+                    lens[f] = SmallFloat.byte4ToInt((byte) norms.longValue());
                 }
+            }
+            docLens.put(entryId, lens);
+            // norms is iterator-style; need fresh readers per pass.
+        }
+        // Refresh norm iterators for the per-term loop below (they advance).
+        for (int f = 0; f < fieldNames.length; f++) {
+            fieldNorms[f] = leaf.getNormValues(fieldNames[f]);
+        }
+
+        // Collect union of terms across fields.
+        Set<String> allTerms = new TreeSet<>();
+        for (String field : fieldNames) {
+            Terms terms = leaf.terms(field);
+            if (terms == null) continue;
+            TermsEnum te = terms.iterator();
+            BytesRef br;
+            while ((br = te.next()) != null) {
+                allTerms.add(br.utf8ToString());
             }
         }
 
-        // For each term, run a BooleanQuery (meta boosted + body) and
-        // collect all matching docs with their scores.
-        Map<String, List<ScoredDoc>> invertedIndex = new TreeMap<>();
-
+        // Per-term postings split by field.
+        Map<String, TermPostings> termPostings = new TreeMap<>();
         for (String term : allTerms) {
-            BooleanQuery.Builder bqb = new BooleanQuery.Builder();
-            BoostQuery metaQ = new BoostQuery(
-                    new TermQuery(new Term(F_META, term)), META_BOOST);
-            TermQuery bodyQ = new TermQuery(new Term(F_BODY, term));
-
-            bqb.add(metaQ, BooleanClause.Occur.SHOULD);
-            bqb.add(bodyQ, BooleanClause.Occur.SHOULD);
-
-            TopDocs topDocs = searcher.search(bqb.build(), docCount);
-            if (topDocs.scoreDocs.length == 0) continue;
-
-            List<ScoredDoc> posting = new ArrayList<>(topDocs.scoreDocs.length);
-            for (ScoreDoc sd : topDocs.scoreDocs) {
-                posting.add(new ScoredDoc(docIdToEntryId.get(sd.doc),
-                        Math.round(sd.score * 100.0f) / 100.0f));
+            BytesRef termBr = new BytesRef(term);
+            int[] dfs = new int[fieldNames.length];
+            @SuppressWarnings("unchecked")
+            List<int[]>[] postingsByField = new List[fieldNames.length];
+            for (int f = 0; f < fieldNames.length; f++) {
+                postingsByField[f] = collectPostings(leaf, fieldNames[f], termBr, dfs, f);
             }
-            // Sort by score descending
-            posting.sort((a, b) -> Float.compare(b.score, a.score));
-            invertedIndex.put(term, posting);
+            termPostings.put(term, new TermPostings(dfs, postingsByField));
         }
 
         reader.close();
         directory.close();
 
-        // 4. Write output JSON to stdout
+        // 4. Write output JSON to stdout (schema v2).
         JsonObject output = new JsonObject();
-        output.addProperty("version", 1);
+        output.addProperty("schemaVersion", 2);
         output.addProperty("analyzer", "EnglishAnalyzer");
+
+        JsonObject scoring = new JsonObject();
+        scoring.addProperty("scorer", "BM25");
+        scoring.addProperty("k1", BM25_K1);
+        scoring.addProperty("b", BM25_B);
+        output.add("scoring", scoring);
+
         output.addProperty("docCount", docCount);
 
+        JsonArray fieldsArr = new JsonArray();
+        for (int f = 0; f < fieldNames.length; f++) {
+            JsonObject fobj = new JsonObject();
+            fobj.addProperty("name", fieldNames[f]);
+            fobj.addProperty("boost", fieldBoosts[f]);
+            fobj.addProperty("avgLen", round2(avgLens[f]));
+            fieldsArr.add(fobj);
+        }
+        output.add("fields", fieldsArr);
+
+        JsonObject docLensObj = new JsonObject();
+        for (Map.Entry<String, int[]> e : docLens.entrySet()) {
+            JsonArray lenArr = new JsonArray();
+            for (int len : e.getValue()) lenArr.add(len);
+            docLensObj.add(e.getKey(), lenArr);
+        }
+        output.add("docLens", docLensObj);
+
         JsonObject termsObj = new JsonObject();
-        for (Map.Entry<String, List<ScoredDoc>> e : invertedIndex.entrySet()) {
-            JsonArray arr = new JsonArray();
-            for (ScoredDoc sd : e.getValue()) {
-                JsonObject item = new JsonObject();
-                item.addProperty("id", sd.id);
-                item.addProperty("s", sd.score);
-                arr.add(item);
+        for (Map.Entry<String, TermPostings> e : termPostings.entrySet()) {
+            JsonObject termObj = new JsonObject();
+            JsonArray dfArr = new JsonArray();
+            for (int df : e.getValue().df) dfArr.add(df);
+            termObj.add("df", dfArr);
+
+            JsonArray postingsArr = new JsonArray();
+            for (List<int[]> fieldPostings : e.getValue().postings) {
+                JsonArray fieldArr = new JsonArray();
+                for (int[] p : fieldPostings) {
+                    JsonArray pair = new JsonArray();
+                    pair.add(docIdToEntryId.get(p[0]));
+                    pair.add(p[1]);
+                    fieldArr.add(pair);
+                }
+                postingsArr.add(fieldArr);
             }
-            termsObj.add(e.getKey(), arr);
+            termObj.add("postings", postingsArr);
+            termsObj.add(e.getKey(), termObj);
         }
         output.add("terms", termsObj);
 
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-        System.out.println(gson.toJson(output));
+        stdout.println(gson.toJson(output));
+        stdout.flush();
+    }
+
+    /** Empty-corpus output. Kept consistent with the populated schema. */
+    private static String emptyOutput() {
+        return "{\"schemaVersion\":2,\"analyzer\":\"EnglishAnalyzer\","
+                + "\"scoring\":{\"scorer\":\"BM25\",\"k1\":" + BM25_K1 + ",\"b\":" + BM25_B + "},"
+                + "\"docCount\":0,"
+                + "\"fields\":[{\"name\":\"" + F_META + "\",\"boost\":" + META_BOOST + ",\"avgLen\":0.0},"
+                + "{\"name\":\"" + F_BODY + "\",\"boost\":1.0,\"avgLen\":0.0}],"
+                + "\"docLens\":{},\"terms\":{}}";
+    }
+
+    /**
+     * Collect [docId, tf] pairs for a single term in a single field.
+     * Sets {@code dfs[fieldIndex]} to the document frequency. Returns an
+     * empty list (and leaves df = 0) if the term is absent from the field.
+     */
+    private static List<int[]> collectPostings(LeafReader leaf, String field, BytesRef term,
+                                               int[] dfs, int fieldIndex) throws IOException {
+        Terms terms = leaf.terms(field);
+        if (terms == null) return List.of();
+        TermsEnum te = terms.iterator();
+        if (!te.seekExact(term)) return List.of();
+
+        dfs[fieldIndex] = te.docFreq();
+        PostingsEnum pe = te.postings(null, PostingsEnum.FREQS);
+        List<int[]> out = new ArrayList<>(te.docFreq());
+        int doc;
+        while ((doc = pe.nextDoc()) != PostingsEnum.NO_MORE_DOCS) {
+            out.add(new int[] { doc, pe.freq() });
+        }
+        return out;
+    }
+
+    private static double round2(float f) {
+        return Math.round(f * 100.0) / 100.0;
     }
 
     // --- data classes ---
@@ -174,13 +303,14 @@ public class BuildIndex {
         String haystack;
     }
 
-    private static class ScoredDoc {
-        final String id;
-        final float score;
+    /** Per-term posting data: df per field and postings[fieldIndex] = [docId, tf] pairs. */
+    private static class TermPostings {
+        final int[] df;
+        final List<int[]>[] postings;
 
-        ScoredDoc(String id, float score) {
-            this.id = id;
-            this.score = score;
+        TermPostings(int[] df, List<int[]>[] postings) {
+            this.df = df;
+            this.postings = postings;
         }
     }
 

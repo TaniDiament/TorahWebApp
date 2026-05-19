@@ -20,6 +20,7 @@ import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
 import type { HomeStackParamList, SearchStackParamList } from '../navigation/types';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Filter = ContentType | 'all';
 
@@ -44,6 +45,7 @@ type SearchRouteFromTab = RouteProp<SearchStackParamList, 'SearchRoot'>;
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<SearchRouteFromHome | SearchRouteFromTab>();
+  const chrome = useScreenChromeInsets();
   const params = route.params ?? {};
   const initialAuthorId = params.authorId;
   const initialTopicSlug = params.topicSlug;
@@ -112,7 +114,10 @@ const SearchScreen: React.FC = () => {
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+        ]}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.largeTitle}>{headerTitle ?? 'Search'}</Text>
@@ -223,10 +228,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   list: {
-    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
     flexGrow: 1,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   header: {
     marginBottom: spacing.md,

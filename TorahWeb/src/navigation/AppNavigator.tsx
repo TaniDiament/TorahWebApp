@@ -8,10 +8,9 @@ import {
 } from 'react-native';
 import {
   NavigationContainer,
-  useNavigation,
-  useNavigationState,
+  useNavigationContainerRef,
 } from '@react-navigation/native';
-import type { LinkingOptions } from '@react-navigation/native';
+import type { LinkingOptions, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   createBottomTabNavigator,
@@ -31,9 +30,7 @@ import type {
   RootTabParamList,
   SearchStackParamList,
 } from './types';
-
-const TAB_BAR_HEIGHT = 64;
-const TAB_BAR_BOTTOM_OFFSET = 14;
+import { TAB_BAR_BOTTOM_OFFSET, TAB_BAR_HEIGHT } from './chromeInsets';
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
@@ -174,19 +171,16 @@ const getRootScreen = (tabName: string): string => {
 // Renders the floating glass back chevron when the active tab's stack has
 // pushed at least one route. Lives as a sibling of the navigator so its
 // position is unaffected by per-screen layout — matches the previous
-// AppShell's overlay model.
-const FloatingBackOverlay: React.FC = () => {
+// AppShell's overlay model. Because it sits outside any navigator, it
+// can't use useNavigationState/useNavigation; state is lifted from
+// NavigationContainer's onStateChange and the container ref drives goBack.
+type FloatingBackOverlayProps = {
+  visible: boolean;
+  onPress: () => void;
+};
+const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPress }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const canGoBack = useNavigationState((state) => {
-    if (!state) return false;
-    // Drill into the focused tab's nested stack to see its history depth.
-    const focusedTab = state.routes[state.index];
-    const nested = focusedTab.state;
-    return nested ? (nested.index ?? 0) > 0 : false;
-  });
-
-  if (!canGoBack) return null;
+  if (!visible) return null;
   return (
     <View
       style={[styles.floatingBackWrap, { top: insets.top + 8 }]}
@@ -199,11 +193,18 @@ const FloatingBackOverlay: React.FC = () => {
         accessibilityRole="button"
         accessibilityLabel="Go back"
         hitSlop={12}
-        onPress={() => navigation.goBack()}>
-        <View style={styles.backChevron} />
+        onPress={onPress}>
+        <Icon name="chevron.left" size={22} color={colors.text} />
       </GlassButton>
     </View>
   );
+};
+
+const computeCanGoBack = (state: NavigationState | undefined): boolean => {
+  if (!state) return false;
+  const focusedTab = state.routes[state.index];
+  const nested = focusedTab.state;
+  return nested ? (nested.index ?? 0) > 0 : false;
 };
 
 const linking: LinkingOptions<RootTabParamList> = {
@@ -232,8 +233,13 @@ const linking: LinkingOptions<RootTabParamList> = {
 };
 
 const AppNavigator: React.FC = () => {
+  const navigationRef = useNavigationContainerRef();
+  const [canGoBack, setCanGoBack] = React.useState(false);
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onStateChange={(state) => setCanGoBack(computeCanGoBack(state))}>
       <View style={styles.root}>
         <Tabs.Navigator
           screenOptions={{ headerShown: false }}
@@ -254,7 +260,10 @@ const AppNavigator: React.FC = () => {
             options={{ tabBarLabel: TAB_LABELS.LibraryTab }}
           />
         </Tabs.Navigator>
-        <FloatingBackOverlay />
+        <FloatingBackOverlay
+          visible={canGoBack}
+          onPress={() => navigationRef.current?.goBack()}
+        />
       </View>
     </NavigationContainer>
   );
@@ -286,18 +295,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backChevron: {
-    // 12×12 square with two adjacent borders rotated -45° reads as a `<`
-    // chevron. The translateX puts the visual apex back at centre — the
-    // bounding box of a rotated ┌ sits left-of-centre by ~2px otherwise.
-    width: 11,
-    height: 11,
-    borderTopWidth: 2.5,
-    borderLeftWidth: 2.5,
-    borderColor: colors.text,
-    borderTopLeftRadius: 1,
-    transform: [{ translateX: 2 }, { rotate: '-45deg' }],
   },
   tabBarWrap: {
     position: 'absolute',

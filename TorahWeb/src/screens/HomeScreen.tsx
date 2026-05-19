@@ -19,11 +19,13 @@ import { GlassButton, GlassSurface } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
 import type { HomeStackParamList } from '../navigation/types';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
+  const chrome = useScreenChromeInsets();
   const onAuthorPress = (author: Author) =>
     navigation.navigate('Search', { authorId: author.id, title: author.name });
   const onTopicPress = (topic: Topic) =>
@@ -81,7 +83,10 @@ const HomeScreen: React.FC = () => {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+      ]}
       showsVerticalScrollIndicator={false}>
       <View style={styles.titleBlock}>
         <Text style={styles.largeTitle}>TorahWeb</Text>
@@ -200,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingTop: spacing.xxl,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   loadingContainer: {
     flex: 1,

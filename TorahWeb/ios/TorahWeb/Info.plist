@@ -54,5 +54,9 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>MaterialDesignIcons.ttf</string>
+	</array>
 </dict>
 </plist>

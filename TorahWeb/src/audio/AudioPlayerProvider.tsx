@@ -10,13 +10,13 @@ import React, {
 import {
   Animated,
   Image,
-  LayoutChangeEvent,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import {
   GestureDetector,
   GestureHandlerRootView,
@@ -27,6 +27,7 @@ import TrackPlayer, {
   Capability,
   Event,
   State,
+  useProgress,
 } from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing, typography } from '../theme';
@@ -34,60 +35,6 @@ import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 
 const TAB_BAR_CLEARANCE = 90;
-
-/**
- * Scalable, font-free play/pause symbol. Avoids unicode ▶/⏸ glyphs that
- * Android's emoji font otherwise renders as a coloured (often orange) box.
- * Sizes are derived from {@code size} (= shape height in px).
- */
-const PlayPauseShape: React.FC<{ playing: boolean; size: number; color: string }> = ({
-  playing,
-  size,
-  color,
-}) => {
-  if (playing) {
-    const barWidth = Math.max(2, Math.round(size * 0.235));
-    const gap = Math.max(2, Math.round(size * 0.235));
-    const total = barWidth * 2 + gap;
-    const radius = Math.max(1, Math.round(size * 0.07));
-    return (
-      <View
-        style={{
-          width: total,
-          height: size,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-        }}>
-        <View
-          style={{ width: barWidth, height: size, borderRadius: radius, backgroundColor: color }}
-        />
-        <View
-          style={{ width: barWidth, height: size, borderRadius: radius, backgroundColor: color }}
-        />
-      </View>
-    );
-  }
-  const halfH = size / 2;
-  const w = size * 0.82;
-  return (
-    <View
-      style={{
-        width: 0,
-        height: 0,
-        borderTopWidth: halfH,
-        borderBottomWidth: halfH,
-        borderLeftWidth: w,
-        borderTopColor: 'transparent',
-        borderBottomColor: 'transparent',
-        borderLeftColor: color,
-        // A right-pointing triangle's centroid sits 1/3 from the base, so
-        // a centered bounding box looks left-heavy. Nudge by ~1/6 of width
-        // to put the optical centroid at the parent's centre.
-        transform: [{ translateX: Math.round(w * 0.18) }],
-      }}
-    />
-  );
-};
 
 export interface AudioTrackPayload {
   id: string;
@@ -158,9 +105,16 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [currentTrack, setCurrentTrack] = useState<AudioTrackPayload | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
+  // Position/duration come from react-native-track-player's own subscription
+  // hook. Polled on the native side at the requested interval; we don't have
+  // to maintain a setInterval here.
+  const { position: livePosition, duration } = useProgress(1000);
+  // Holds a just-issued seek target so the UI shows it instantly instead of
+  // waiting for the next useProgress tick to catch up. Cleared after the
+  // native player has had a beat to settle (same window as seekingRef).
+  const [seekOverride, setSeekOverride] = useState<number | null>(null);
+  const progress = seekOverride ?? livePosition;
   const translateY = useRef(new Animated.Value(0)).current;
   // True while a seek is in flight. React Native Track Player emits a
   // transient State.Playing during seekTo even when the player was paused,
@@ -168,20 +122,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // events while this is set.
   const seekingRef = useRef(false);
   const seekClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // True while the user is actively dragging the progress bar. Suppresses
-  // the position-polling effect so the bar doesn't fight the gesture.
-  const draggingRef = useRef(false);
-  // Latest measured pixel width of the progress-bar hit area; used to
-  // convert pan x to a 0..1 ratio. Held in both a ref (for the gesture,
-  // which runs outside React render) and state (for thumb positioning,
-  // which needs to re-render when layout changes).
-  const trackWidthRef = useRef(0);
-  const [trackWidth, setTrackWidth] = useState(0);
-  // Position the user is dragging *toward*. Committed via seekTo on release.
-  const pendingSeekRef = useRef<number | null>(null);
-  // When set, overrides `progress` for the bar render so the fill follows
-  // the finger immediately even before seekTo() commits.
-  const [dragPreview, setDragPreview] = useState<number | null>(null);
 
   useEffect(() => {
     const sub = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
@@ -210,32 +150,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (seekClearTimerRef.current) clearTimeout(seekClearTimerRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (!currentTrack) {
-      setProgress(0);
-      setDuration(0);
-      return;
-    }
-
-    const id = setInterval(async () => {
-      // Skip the poll while the user is mid-drag OR a seek is still
-      // settling on the native side. Otherwise getPosition() can return
-      // a pre-seek value and silently revert the optimistic setProgress(next)
-      // we wrote in seekBy() / barGesture.onEnd().
-      if (draggingRef.current || seekingRef.current) return;
-      try {
-        const position = await TrackPlayer.getPosition();
-        const nextDuration = await TrackPlayer.getDuration();
-        setProgress(position || 0);
-        setDuration(nextDuration || 0);
-      } catch {
-        /* ignore */
-      }
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, [currentTrack]);
 
   const playTrack = useCallback(async (track: AudioTrackPayload) => {
     setLoading(true);
@@ -282,13 +196,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (seekClearTimerRef.current) clearTimeout(seekClearTimerRef.current);
       try {
         await TrackPlayer.seekTo(next);
-        setProgress(next);
+        setSeekOverride(next);
       } finally {
         // Hold the suppression briefly so any transient state events emitted
-        // by the native player after seekTo resolves are still ignored.
+        // by the native player after seekTo resolves are still ignored, and
+        // clear the optimistic override once useProgress should have caught up.
         seekClearTimerRef.current = setTimeout(() => {
           seekingRef.current = false;
           seekClearTimerRef.current = null;
+          setSeekOverride(null);
         }, 600);
       }
     },
@@ -325,85 +241,26 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentTrack(null);
     setIsPlaying(false);
     setIsExpanded(false);
-    setProgress(0);
-    setDuration(0);
+    setSeekOverride(null);
   }, []);
 
-  const onTrackLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    trackWidthRef.current = w;
-    setTrackWidth(w);
+  // Commits a slider seek and briefly suppresses the next PlaybackState
+  // event so the play/pause icon doesn't flicker through the transient
+  // Playing state native side emits during seekTo.
+  const commitSeek = useCallback(async (target: number) => {
+    seekingRef.current = true;
+    if (seekClearTimerRef.current) clearTimeout(seekClearTimerRef.current);
+    try {
+      await TrackPlayer.seekTo(target);
+      setSeekOverride(target);
+    } finally {
+      seekClearTimerRef.current = setTimeout(() => {
+        seekingRef.current = false;
+        seekClearTimerRef.current = null;
+        setSeekOverride(null);
+      }, 600);
+    }
   }, []);
-
-  // The bar reserves space on each side for the thumb so that the thumb's
-  // bounding box never overflows the hit area — otherwise a tap on the
-  // thumb at ratio=0 / ratio=1 falls outside the gesture handler and the
-  // slider feels dead at the ends.
-  const THUMB_RADIUS = 8;
-
-  // Pan gesture for the progress bar.
-  //
-  // `minDistance(0)` makes a quick tap also seek (gesture activates on
-  // touch-down). We deliberately do NOT set activeOffsetX/failOffsetY —
-  // those would delay activation until a few px of movement, leaving a
-  // window where Android's system back-swipe (which fires near the left
-  // screen edge) can grab the touch first.
-  //
-  // Activating on touch-down also means the sheet's pan-down-dismiss
-  // gesture can't pull the bar away mid-drag.
-  const barGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .runOnJS(true)
-        .minDistance(0)
-        .onBegin((e) => {
-          draggingRef.current = true;
-          const w = trackWidthRef.current;
-          const usable = w - 2 * THUMB_RADIUS;
-          if (usable > 0 && duration > 0) {
-            const ratio = Math.max(0, Math.min(1, (e.x - THUMB_RADIUS) / usable));
-            const next = ratio * duration;
-            setDragPreview(next);
-            pendingSeekRef.current = next;
-          }
-        })
-        .onUpdate((e) => {
-          const w = trackWidthRef.current;
-          const usable = w - 2 * THUMB_RADIUS;
-          if (usable > 0 && duration > 0) {
-            const ratio = Math.max(0, Math.min(1, (e.x - THUMB_RADIUS) / usable));
-            const next = ratio * duration;
-            setDragPreview(next);
-            pendingSeekRef.current = next;
-          }
-        })
-        .onEnd(async () => {
-          const target = pendingSeekRef.current;
-          if (target !== null) {
-            seekingRef.current = true;
-            if (seekClearTimerRef.current) clearTimeout(seekClearTimerRef.current);
-            try {
-              await TrackPlayer.seekTo(target);
-              setProgress(target);
-            } catch {
-              /* ignore */
-            } finally {
-              seekClearTimerRef.current = setTimeout(() => {
-                seekingRef.current = false;
-                seekClearTimerRef.current = null;
-              }, 600);
-            }
-          }
-          pendingSeekRef.current = null;
-          setDragPreview(null);
-          draggingRef.current = false;
-        })
-        .onFinalize(() => {
-          // Safety net for cancelled gestures (e.g. parent scroll claims it).
-          draggingRef.current = false;
-        }),
-    [duration],
-  );
 
   // react-native-gesture-handler's PanGesture, run on the JS thread so it
   // can drive RN's Animated.Value directly. Modal renders in its own
@@ -454,12 +311,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [collapse, close, currentTrack, duration, expand, isExpanded, isPlaying, loading, playTrack, progress, seekBy, togglePlayPause],
   );
 
-  // While dragging, the bar tracks the finger; otherwise it follows the
-  // polled playback position.
-  const visualProgress = dragPreview !== null ? dragPreview : progress;
-  const progressRatio = duration > 0 ? Math.min(1, visualProgress / duration) : 0;
-  const sheetProgressRatio =
-    duration > 0 ? Math.max(0, Math.min(1, visualProgress / duration)) : 0;
+  // Mini-player fill bar uses the same `progress` value as the sheet slider;
+  // Slider handles its own drag state, so no separate dragPreview is needed.
+  const progressRatio = duration > 0 ? Math.min(1, progress / duration) : 0;
 
   return (
     <AudioPlayerContext.Provider value={value}>
@@ -505,7 +359,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <PlayPauseShape playing={isPlaying} size={18} color={colors.text} />
+                <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={colors.text} />
               </Pressable>
               <Pressable
                 onPress={(e) => {
@@ -569,43 +423,17 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
               <Text numberOfLines={2} style={styles.sheetTitle}>{currentTrack?.title}</Text>
               <Text numberOfLines={1} style={styles.sheetArtist}>{currentTrack?.artist}</Text>
 
-              <GestureDetector gesture={barGesture}>
-                <View
-                  style={styles.sheetProgressHitArea}
-                  onLayout={onTrackLayout}
-                  accessibilityRole="adjustable"
-                  accessibilityLabel="Playback position"
-                  accessibilityValue={{
-                    min: 0,
-                    max: Math.max(1, Math.round(duration)),
-                    now: Math.round(visualProgress),
-                  }}>
-                  <View style={styles.sheetProgressTrack}>
-                    <View
-                      style={[
-                        styles.sheetProgressFill,
-                        { width: `${sheetProgressRatio * 100}%` },
-                      ]}
-                    />
-                  </View>
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.sheetProgressThumb,
-                      {
-                        // Travel the thumb across `usable` px (= hit-area
-                        // width minus a thumb-radius reserved at each end)
-                        // so the bounding box stays inside the touchable
-                        // region at both extremes.
-                        left:
-                          sheetProgressRatio *
-                          Math.max(0, trackWidth - 2 * THUMB_RADIUS),
-                      },
-                      dragPreview !== null && styles.sheetProgressThumbActive,
-                    ]}
-                  />
-                </View>
-              </GestureDetector>
+              <Slider
+                style={styles.sheetSlider}
+                minimumValue={0}
+                maximumValue={Math.max(1, duration)}
+                value={progress}
+                minimumTrackTintColor={colors.navy}
+                maximumTrackTintColor="rgba(60, 60, 67, 0.18)"
+                thumbTintColor={colors.navy}
+                onSlidingComplete={commitSeek}
+                accessibilityLabel="Playback position"
+              />
               <View style={styles.sheetTimeRow}>
                 <Text style={styles.sheetTime}>{formatClock(progress)}</Text>
                 <Text style={styles.sheetTime}>-{formatClock(Math.max(0, duration - progress))}</Text>
@@ -635,7 +463,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.playButton,
                     pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
                   ]}>
-                  <PlayPauseShape playing={isPlaying} size={34} color={colors.textInverse} />
+                  <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={colors.textInverse} />
                 </Pressable>
 
                 <Pressable
@@ -782,47 +610,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
-  // Larger hit zone wrapping the visible bar so a tap doesn't have to land
-  // on a 6px-tall line. `marginHorizontal` keeps the touchable area
-  // clear of Android's left-edge system-back-swipe zone (typically the
-  // outermost ~24 px of the screen — at progress=0 our thumb would
-  // otherwise sit ~16 px from the screen edge).
-  sheetProgressHitArea: {
-    height: 28,
-    justifyContent: 'center',
-    marginHorizontal: 16,
-  },
-  sheetProgressTrack: {
-    height: 6,
-    // Inset by the thumb's radius on each side so the visible track
-    // matches the thumb's travel range exactly. ratio=0 puts the thumb's
-    // centre at the track's left edge; ratio=1 puts it at the right edge.
-    marginHorizontal: 8,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(60, 60, 67, 0.18)',
-    overflow: 'hidden',
-  },
-  sheetProgressFill: {
-    height: '100%',
-    backgroundColor: colors.navy,
-    borderRadius: radii.pill,
-  },
-  sheetProgressThumb: {
-    position: 'absolute',
-    top: '50%',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    // No marginLeft: `left` is supplied in pixels so the bounding box
-    // always sits inside the hit area's [0, width] range.
-    marginTop: -8,
-    backgroundColor: colors.navy,
-    // Subtle border so the thumb reads against light/dark artwork.
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  sheetProgressThumbActive: {
-    transform: [{ scale: 1.25 }],
+  sheetSlider: {
+    width: '100%',
+    height: 32,
+    // Inset matches the previous hit area, keeping the thumb clear of
+    // Android's left-edge back-swipe zone at progress=0.
+    marginHorizontal: 0,
   },
   sheetTimeRow: {
     flexDirection: 'row',

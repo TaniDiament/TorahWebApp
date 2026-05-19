@@ -374,39 +374,73 @@ On every search (or at app launch, whichever is preferred):
 #### Lucene inverted index (`search/lucene-v{N}.json`)
 
 Alongside each `full-v{N}.json`, the build script publishes a
-`lucene-v{N}.json` — a pre-computed inverted index built by Apache
-Lucene's `EnglishAnalyzer` (lowercase, stop-word removal, Porter
-stemming) with BM25 scoring.
+`lucene-v{N}.json` — an inverted index built by Apache Lucene's
+`EnglishAnalyzer` (lowercase, stop-word removal, Porter stemming).
+The file contains **raw BM25 inputs**, not pre-computed scores; the
+client computes BM25 at query time so every term contribution to a hit's
+total score is in the same similarity context.
 
 ```json
 {
-  "version": 1,
+  "schemaVersion": 2,
   "analyzer": "EnglishAnalyzer",
+  "scoring": { "scorer": "BM25", "k1": 1.2, "b": 0.75 },
   "docCount": 5000,
+  "fields": [
+    { "name": "meta", "boost": 5.0, "avgLen": 48.7 },
+    { "name": "body", "boost": 1.0, "avgLen": 412.3 }
+  ],
+  "docLens": {
+    "rsch-20260418-01": [52, 410],
+    ...
+  },
   "terms": {
-    "lesson": [
-      { "id": "rsch-20260418-01", "s": 8.42 },
-      ...
-    ],
+    "lesson": {
+      "df": [312, 894],
+      "postings": [
+        [["rsch-20260418-01", 2], ...],   <!-- meta postings -->
+        [["rsch-20260418-01", 5], ...]    <!-- body postings -->
+      ]
+    },
     ...
   }
 }
 ```
 
-The app downloads this file (URL from `index-manifest.json`'s
-`luceneUrl` field), caches it to disk, and queries it at search time:
+- `fields` is an ordered list. Every other per-field array in the file
+  (`docLens[id]`, `terms[t].df`, `terms[t].postings`) is indexed by
+  position in this list. Adding a third field (e.g. `topics`) is purely
+  additive — append it to `fields` and append a third entry to every
+  per-field array.
+- `docLens[id][f]` is the token count of doc `id` in field `f`,
+  decoded from Lucene's `SmallFloat.byte4ToInt` quantization — the same
+  length value Lucene's `BM25Similarity` uses internally.
+- `terms[t].df[f]` is the document frequency of term `t` in field `f`.
+- Each posting is the tuple `[entryId, tf]`. Either field's posting
+  list may be empty if the term doesn't occur in that field.
 
-1. Tokenize the query: lowercase → remove stop words → Porter stem.
-2. Look up each stemmed term in the `terms` map.
-3. Intersect posting lists (AND semantics), sum BM25 scores.
-4. Return ranked results.
-5. Apply `authorId`, `topicSlug`, `contentType` filters by joining
+The app downloads this file (URL from `index-manifest.json`'s
+`luceneUrl` field), caches it to disk, and at query time:
+
+1. Tokenize the query: lowercase → strip English possessive `'s` →
+   split → drop stop-words → Porter stem.
+2. For each stem, look up its `TermData` and, for every field it
+   appears in, compute BM25 per `[id, tf]` posting using `k1`, `b`,
+   `avgLen_f`, `docLens[id][f]`, and the field `boost`.
+3. Sum scores across fields per doc, AND-intersect across query terms,
+   sort descending.
+4. Apply `authorId`, `topicSlug`, `contentType` filters by joining
    matched IDs against the in-memory `content.json`.
 
 Same `immutable` cache headers as full/delta files.
 
 If the Lucene index is unavailable, the app falls back to the haystack
 substring-matching approach over the entries array.
+
+> **Schema migration:** the file format moved from v1 (pre-scored
+> postings) to v2 (raw BM25 inputs) when the manifest's `schemaVersion`
+> went from 1 → 2. Clients with a v1 cache detect the manifest schema
+> bump and re-download fresh.
 
 ---
 
