@@ -4,6 +4,7 @@ import {
   Author,
   Content,
   ContentType,
+  EventFlier,
   SearchParams,
   Topic,
   Video,
@@ -82,6 +83,7 @@ export class RealProvider implements ContentProvider {
   private contentP?: Promise<ContentSummary[]>;
   private recentP?: Promise<string[]>;
   private thisWeekP?: Promise<string | null>;
+  private eventP?: Promise<EventFlier | null>;
   private readonly searchCache: SearchIndexCache;
 
   constructor(private readonly baseUrl: string) {
@@ -138,6 +140,7 @@ export class RealProvider implements ContentProvider {
 
     if (s.type === 'article') {
       const a: Article = {
+        kind: 'article',
         id: s.id,
         title: s.title,
         content: '',
@@ -152,6 +155,7 @@ export class RealProvider implements ContentProvider {
     }
     if (s.type === 'audio') {
       const a: Audio = {
+        kind: 'audio',
         id: s.id,
         title: s.title,
         audioUrl: '',
@@ -163,6 +167,7 @@ export class RealProvider implements ContentProvider {
       return a;
     }
     const v: Video = {
+      kind: 'video',
       id: s.id,
       title: s.title,
       thumbnailUrl: s.thumbnailUrl ?? undefined,
@@ -214,6 +219,14 @@ export class RealProvider implements ContentProvider {
     return this.getArticle(id);
   }
 
+  getCurrentEvent(): Promise<EventFlier | null> {
+    // events.json is optional — `getOrNull` swallows a 404, and a malformed
+    // payload (e.g. `{}`) falls through to `null` so the banner just hides.
+    return (this.eventP ??= this.getOrNull<{ event: EventFlier | null }>(
+      'events.json',
+    ).then((r) => r?.event ?? null));
+  }
+
   async getContentByAuthor(authorId: string): Promise<Content[]> {
     const all = await this.content();
     const matches = all.filter((c) => c.authorId === authorId);
@@ -234,6 +247,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'article',
       id: raw.id,
       title: raw.title,
       content: raw.content,
@@ -256,6 +270,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'audio',
       id: raw.id,
       title: raw.title,
       audioUrl: raw.audioUrl,
@@ -277,6 +292,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'video',
       id: raw.id,
       title: raw.title,
       vimeoId: raw.vimeoId ?? undefined,

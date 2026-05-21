@@ -1,4 +1,13 @@
-import { Article, Audio, Author, Content, Topic, Video, SearchParams } from '../types';
+import {
+  Article,
+  Audio,
+  Author,
+  Content,
+  EventFlier,
+  SearchParams,
+  Topic,
+  Video,
+} from '../types';
 
 export interface ContentProvider {
   getAuthors(): Promise<Author[]>;
@@ -8,6 +17,7 @@ export interface ContentProvider {
 
   getRecent(limit?: number): Promise<Content[]>;
   getThisWeek(): Promise<Article | null>;
+  getCurrentEvent(): Promise<EventFlier | null>;
 
   getContentByAuthor(authorId: string): Promise<Content[]>;
   getContentByTopic(topicSlug: string): Promise<Content[]>;

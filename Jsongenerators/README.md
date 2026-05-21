@@ -66,6 +66,7 @@ source/
   audio/{id}.json       # full audio record
   videos/{id}.json      # full video record
   this-week.json        # { "articleId": "..." } or { "articleId": null }
+  events.json           # { "event": { ...flier... } } or { "event": null }
 ```
 
 Every file under `articles/`, `audio/`, `videos/` is one full record. The

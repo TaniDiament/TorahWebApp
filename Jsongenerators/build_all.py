@@ -48,12 +48,18 @@ def main() -> int:
     h_content = write_json(API / "content.json", summaries)
     h_recent = write_json(API / "recent.json", {"ids": [s["id"] for s in summaries]})
 
+    from _common import SOURCE, read_json
     this_week_path = API / "this-week.json"
     try:
-        from _common import SOURCE, read_json
         h_this_week = write_json(this_week_path, read_json(SOURCE / "this-week.json"))
     except FileNotFoundError:
         h_this_week = write_json(this_week_path, {"articleId": None})
+
+    events_path = API / "events.json"
+    try:
+        h_event = write_json(events_path, read_json(SOURCE / "events.json"))
+    except FileNotFoundError:
+        h_event = write_json(events_path, {"event": None})
 
     # search: build entries + version-1 full file + Lucene index
     entries = []
@@ -77,6 +83,7 @@ def main() -> int:
             "content": h_content,
             "recent": h_recent,
             "thisWeek": h_this_week,
+            "event": h_event,
             "searchIndex": h_search,
         },
         counts={

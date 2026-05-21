@@ -24,6 +24,23 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Custom-scheme deep links: torahweb://content/<kind>/<id> etc.
+	     Routed by the React Navigation `linking` config in
+	     src/navigation/AppNavigator.tsx. HTTPS universal links
+	     (https://www.torahweb.org/...) need a separate Associated Domains
+	     entitlement set in Xcode and an apple-app-site-association file
+	     hosted at the website root — those aren't configured here. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.torahweb</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>torahweb</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

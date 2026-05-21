@@ -52,8 +52,11 @@ const SearchScreen: React.FC = () => {
   const initialContentType = params.contentType;
   const showAllOnMount = params.showAll;
   const headerTitle = params.title;
+  // Search results are hydrated from content.json summaries and may be
+  // missing type-specific fields. Push via the deep-link form so
+  // ContentScreen fetches the full per-item record.
   const onContentSelect = (content: Content) =>
-    navigation.navigate('Content', { content });
+    navigation.navigate('Content', { contentId: content.id, contentKind: content.kind });
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>(initialContentType ?? 'all');
@@ -79,16 +82,12 @@ const SearchScreen: React.FC = () => {
           next = [];
         }
         if (cancelled) return;
+        // searchContent already filters by contentType, but
+        // getContentByAuthor / getContentByTopic return every kind for that
+        // facet — re-apply the filter here so the chip selection is honored
+        // on those paths too.
         const typed =
-          filter === 'all'
-            ? next
-            : next.filter((c) => {
-                if (filter === 'article') return 'content' in c;
-                if (filter === 'video') return 'vimeoId' in c || 'videoUrl' in c;
-                if (filter === 'audio')
-                  return 'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
-                return true;
-              });
+          filter === 'all' ? next : next.filter((c) => c.kind === filter);
         const hasQuery = query.trim().length > 0;
         const sorted = hasQuery
           ? typed

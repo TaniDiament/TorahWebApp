@@ -43,6 +43,7 @@ Small pointer file the app hits on every launch to decide what's stale.
     "content": "e5f6…",
     "recent":  "0789…",
     "thisWeek":"aabb…",
+    "event":   "1234…",
     "searchIndex": "ccdd…"
   }
 }
@@ -172,6 +173,49 @@ Just an ordered list of content IDs — lets the site control the "Newest" /
 ```
 
 Or `{ "articleId": null }` when there's no current pick.
+
+---
+
+### `events.json`
+
+Single currently-promoted event flier shown as a hero banner on the Home
+screen.
+
+```json
+{
+  "event": {
+    "id": "yemei-iyun-shavuos-2026",
+    "title": "Yemei Iyun Shavuos 2026",
+    "flierUrl": "https://www.torahweb.org/img/events/yi-shavuos-2026.jpg",
+    "eventDate": "2026-06-20",
+    "videoContentId": null
+  }
+}
+```
+
+Or `{ "event": null }` when there's nothing to promote.
+
+Fields:
+
+| Field            | Type             | Notes |
+|------------------|------------------|-------|
+| `id`             | string           | Stable identifier for the flier (used as React key, accessibility id). |
+| `title`          | string           | Plain-text title, used for accessibility labels. |
+| `flierUrl`       | string           | Image URL. Image is rendered with its natural aspect ratio. |
+| `eventDate`      | `YYYY-MM-DD`     | Used to decide upcoming vs past tap behavior. |
+| `videoContentId` | string \| null   | When the event has happened **and** its recording is published, set to the matching `id` in `content.json` (must be of type `"video"`). Tapping the banner opens that video in the app. |
+
+App behavior:
+
+- `event === null` (or the file 404s) → banner is hidden.
+- `eventDate >= today` (upcoming) → banner is image-only, not tappable.
+- `eventDate < today` and `videoContentId` is set → tap navigates to the
+  in-app Content screen for that video.
+- `eventDate < today` and `videoContentId` is null → banner is hidden (the
+  flier is no longer current and there's nothing to link to).
+
+`eventDate` is compared as a lexicographic string against
+`new Date().toISOString().slice(0, 10)` so timezones don't matter.
 
 ---
 
@@ -472,6 +516,7 @@ literal — the app joins it with the filenames above.
 ├── content.json
 ├── recent.json
 ├── this-week.json
+├── events.json
 ├── articles/
 │   └── {id}.json              one file per article
 ├── audio/
@@ -493,7 +538,7 @@ The `{id}` in per-item filenames is the same `id` used everywhere else
 | File group | `Cache-Control` | Notes |
 | --- | --- | --- |
 | `manifest.json`, `search/index-manifest.json` | `public, max-age=60, stale-while-revalidate=86400` | Revalidated on every app launch. |
-| `authors.json`, `topics.json`, `content.json`, `recent.json`, `this-week.json` | `public, max-age=300, stale-while-revalidate=86400` | App uses `ETag` for revalidation. |
+| `authors.json`, `topics.json`, `content.json`, `recent.json`, `this-week.json`, `events.json` | `public, max-age=300, stale-while-revalidate=86400` | App uses `ETag` for revalidation. |
 | `articles/**`, `audio/**`, `videos/**` | `public, max-age=3600, stale-while-revalidate=86400` | Only fetched on user demand. |
 | `search/full-v*.json`, `search/lucene-v*.json`, `search/delta-*.json` | `public, max-age=31536000, immutable` | Filename contains version — never changes. |
 
@@ -513,7 +558,7 @@ The app will function with just these files present:
 1. `manifest.json`
 2. `authors.json`, `topics.json`
 3. `content.json`
-4. `recent.json`, `this-week.json`
+4. `recent.json`, `this-week.json`, `events.json`
 5. One `articles/{id}.json`, `audio/{id}.json`, `videos/{id}.json` for every
    `id` referenced by `content.json`.
 
@@ -534,7 +579,9 @@ the above. What the script must do:
    `authors.json`, and every `topicSlug` exists in `topics.json`. Fail the
    publish on a dangling reference.
 3. **Write** `authors.json`, `topics.json`, `content.json`, `recent.json`,
-   `this-week.json`, and every per-item file. Sort `content.json` newest-first.
+   `this-week.json`, `events.json`, and every per-item file. Sort
+   `content.json` newest-first. If the source has no events file, write
+   `{"event": null}`.
 4. **Compute** a SHA-256 of every top-level file, write `manifest.json` with
    those hashes.
 5. **Increment** a stored `searchVersion` integer if and only if the set of

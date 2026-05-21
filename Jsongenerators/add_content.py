@@ -155,6 +155,19 @@ def main() -> int:
     h_topics = write_json(API / "topics.json", read_json(API / "topics.json"))
     h_this_week = write_json(API / "this-week.json", read_json(API / "this-week.json"))
 
+    # Republish events.json so its hash refreshes when the source file changes
+    # between publishes. Fall back to whatever's already in dist (or {event: null})
+    # if no source file exists.
+    events_src = SOURCE / "events.json"
+    events_dist = API / "events.json"
+    if events_src.exists():
+        event_payload = read_json(events_src)
+    elif events_dist.exists():
+        event_payload = read_json(events_dist)
+    else:
+        event_payload = {"event": None}
+    h_event = write_json(events_dist, event_payload)
+
     write_manifest(
         hashes={
             "authors": h_authors,
@@ -162,6 +175,7 @@ def main() -> int:
             "content": h_content,
             "recent": h_recent,
             "thisWeek": h_this_week,
+            "event": h_event,
             "searchIndex": h_search,
         },
         counts={

@@ -103,7 +103,9 @@ export const loadDownloadedArticle = async (item: DownloadItem): Promise<Article
     const raw = await fs.readFile(item.filePath, 'utf8');
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && 'content' in parsed) {
-      return parsed as Article;
+      // Legacy snapshots (pre-kind-discriminant) won't have `kind`; tag
+      // them in-flight so the rest of the app's type narrowing still works.
+      return { ...parsed, kind: 'article' } as Article;
     }
     return null;
   } catch {

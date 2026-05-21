@@ -1,14 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
+  Linking,
   ScrollView,
   Share,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
+import RenderHTML, {
+  type MixedStyleDeclaration,
+  type MixedStyleRecord,
+} from 'react-native-render-html';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
@@ -211,7 +216,7 @@ const ContentScreen: React.FC = () => {
           {content.excerpt ? (
             <Text selectable style={styles.excerpt}>{content.excerpt}</Text>
           ) : null}
-          <Text selectable style={styles.body}>{content.content}</Text>
+          <ArticleHtml html={content.content} />
         </View>
       ) : null}
 
@@ -228,6 +233,98 @@ const ContentScreen: React.FC = () => {
         </View>
       ) : null}
     </ScrollView>
+  );
+};
+
+// Render the article body's sanitized HTML (per BACKEND_SCHEMA.md). Tag
+// styles are kept as plain MixedStyleDeclaration objects so they survive
+// react-native-render-html's style merger without the fontWeight / number
+// typing pitfalls that `StyleSheet.create` introduces.
+const HTML_TAGS_STYLES: MixedStyleRecord = {
+  body: {
+    color: colors.text,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+    fontWeight: typography.body.fontWeight,
+    letterSpacing: typography.body.letterSpacing,
+  },
+  p: {
+    marginTop: 0,
+    marginBottom: spacing.md,
+  },
+  strong: { fontWeight: '700' },
+  b: { fontWeight: '700' },
+  em: { fontStyle: 'italic' },
+  i: { fontStyle: 'italic' },
+  h1: {
+    ...(typography.title1 as MixedStyleDeclaration),
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  h2: {
+    ...(typography.title2 as MixedStyleDeclaration),
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  h3: {
+    ...(typography.title3 as MixedStyleDeclaration),
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  blockquote: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.navy,
+    paddingLeft: spacing.md,
+    marginVertical: spacing.md,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  ul: { marginTop: 0, marginBottom: spacing.md, paddingLeft: spacing.lg },
+  ol: { marginTop: 0, marginBottom: spacing.md, paddingLeft: spacing.lg },
+  li: { marginBottom: spacing.xs },
+  a: { color: colors.navy, textDecorationLine: 'underline' },
+};
+
+const HTML_RENDERERS_PROPS = {
+  // Route every <a> tap through Linking so external URLs open in the
+  // system browser. WebView in-app open would require its own screen.
+  a: {
+    onPress: (_event: unknown, href: string) => {
+      Linking.openURL(href).catch(() => {
+        // Silently ignore — the user can long-press to copy if they want.
+      });
+    },
+  },
+};
+
+const ARTICLE_BODY_HPADDING = spacing.lg;
+
+const ArticleHtml: React.FC<{ html: string }> = ({ html }) => {
+  const { width } = useWindowDimensions();
+  // articleBody sits inside the screen's horizontal padding (spacing.lg
+  // on each side). RenderHTML needs the *interior* width to size images
+  // and inline content correctly.
+  const contentWidth = useMemo(
+    () => Math.max(0, width - ARTICLE_BODY_HPADDING * 2),
+    [width],
+  );
+  const source = useMemo(() => ({ html }), [html]);
+  return (
+    <RenderHTML
+      contentWidth={contentWidth}
+      source={source}
+      tagsStyles={HTML_TAGS_STYLES}
+      renderersProps={HTML_RENDERERS_PROPS}
+      defaultTextProps={{ selectable: true }}
+      // The server sanitizes content before publishing; these are belt-and-
+      // suspenders blocks against anything that slipped through. Iframes
+      // and scripts have no business in an article body.
+      ignoredDomTags={['script', 'iframe', 'object', 'embed', 'style']}
+      enableExperimentalMarginCollapsing
+    />
   );
 };
 

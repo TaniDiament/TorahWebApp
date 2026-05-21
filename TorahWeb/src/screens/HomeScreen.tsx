@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Article, Author, Content, Topic } from '../types';
+import { Author, Content, EventFlier, Topic } from '../types';
 import { api } from '../services/api';
 import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
+import EventBanner from '../components/EventBanner';
 import { colors, radii, spacing, typography } from '../theme';
 import { GlassButton, GlassSurface } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
@@ -30,8 +31,12 @@ const HomeScreen: React.FC = () => {
     navigation.navigate('Search', { authorId: author.id, title: author.name });
   const onTopicPress = (topic: Topic) =>
     navigation.navigate('Search', { topicSlug: topic.slug, title: topic.name });
+  // Always go through the deep-link form so ContentScreen fetches the full
+  // per-item record. List-derived Content can be a hydrated skeleton missing
+  // type-specific fields (article body, audioUrl, vimeoId) — the fetch path
+  // is the source of truth.
   const onArticlePress = (content: Content) =>
-    navigation.navigate('Content', { content });
+    navigation.navigate('Content', { contentId: content.id, contentKind: content.kind });
   const onAudioPress = () =>
     navigation.navigate('Search', { contentType: 'audio', title: 'Audio' });
   const onVideoPress = () =>
@@ -45,6 +50,7 @@ const HomeScreen: React.FC = () => {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [recent, setRecent] = useState<Content[]>([]);
+  const [event, setEvent] = useState<EventFlier | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,15 +58,17 @@ const HomeScreen: React.FC = () => {
     (async () => {
       setLoading(true);
       try {
-        const [a, t, r] = await Promise.all([
+        const [a, t, r, e] = await Promise.all([
           api.getAuthors(),
           api.getTopics(),
           api.getRecent(3),
+          api.getCurrentEvent(),
         ]);
         if (cancelled) return;
         setAuthors(a);
         setTopics(t);
         setRecent(r);
+        setEvent(e);
       } catch (err) {
         console.error('HomeScreen load failed:', err);
       } finally {
@@ -71,6 +79,9 @@ const HomeScreen: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  const onEventVideoPress = (videoContentId: string) =>
+    navigation.navigate('Content', { contentId: videoContentId, contentKind: 'video' });
 
   if (loading) {
     return (
@@ -85,9 +96,13 @@ const HomeScreen: React.FC = () => {
       style={styles.container}
       contentContainerStyle={[
         styles.scrollContent,
-        { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+        { paddingBottom: chrome.bottom },
       ]}
       showsVerticalScrollIndicator={false}>
+      {/* The banner sits at the top of the body area — App.tsx's
+          SafeAreaView already supplies the status-bar inset, so no extra
+          padding here. */}
+      <EventBanner event={event} onTapVideo={onEventVideoPress} />
       <View style={styles.titleBlock}>
         <Text style={styles.largeTitle}>TorahWeb</Text>
       </View>

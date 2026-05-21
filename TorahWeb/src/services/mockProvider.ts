@@ -1,4 +1,13 @@
-import { Article, Audio, Author, Content, SearchParams, Topic, Video } from '../types';
+import {
+  Article,
+  Audio,
+  Author,
+  Content,
+  EventFlier,
+  SearchParams,
+  Topic,
+  Video,
+} from '../types';
 import { ContentProvider } from './provider';
 
 const TW_BASE = 'https://www.torahweb.org';
@@ -74,6 +83,7 @@ const topic = (slug: string): Topic => TOPICS.find((t) => t.slug === slug)!;
 
 const RECENT: Article[] = [
   {
+    kind: 'article',
     id: 'rneu_metzora_2026',
     title: 'Tahor Only Together',
     parshaLabel: 'Metzora',
@@ -83,10 +93,11 @@ const RECENT: Article[] = [
     excerpt:
       'The parsha repetitively refers to the metzora as the "m\'taher" — the one becoming cleansed.',
     content:
-      'The parsha repetitively refers to the metzora, once the kohein enters him into the process of communal rehabilitation (14:4), as the "m\'taher — the one becoming cleansed". In place of the expected pronoun or referring to him as a metzora the Torah calls him a m\'taher eleven times...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+      '<p>The parsha repetitively refers to the metzora, once the kohein enters him into the process of communal rehabilitation (14:4), as the <em>m\'taher</em> — the one becoming cleansed. In place of the expected pronoun or referring to him as a metzora the Torah calls him a <em>m\'taher</em> eleven times.</p><p>The shift in language is striking, and the meforshim wrestle with what it tells us about the nature of his reintegration. <strong>The change is the whole point</strong>: he is no longer the person he was when he was sent outside the camp.</p><p><em>(Full essay will be served from the TorahWeb database once the backend is ready.)</em></p>',
     url: `${TW_BASE}/torah/2026/parsha/rneu/metzora/`,
   },
   {
+    kind: 'article',
     id: 'rsob_shmini_2026',
     title: 'Reaching a Life of Purity',
     parshaLabel: 'Shmini',
@@ -96,10 +107,11 @@ const RECENT: Article[] = [
     excerpt:
       'Parshas Shmini introduces the laws of kashrus and their role in creating a life of kedusha.',
     content:
-      'Parshas Shmini introduces the laws of kashrus and the path toward becoming a nation of purity...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+      '<p>Parshas Shmini introduces the laws of kashrus and the path toward becoming a nation of purity. The pesukim move from the avodah of the Mishkan to the dietary laws as if the two were a single arc.</p><blockquote>"Ki ani Hashem ha-maaleh eschem mei-eretz Mitzrayim lihyos lachem l\'Elokim, vihyisem kedoshim."</blockquote><p>The Sefer HaChinuch reads kashrus as the mechanism that turns the avodah of the Mishkan inward, into the home and the body. <a href="https://www.torahweb.org/torah/2026/parsha/rsob_shmini.html">Read the full piece on torahweb.org</a>.</p>',
     url: `${TW_BASE}/torah/2026/parsha/rsob/shmini/`,
   },
   {
+    kind: 'article',
     id: 'rkoe_pesach_2026',
     title: 'The Message of Shabbos Hagadol: Be a Leader',
     parshaLabel: 'Pesach',
@@ -108,10 +120,11 @@ const RECENT: Article[] = [
     publishedDate: '2026-04-03',
     excerpt: 'The lessons of Shabbos Hagadol and what they demand of every Jew.',
     content:
-      'Shabbos Hagadol marks the moment klal Yisrael stepped forward as a nation of leaders...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+      '<p>Shabbos Hagadol marks the moment klal Yisrael stepped forward as a nation of leaders. The Rambam in <em>Hilchos Korban Pesach</em> describes the moment with unusual care.</p><p>What lesson is the Torah asking of every Jew on the Shabbos before Pesach? The answer turns on three points:</p><ol><li>Public commitment in front of the surrounding nation.</li><li>Holding the korban for four days before slaughter.</li><li>Internalizing the message of the makkos before the geulah.</li></ol><p>Each of these reframes leadership as <strong>visible, sustained, and grounded in what has already happened</strong>.</p>',
     url: `${TW_BASE}/torah/2026/moadim/rkoe/pesach/`,
   },
   {
+    kind: 'article',
     id: 'ryud_vayikra_2026',
     title: 'Mixed Emotions',
     parshaLabel: 'Vayikra',
@@ -120,13 +133,14 @@ const RECENT: Article[] = [
     publishedDate: '2026-03-20',
     excerpt: 'Opening Sefer Vayikra with a mixture of awe and closeness.',
     content:
-      'As we open Sefer Vayikra, we encounter the tension between the awe of the mishkan and the closeness it invites...\n\n(Full essay will be served from the TorahWeb database once the backend is ready.)',
+      '<p>As we open Sefer Vayikra, we encounter the tension between the awe of the Mishkan and the closeness it invites. The very first word of the sefer — <em>"vayikra"</em> — already carries that double register: a calling that is also an intimacy.</p><p>Rashi cites the Midrash that the <em>aleph</em> at the end of <em>vayikra</em> was written small at Moshe\'s request. Moshe wanted the text to read <em>vayikar</em> — "and He happened upon" — the language used with Bilam — out of humility.</p><p>That small letter is the whole tension of Vayikra in one stroke of ink.</p>',
     url: `${TW_BASE}/torah/2026/parsha/ryud/vayikra/`,
   },
 ];
 
 const VIDEOS: Video[] = [
   {
+    kind: 'video',
     id: 'rtwe_091524',
     title: 'Is There Room for Simcha Amidst Protracted Suffering?',
     vimeoId: '1009865098',
@@ -137,6 +151,7 @@ const VIDEOS: Video[] = [
       'A Yemei Iyun shiur from Rabbi Mayer Twersky on finding simcha during difficult times.',
   },
   {
+    kind: 'video',
     id: 'rlop_092825',
     title: 'Doing Teshuva Wisely and Effectively',
     vimeoId: '1009865098',
@@ -149,6 +164,7 @@ const VIDEOS: Video[] = [
 
 const AUDIOS: Audio[] = [
   {
+    kind: 'audio',
     id: 'rtwe_041926',
     title:
       'Insulation and Integration: Balancing Withdrawing From, and Navigating Within, Society',
@@ -158,6 +174,7 @@ const AUDIOS: Audio[] = [
     publishedDate: '2026-04-19',
   },
   {
+    kind: 'audio',
     id: 'rleb_041926',
     title: 'Identifying, and Reacting to, Misrepresentations of Torah',
     audioUrl: `${TW_BASE}/torah/audio/2026/april19-2026/rleb_041926.m4a`,
@@ -168,6 +185,17 @@ const AUDIOS: Audio[] = [
 ];
 
 const ALL_CONTENT: Content[] = [...RECENT, ...VIDEOS, ...AUDIOS];
+
+// Mock event flier — past event linking to one of the mock videos so the
+// in-app tap path is exercised. Swap eventDate to a future YYYY-MM-DD (or
+// null out videoContentId) to test the upcoming / no-tap state.
+const EVENT: EventFlier = {
+  id: 'yemei-iyun-teshuva-2025',
+  title: 'Yemei Iyun Teshuva 2025',
+  flierUrl: `${TW_BASE}/img/home1/course/video.jpg`,
+  eventDate: '2025-09-28',
+  videoContentId: 'rlop_092825',
+};
 
 const delay = <T>(v: T, ms = 150): Promise<T> =>
   new Promise((res) => setTimeout(() => res(v), ms));
@@ -193,6 +221,9 @@ export class MockProvider implements ContentProvider {
   getThisWeek() {
     return delay(RECENT[0] ?? null);
   }
+  getCurrentEvent() {
+    return delay(EVENT);
+  }
   getContentByAuthor(authorId: string) {
     return delay(ALL_CONTENT.filter((c) => c.author.id === authorId));
   }
@@ -216,14 +247,7 @@ export class MockProvider implements ContentProvider {
       if (authorId && c.author.id !== authorId) return false;
       if (topicId && !c.topics.some((t) => t.id === topicId || t.slug === topicId))
         return false;
-      if (contentType === 'article' && !('content' in c)) return false;
-      if (contentType === 'video' && !('vimeoId' in c || 'videoUrl' in c))
-        return false;
-      if (
-        contentType === 'audio' &&
-        !('audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c))
-      )
-        return false;
+      if (contentType && c.kind !== contentType) return false;
       if (!q) return true;
       return (
         c.title.toLowerCase().includes(q) ||
