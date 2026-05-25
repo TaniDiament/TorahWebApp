@@ -3,6 +3,8 @@
 build/
 .claude/
 .claude
+torahweb.org/*
+torahweb.org/
 
 # Local configuration file (sdk path, etc)
 local.properties
