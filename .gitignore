@@ -92,6 +92,9 @@ coverage/
 # Maven (Lucene indexer)
 Jsongenerators/lucene-indexer/target/
 
+# Local publish-version state (monotonic counter; recovered from dist/ if lost)
+Jsongenerators/.publish-state.json
+
 # Python
 __pycache__/
 *.pyc

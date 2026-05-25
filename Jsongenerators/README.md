@@ -4,12 +4,36 @@ Two scripts produce the static-JSON backend described in
 `../BACKEND_SCHEMA.md`:
 
 - `build_all.py` — full rebuild from scratch. Reads `source/`, writes `dist/`.
-  Resets the search index version to `1` and emits a single `full-v1.json`
-  with no deltas.
+  *Continues* the monotonic publish version (never resets): it bumps the
+  version when the rebuilt search corpus differs from what's published, or
+  keeps it when the corpus is identical. Preserves the `search/full-v*.json`
+  history across the rebuild so it still emits the four delta tiers.
 - `add_content.py` — incremental publish. Adds (or updates) one item, bumps
-  the search index version by 1, regenerates `content.json` / `recent.json` /
+  the publish version by 1, regenerates `content.json` / `recent.json` /
   `manifest.json`, writes a new full file, and rebuilds the four delta tiers
   (1 / 5 / 50 / 500) pointing at the new version.
+
+## Versioning
+
+There is **one monotonically increasing publish version**, shared by
+`manifest.json` (`version`) and `search/index-manifest.json` (`version`). It
+increments by one on every publish that changes the search corpus and **never
+resets** — a client that has cached version *N* must never be handed a smaller
+version, or its delta sync would wedge.
+
+The counter is persisted in `Jsongenerators/.publish-state.json`, kept *outside*
+`dist/` so a full rebuild can't wipe it. To stay correct even if that file is
+lost, `current_version()` takes the max of every durable source it can find —
+the state file, the published `search/index-manifest.json`, and the on-disk
+`full-v*.json` filenames — and the next publish is always `max + 1`. So the
+version survives a lost state file *or* a wiped `dist/` as long as either
+remains.
+
+**Production note:** run publishes against the previously-published `dist/` (or
+restore `dist/` / `.publish-state.json` from your deploy first). On a throwaway
+checkout with neither present, the counter legitimately restarts at 1 — which
+clients treat like a schema reset and recover from with a one-time full
+download.
 
 ## Search: Apache Lucene
 
@@ -89,9 +113,10 @@ schema change, manual fix-ups, etc.).
 2. **Install deps:** `pip install -r requirements.txt`.
 3. **Build the Lucene indexer:** `cd lucene-indexer && mvn package && cd ..`
 4. **Run the full build:** `python build_all.py`.
-   This wipes `dist/` and writes a complete `dist/api/v1/` tree. Search
-   index resets to `version: 1` with `full-v1.json` + `lucene-v1.json`
-   and no deltas.
+   On a first build this writes a complete `dist/api/v1/` tree at
+   `version: 1` with `full-v1.json` + `lucene-v1.json` and no deltas. Re-run
+   later, it *continues* the version (see [Versioning](#versioning)) and
+   preserves the search history so deltas still ship.
 5. **Deploy:** upload `dist/api/v1/` to `https://www.torahweb.org/api/v1/`,
    preserving paths. Cache headers per the schema doc:
    - `manifest.json`, `content.json`, `recent.json`, `this-week.json`,
@@ -154,9 +179,9 @@ the change set is large.
 
 ### What if I deleted a source record?
 
-`add_content.py` doesn't handle removals — re-run `build_all.py`. The
-fresh build will omit the removed id, and on the app side the next
-manifest fetch will trigger a full re-download (because `version` resets
-to 1, which the app sees as either a smaller-than-cached version or a
-schema mismatch). For a less disruptive removal flow, bump
-`schemaVersion` so the app discards its cache cleanly.
+`add_content.py` doesn't handle removals — re-run `build_all.py`. The fresh
+build omits the removed id and bumps the publish version by one (it does **not**
+reset). Because the rebuild preserves the `search/full-v*.json` history, the
+removal ships as an ordinary delta — the dropped id appears in each tier's
+`removed` list — so clients within a tier window pick it up with a small delta
+instead of a full re-download.
