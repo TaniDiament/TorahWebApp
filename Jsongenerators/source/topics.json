@@ -1,0 +1,34 @@
+[
+  {
+    "id": "parsha",
+    "slug": "parsha",
+    "name": "Parsha",
+    "description": "Written divrei Torah on every parsha, by the TorahWeb rebbeim since 1999.",
+    "thumbnailUrl": "https://www.torahweb.org/img/home1/course/parsha.jpg",
+    "cta": "Read this week"
+  },
+  {
+    "id": "yomtov",
+    "slug": "yomtov",
+    "name": "Yomim Tovim",
+    "description": "Divrei Torah focused on the yomim tovim and special days of the Jewish calendar.",
+    "thumbnailUrl": "https://www.torahweb.org/img/home1/course/yomtov.jpg",
+    "cta": "Prepare for yom tov"
+  },
+  {
+    "id": "special",
+    "slug": "special",
+    "name": "Special Topics",
+    "description": "Guidance from the rebbeim on contemporary religious and social issues.",
+    "thumbnailUrl": "https://www.torahweb.org/img/home1/course/special.jpg",
+    "cta": "Explore"
+  },
+  {
+    "id": "shiurim",
+    "slug": "shiurim",
+    "name": "Audio/Video Shiurim",
+    "description": "Recorded yom iyun shiurim from the TorahWeb rebbeim.",
+    "thumbnailUrl": "https://www.torahweb.org/img/home1/course/video.jpg",
+    "cta": "Watch & listen"
+  }
+]

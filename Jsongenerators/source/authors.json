@@ -1,0 +1,100 @@
+[
+  {
+    "id": "dtwe",
+    "slug": "dtwe",
+    "name": "Rabbi Dr. Abraham J. Twerski",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/dtwe-480.jpg"
+  },
+  {
+    "id": "rdst",
+    "slug": "rdst",
+    "name": "Rabbi Daniel Stein",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rdst-480.jpg"
+  },
+  {
+    "id": "rhab",
+    "slug": "rhab",
+    "name": "Rabbi Yakov Haber",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rhab-480.jpg"
+  },
+  {
+    "id": "rkoe",
+    "slug": "rkoe",
+    "name": "Rabbi Eliakim Koenigsberg",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rkoe-480.jpg"
+  },
+  {
+    "id": "rleb",
+    "slug": "rleb",
+    "name": "Rabbi Aryeh Lebowitz",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rleb-480.jpg"
+  },
+  {
+    "id": "rlop",
+    "slug": "rlop",
+    "name": "Rabbi Ahron Lopiansky",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rlop-480.jpg"
+  },
+  {
+    "id": "rneu",
+    "slug": "rneu",
+    "name": "Rabbi Yaakov Neuburger",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rneu-480.jpg"
+  },
+  {
+    "id": "rros",
+    "slug": "rros",
+    "name": "Rabbi Michael Rosensweig",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rros-480.jpg"
+  },
+  {
+    "id": "rsac",
+    "slug": "rsac",
+    "name": "Rabbi Yonason Sacks",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rsac-480.jpg"
+  },
+  {
+    "id": "rsch",
+    "slug": "rsch",
+    "name": "Rabbi Hershel Schachter",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rsch-480.jpg"
+  },
+  {
+    "id": "rsob",
+    "slug": "rsob",
+    "name": "Rabbi Zvi Sobolofsky",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rsob-480.jpg"
+  },
+  {
+    "id": "rtwe",
+    "slug": "rtwe",
+    "name": "Rabbi Mayer Twersky",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rtwe-480.jpg"
+  },
+  {
+    "id": "rwil",
+    "slug": "rwil",
+    "name": "Rabbi Mordechai Willig",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/rwil-480.jpg"
+  },
+  {
+    "id": "ryud",
+    "slug": "ryud",
+    "name": "Rabbi Benjamin Yudin",
+    "bio": null,
+    "portraitUrl": "https://www.torahweb.org/img/portraits/480/ryud-480.jpg"
+  }
+]

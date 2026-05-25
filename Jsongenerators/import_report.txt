@@ -1,0 +1,11 @@
+# import_report
+## skipped
+- torah/2000/parsha/test.html: test/listing/copy artifact
+- torah/2004/parsha/rsch_dvorim - Copy.html: test/listing/copy artifact
+- torah/2005/parsha/testrtwe_noach.html: test/listing/copy artifact
+- torah/2014/parsha/rros_dt_all.html: empty/short body
+- torah/2015/parsha/test.html: test/listing/copy artifact
+
+## unmapped parsha/moadim labels (kept, neutral date, no label)
+
+## unknown author prefixes
