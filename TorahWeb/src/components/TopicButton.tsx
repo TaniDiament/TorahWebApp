@@ -25,7 +25,6 @@ const TopicButton: React.FC<TopicButtonProps> = ({ topic, onPress }) => (
       ) : null}
       <View style={styles.thumbScrim} />
       <View style={styles.thumbContent}>
-        <Text style={styles.eyebrow}>TOPIC</Text>
         <Text style={styles.thumbTitle} numberOfLines={2}>{topic.name}</Text>
       </View>
     </View>
@@ -75,11 +74,6 @@ const styles = StyleSheet.create({
   thumbContent: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-  },
-  eyebrow: {
-    ...typography.eyebrow,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 4,
   },
   thumbTitle: {
     ...typography.title2,

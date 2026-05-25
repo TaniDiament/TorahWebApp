@@ -9,6 +9,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
@@ -16,15 +19,8 @@ import { colors, radii, spacing, typography } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
-
-interface SearchScreenProps {
-  initialAuthorId?: string;
-  initialTopicSlug?: string;
-  initialContentType?: ContentType;
-  showAllOnMount?: boolean;
-  headerTitle?: string;
-  onContentSelect: (content: Content) => void;
-}
+import type { HomeStackParamList, SearchStackParamList } from '../navigation/types';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Filter = ContentType | 'all';
 
@@ -35,14 +31,33 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'audio', label: 'Audio' },
 ];
 
-const SearchScreen: React.FC<SearchScreenProps> = ({
-  initialAuthorId,
-  initialTopicSlug,
-  initialContentType,
-  showAllOnMount,
-  headerTitle,
-  onContentSelect,
-}) => {
+// SearchScreen is registered in both the Home stack (when pushed via a
+// drill-in like Audio / a topic) and the Search tab's stack (as the
+// always-present root). Both register a "Content" route with the same
+// param shape, so typing against either stack works at runtime — but a
+// union of the two NavigationProp types is structurally too narrow for
+// the navigate overloads. Pick one (HomeStack) to satisfy the compiler;
+// the runtime behaviour is identical because the param contract matches.
+type Nav = NativeStackNavigationProp<HomeStackParamList, 'Search'>;
+type SearchRouteFromHome = RouteProp<HomeStackParamList, 'Search'>;
+type SearchRouteFromTab = RouteProp<SearchStackParamList, 'SearchRoot'>;
+
+const SearchScreen: React.FC = () => {
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<SearchRouteFromHome | SearchRouteFromTab>();
+  const chrome = useScreenChromeInsets();
+  const params = route.params ?? {};
+  const initialAuthorId = params.authorId;
+  const initialTopicSlug = params.topicSlug;
+  const initialContentType = params.contentType;
+  const showAllOnMount = params.showAll;
+  const headerTitle = params.title;
+  // Search results are hydrated from content.json summaries and may be
+  // missing type-specific fields. Push via the deep-link form so
+  // ContentScreen fetches the full per-item record.
+  const onContentSelect = (content: Content) =>
+    navigation.navigate('Content', { contentId: content.id, contentKind: content.kind });
+
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>(initialContentType ?? 'all');
   const [results, setResults] = useState<Content[]>([]);
@@ -67,16 +82,12 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
           next = [];
         }
         if (cancelled) return;
+        // searchContent already filters by contentType, but
+        // getContentByAuthor / getContentByTopic return every kind for that
+        // facet — re-apply the filter here so the chip selection is honored
+        // on those paths too.
         const typed =
-          filter === 'all'
-            ? next
-            : next.filter((c) => {
-                if (filter === 'article') return 'content' in c;
-                if (filter === 'video') return 'vimeoId' in c || 'videoUrl' in c;
-                if (filter === 'audio')
-                  return 'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
-                return true;
-              });
+          filter === 'all' ? next : next.filter((c) => c.kind === filter);
         const hasQuery = query.trim().length > 0;
         const sorted = hasQuery
           ? typed
@@ -102,7 +113,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[
+          styles.list,
+          { paddingTop: chrome.top, paddingBottom: chrome.bottom },
+        ]}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.largeTitle}>{headerTitle ?? 'Search'}</Text>
@@ -213,10 +227,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   list: {
-    paddingTop: spacing.xxxl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
     flexGrow: 1,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   header: {
     marginBottom: spacing.md,

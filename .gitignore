@@ -37,6 +37,10 @@ google-services.json
 
 # Node.js
 node_modules/
+node_modules/*
+node_modules
+/node_modules
+node_modules*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -87,6 +91,9 @@ coverage/
 
 # Maven (Lucene indexer)
 Jsongenerators/lucene-indexer/target/
+
+# Local publish-version state (monotonic counter; recovered from dist/ if lost)
+Jsongenerators/.publish-state.json
 
 # Python
 __pycache__/

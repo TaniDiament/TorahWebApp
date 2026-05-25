@@ -15,7 +15,10 @@ export interface Topic {
   cta?: string;
 }
 
+export type ContentType = 'article' | 'video' | 'audio';
+
 export interface Article {
+  kind: 'article';
   id: string;
   title: string;
   content: string;
@@ -28,6 +31,7 @@ export interface Article {
 }
 
 export interface Video {
+  kind: 'video';
   id: string;
   title: string;
   vimeoId?: string;
@@ -41,6 +45,7 @@ export interface Video {
 }
 
 export interface Audio {
+  kind: 'audio';
   id: string;
   title: string;
   audioUrl: string;
@@ -53,13 +58,19 @@ export interface Audio {
 
 export type Content = Article | Video | Audio;
 
-export type ContentType = 'article' | 'video' | 'audio';
-
 export interface SearchParams {
   query?: string;
   authorId?: string;
   topicId?: string;
   contentType?: ContentType;
+}
+
+export interface EventFlier {
+  id: string;
+  title: string;
+  flierUrl: string;
+  eventDate: string;
+  videoContentId: string | null;
 }
 
 export type DownloadKind = 'article' | 'audio';
@@ -75,10 +86,13 @@ export interface DownloadItem {
   mimeType: string;
   createdAt: string;
   sourceUrl?: string;
+  artworkUrl?: string;
 }
 
-export const isArticle = (c: Content): c is Article => 'content' in c;
-export const isVideo = (c: Content): c is Video =>
-  'vimeoId' in c || ('videoUrl' in c && !('audioUrl' in c));
-export const isAudio = (c: Content): c is Audio =>
-  'audioUrl' in c && !('videoUrl' in c) && !('vimeoId' in c);
+// Use the `kind` discriminant rather than structural `'foo' in c` checks —
+// hydrated summaries can be missing type-specific fields (e.g. a Video
+// projected from content.json has no vimeoId yet), but the discriminant is
+// always set.
+export const isArticle = (c: Content): c is Article => c.kind === 'article';
+export const isVideo = (c: Content): c is Video => c.kind === 'video';
+export const isAudio = (c: Content): c is Audio => c.kind === 'audio';

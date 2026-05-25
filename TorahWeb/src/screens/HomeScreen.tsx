@@ -7,42 +7,50 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Article, Author, Topic } from '../types';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Author, Content, EventFlier, Topic } from '../types';
 import { api } from '../services/api';
 import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
+import EventBanner from '../components/EventBanner';
 import { colors, radii, spacing, typography } from '../theme';
 import { GlassButton, GlassSurface } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
+import type { HomeStackParamList } from '../navigation/types';
+import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
-interface HomeScreenProps {
-  onAuthorPress: (author: Author) => void;
-  onTopicPress: (topic: Topic) => void;
-  onArticlePress: (article: Article) => void;
-  onSearchPress: () => void;
-  onAudioPress: () => void;
-  onVideoPress: () => void;
-  onDivreiTorahPress: () => void;
-  onNewestPress: () => void;
-  onDownloadsPress: () => void;
-}
+type Nav = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
 
-const HomeScreen: React.FC<HomeScreenProps> = ({
-  onAuthorPress,
-  onTopicPress,
-  onArticlePress,
-  onSearchPress,
-  onAudioPress,
-  onVideoPress,
-  onDivreiTorahPress,
-  onNewestPress,
-  onDownloadsPress,
-}) => {
+const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<Nav>();
+  const chrome = useScreenChromeInsets();
+  const onAuthorPress = (author: Author) =>
+    navigation.navigate('Search', { authorId: author.id, title: author.name });
+  const onTopicPress = (topic: Topic) =>
+    navigation.navigate('Search', { topicSlug: topic.slug, title: topic.name });
+  // Always go through the deep-link form so ContentScreen fetches the full
+  // per-item record. List-derived Content can be a hydrated skeleton missing
+  // type-specific fields (article body, audioUrl, vimeoId) — the fetch path
+  // is the source of truth.
+  const onArticlePress = (content: Content) =>
+    navigation.navigate('Content', { contentId: content.id, contentKind: content.kind });
+  const onAudioPress = () =>
+    navigation.navigate('Search', { contentType: 'audio', title: 'Audio' });
+  const onVideoPress = () =>
+    navigation.navigate('Search', { contentType: 'video', title: 'Video' });
+  const onDivreiTorahPress = () =>
+    navigation.navigate('Search', { contentType: 'article', title: 'Divrei Torah' });
+  const onNewestPress = () => navigation.navigate('Search', { showAll: true, title: 'Newest' });
+  const onDownloadsPress = () =>
+    navigation.getParent()?.navigate('LibraryTab' as never);
+
   const [authors, setAuthors] = useState<Author[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [recent, setRecent] = useState<Article[]>([]);
+  const [recent, setRecent] = useState<Content[]>([]);
+  const [event, setEvent] = useState<EventFlier | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,15 +58,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     (async () => {
       setLoading(true);
       try {
-        const [a, t, r] = await Promise.all([
+        const [a, t, r, e] = await Promise.all([
           api.getAuthors(),
           api.getTopics(),
-          api.getRecent(6),
+          api.getRecent(3),
+          api.getCurrentEvent(),
         ]);
         if (cancelled) return;
         setAuthors(a);
         setTopics(t);
         setRecent(r);
+        setEvent(e);
       } catch (err) {
         console.error('HomeScreen load failed:', err);
       } finally {
@@ -69,6 +79,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       cancelled = true;
     };
   }, []);
+
+  const onEventVideoPress = (videoContentId: string) =>
+    navigation.navigate('Content', { contentId: videoContentId, contentKind: 'video' });
 
   if (loading) {
     return (
@@ -81,8 +94,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingBottom: chrome.bottom },
+      ]}
       showsVerticalScrollIndicator={false}>
+      {/* The banner sits at the top of the body area — App.tsx's
+          SafeAreaView already supplies the status-bar inset, so no extra
+          padding here. */}
+      <EventBanner event={event} onTapVideo={onEventVideoPress} />
       <View style={styles.titleBlock}>
         <Text style={styles.largeTitle}>TorahWeb</Text>
       </View>
@@ -96,15 +116,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
       <SectionHeader title="Recently Added" actionLabel="See All" onAction={onNewestPress} />
       <View style={styles.sectionBody}>
-        {recent.map((article) => (
+        {recent.map((item) => (
           <ArticleCard
-            key={article.id}
-            content={article}
-            onPress={() => onArticlePress(article)}
+            key={item.id}
+            content={item}
+            onPress={() => onArticlePress(item)}
             onDownloadPress={
-              canDownloadContent(article)
+              canDownloadContent(item)
                 ? async () => {
-                    await downloadContent(article);
+                    await downloadContent(item);
                   }
                 : undefined
             }
@@ -179,7 +199,7 @@ const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }
     style={styles.quickChip}
     contentStyle={styles.quickChipInner}
     cornerRadius={radii.md}
-    variant="regular"
+    variant="prominent"
     accessibilityRole="button"
     accessibilityLabel={label}
     onPress={onPress}>
@@ -200,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingTop: spacing.xxl,
+    // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
   },
   loadingContainer: {
     flex: 1,

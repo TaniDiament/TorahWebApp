@@ -20,10 +20,10 @@ import sys
 from pathlib import Path
 
 from _common import (
-    API, SEARCH_DIR, DELTA_TIERS, SOURCE,
-    index_by, read_json, search_entry, summarize,
-    write_index_manifest, write_json, write_lucene_index, write_manifest,
-    write_search_delta, write_search_full,
+    API, SOURCE,
+    begin_publish, current_version, index_by, load_full_entries, publish_search,
+    read_json, search_entry, summarize, validate_references,
+    write_json, write_manifest, write_publish_state,
 )
 
 
@@ -41,31 +41,15 @@ def kind_from_path(src: Path) -> str:
     return KIND_BY_DIR[parent]
 
 
-def load_current_search() -> tuple[int, dict[str, dict]]:
-    """Return (current_version, {id: entry}) from the latest full file."""
-    manifest_path = SEARCH_DIR / "index-manifest.json"
-    if not manifest_path.exists():
-        return 0, {}
-    manifest = read_json(manifest_path)
-    full = read_json(SEARCH_DIR / Path(manifest["fullUrl"]).name)
-    return manifest["version"], {e["id"]: e for e in full["entries"]}
-
-
-def load_full(version: int) -> dict[str, dict] | None:
-    path = SEARCH_DIR / f"full-v{version}.json"
-    if not path.exists():
-        return None
-    return {e["id"]: e for e in read_json(path)["entries"]}
-
-
-def diff_entries(old: dict[str, dict], new: dict[str, dict]) -> tuple[list[dict], list[dict], list[str]]:
-    added = [v for k, v in new.items() if k not in old]
-    updated = [v for k, v in new.items() if k in old and old[k] != v]
-    removed = [k for k in old if k not in new]
-    return added, updated, removed
-
-
 def main() -> int:
+    # Status output below uses non-ASCII (—, →); force UTF-8 so a redirected
+    # stdout on Windows (cp1252 by default) doesn't crash after the work is
+    # already done.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    begin_publish()
+
     if len(sys.argv) != 2:
         sys.exit("usage: python add_content.py <path-to-source-json>")
     src = Path(sys.argv[1])
@@ -76,6 +60,14 @@ def main() -> int:
     record = read_json(src)
     rec_id = record["id"]
 
+    # authors / topics (published copies) — used for ref validation + haystack
+    authors_by_id = index_by(read_json(API / "authors.json"))
+    topics_by_slug = index_by(read_json(API / "topics.json"), key="slug")
+
+    summary = summarize(record, kind)
+    # Fail the publish on a dangling author/topic reference before writing.
+    validate_references([summary], authors_by_id, topics_by_slug)
+
     # 1. write the per-item full record
     target_dir = {"article": "articles", "audio": "audio", "video": "videos"}[kind]
     write_json(API / target_dir / f"{rec_id}.json", record)
@@ -83,85 +75,64 @@ def main() -> int:
     # 2. update content.json (add or replace)
     content_path = API / "content.json"
     summaries: list[dict] = read_json(content_path) if content_path.exists() else []
-    summary = summarize(record, kind)
     summaries = [s for s in summaries if s["id"] != rec_id]
     summaries.append(summary)
     summaries.sort(key=lambda s: s["publishedDate"], reverse=True)
 
-    # 3. authors / topics for haystack
-    authors_by_id = index_by(read_json(API / "authors.json"))
-    topics_by_slug = index_by(read_json(API / "topics.json"), key="slug")
-
-    # 4. search: bump version, compute delta vs prior full
-    prev_version, prev_entries = load_current_search()
+    # 4. search: bump the monotonic publish counter (it never resets — see
+    #    _common.current_version), rebuild the entries map, and publish the
+    #    full/lucene/delta tree. publish_search diffs against the full files
+    #    kept on disk and prunes the history window.
+    prev_version = current_version()
     new_version = prev_version + 1
-    new_entry = search_entry(record, kind, authors_by_id, topics_by_slug)
-
+    prev_entries = load_full_entries(prev_version) or {}
     is_update = rec_id in prev_entries
+
     new_entries_map = dict(prev_entries)
-    new_entries_map[rec_id] = new_entry
+    new_entries_map[rec_id] = search_entry(record, kind, authors_by_id, topics_by_slug)
     new_entries = sorted(new_entries_map.values(), key=lambda e: e["date"], reverse=True)
 
-    full_path, full_bytes = write_search_full(new_version, new_entries)
-    write_lucene_index(new_version, new_entries)
-
-    # 5. delta tiers — diff each tier-boundary full against the new full.
-    # Tier-boundary fulls are kept on disk for exactly this purpose.
-    deltas_meta: list[dict] = []
-    tier_boundary_versions: set[int] = set()
-    for tier in DELTA_TIERS:
-        from_v = new_version - tier
-        if from_v < 1:
-            continue
-        old_entries = load_full(from_v)
-        if old_entries is None:
-            # No historical full at that version (e.g. first few publishes
-            # past tier boundary). Skip — users that far behind will fall
-            # through to fullUrl, which is the documented fallback.
-            continue
-        added, updated, removed = diff_entries(old_entries, new_entries_map)
-        delta_path, delta_bytes = write_search_delta(
-            from_v=from_v, to_v=new_version,
-            added=added, updated=updated, removed=removed,
-        )
-        deltas_meta.append({"from": from_v, "url": f"search/{delta_path.name}", "bytes": delta_bytes})
-        tier_boundary_versions.add(from_v)
-    deltas_meta.sort(key=lambda d: d["from"], reverse=True)
-
-    # 6. prune old search files no longer referenced. We keep:
-    #    - the new full + its Lucene index
-    #    - the index manifest
-    #    - the four tier-boundary full files (so the *next* publish can diff)
-    #    - the deltas we just emitted
-    keep = {full_path.name, f"lucene-v{new_version}.json", "index-manifest.json"}
-    keep |= {Path(d["url"]).name for d in deltas_meta}
-    for tier in DELTA_TIERS:
-        boundary = new_version + 1 - tier  # boundary the *next* publish will need
-        if boundary >= 1:
-            keep.add(f"full-v{boundary}.json")
-    # Also keep the boundaries the current publish referenced, for safety
-    # during the transition until the next publish supersedes them.
-    for v in tier_boundary_versions:
-        keep.add(f"full-v{v}.json")
-    for path in SEARCH_DIR.iterdir():
-        if path.name not in keep:
-            path.unlink()
-
-    # 7. publish manifests
-    h_search = write_index_manifest(new_version, full_path, full_bytes, deltas_meta)
+    # 5. publish manifests
+    h_search, deltas_meta = publish_search(new_version, new_entries)
     h_content = write_json(content_path, summaries)
     h_recent = write_json(API / "recent.json", {"ids": [s["id"] for s in summaries]})
     h_authors = write_json(API / "authors.json", read_json(API / "authors.json"))
     h_topics = write_json(API / "topics.json", read_json(API / "topics.json"))
-    h_this_week = write_json(API / "this-week.json", read_json(API / "this-week.json"))
+    # this-week.json: prefer the source file so an incremental publish can
+    # change the "this week" pick; fall back to the published copy, then to
+    # "no pick". (Mirrors the events.json handling below.)
+    tw_src = SOURCE / "this-week.json"
+    tw_dist = API / "this-week.json"
+    if tw_src.exists():
+        tw_payload = read_json(tw_src)
+    elif tw_dist.exists():
+        tw_payload = read_json(tw_dist)
+    else:
+        tw_payload = {"articleId": None}
+    h_this_week = write_json(tw_dist, tw_payload)
+
+    # Republish events.json so its hash refreshes when the source file changes
+    # between publishes. Fall back to whatever's already in dist (or {event: null})
+    # if no source file exists.
+    events_src = SOURCE / "events.json"
+    events_dist = API / "events.json"
+    if events_src.exists():
+        event_payload = read_json(events_src)
+    elif events_dist.exists():
+        event_payload = read_json(events_dist)
+    else:
+        event_payload = {"event": None}
+    h_event = write_json(events_dist, event_payload)
 
     write_manifest(
+        version=new_version,
         hashes={
             "authors": h_authors,
             "topics": h_topics,
             "content": h_content,
             "recent": h_recent,
             "thisWeek": h_this_week,
+            "event": h_event,
             "searchIndex": h_search,
         },
         counts={
@@ -170,6 +141,10 @@ def main() -> int:
             "content": len(summaries),
         },
     )
+
+    # Persist the new counter so the next run (incremental or a full rebuild)
+    # continues from here instead of resetting.
+    write_publish_state(new_version)
 
     verb = "updated" if is_update else "added"
     print(f"{verb} {kind} {rec_id} — search v{prev_version} → v{new_version} ({len(deltas_meta)} delta tiers)")

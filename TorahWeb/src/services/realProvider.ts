@@ -4,6 +4,7 @@ import {
   Author,
   Content,
   ContentType,
+  EventFlier,
   SearchParams,
   Topic,
   Video,
@@ -82,6 +83,7 @@ export class RealProvider implements ContentProvider {
   private contentP?: Promise<ContentSummary[]>;
   private recentP?: Promise<string[]>;
   private thisWeekP?: Promise<string | null>;
+  private eventP?: Promise<EventFlier | null>;
   private readonly searchCache: SearchIndexCache;
 
   constructor(private readonly baseUrl: string) {
@@ -138,6 +140,7 @@ export class RealProvider implements ContentProvider {
 
     if (s.type === 'article') {
       const a: Article = {
+        kind: 'article',
         id: s.id,
         title: s.title,
         content: '',
@@ -152,6 +155,7 @@ export class RealProvider implements ContentProvider {
     }
     if (s.type === 'audio') {
       const a: Audio = {
+        kind: 'audio',
         id: s.id,
         title: s.title,
         audioUrl: '',
@@ -163,6 +167,7 @@ export class RealProvider implements ContentProvider {
       return a;
     }
     const v: Video = {
+      kind: 'video',
       id: s.id,
       title: s.title,
       thumbnailUrl: s.thumbnailUrl ?? undefined,
@@ -189,20 +194,37 @@ export class RealProvider implements ContentProvider {
     return this.topics();
   }
 
-  async getRecent(limit = 4): Promise<Article[]> {
+  async getRecent(limit = 4): Promise<Content[]> {
+    // The recent.json feed is an article-first ordering, but the Home screen
+    // expects a mixed Recently Added section across all media. Pull from the
+    // full content index sorted by publishedDate so audio and video surface
+    // alongside divrei torah, then fall back to the recent.json ordering for
+    // any ties (preserves curated ordering for same-day items).
     const [ids, all] = await Promise.all([this.recent(), this.content()]);
-    const byId = new Map(all.map((c) => [c.id, c]));
-    const picks = ids
-      .map((id) => byId.get(id))
-      .filter((c): c is ContentSummary => !!c && c.type === 'article')
-      .slice(0, limit);
-    return Promise.all(picks.map((s) => this.hydrateSummary(s) as Promise<Article>));
+    const recentRank = new Map(ids.map((id, idx) => [id, idx]));
+    const sorted = [...all].sort((a, b) => {
+      const t = new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime();
+      if (t !== 0) return t;
+      const ra = recentRank.get(a.id) ?? Number.POSITIVE_INFINITY;
+      const rb = recentRank.get(b.id) ?? Number.POSITIVE_INFINITY;
+      return ra - rb;
+    });
+    const picks = sorted.slice(0, limit);
+    return Promise.all(picks.map((s) => this.hydrateSummary(s)));
   }
 
   async getThisWeek(): Promise<Article | null> {
     const id = await this.thisWeekId();
     if (!id) return null;
     return this.getArticle(id);
+  }
+
+  getCurrentEvent(): Promise<EventFlier | null> {
+    // events.json is optional — `getOrNull` swallows a 404, and a malformed
+    // payload (e.g. `{}`) falls through to `null` so the banner just hides.
+    return (this.eventP ??= this.getOrNull<{ event: EventFlier | null }>(
+      'events.json',
+    ).then((r) => r?.event ?? null));
   }
 
   async getContentByAuthor(authorId: string): Promise<Content[]> {
@@ -225,6 +247,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'article',
       id: raw.id,
       title: raw.title,
       content: raw.content,
@@ -247,6 +270,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'audio',
       id: raw.id,
       title: raw.title,
       audioUrl: raw.audioUrl,
@@ -268,6 +292,7 @@ export class RealProvider implements ContentProvider {
       authors.find((a) => a.id === raw.authorId) ??
       ({ id: raw.authorId, slug: raw.authorId, name: raw.authorId } as Author);
     return {
+      kind: 'video',
       id: raw.id,
       title: raw.title,
       vimeoId: raw.vimeoId ?? undefined,
