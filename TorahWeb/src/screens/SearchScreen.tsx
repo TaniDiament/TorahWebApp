@@ -37,7 +37,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 // param shape, so typing against either stack works at runtime — but a
 // union of the two NavigationProp types is structurally too narrow for
 // the navigate overloads. Pick one (HomeStack) to satisfy the compiler;
-// the runtime behaviour is identical because the param contract matches.
+// the runtime behavior is identical because the param contract matches.
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Search'>;
 type SearchRouteFromHome = RouteProp<HomeStackParamList, 'Search'>;
 type SearchRouteFromTab = RouteProp<SearchStackParamList, 'SearchRoot'>;
