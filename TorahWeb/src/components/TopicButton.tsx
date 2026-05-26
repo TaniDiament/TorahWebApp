@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   },
   thumbWrap: {
     // No aspectRatio — height is driven entirely by the text inside, so
-    // the coloured band wraps just the eyebrow + title with breathing
+    // the colored band wraps just the eyebrow + title with breathing
     // room. The optional thumbnail becomes a background fill.
     width: '100%',
     backgroundColor: colors.navyDark,

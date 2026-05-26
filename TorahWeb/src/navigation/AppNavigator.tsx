@@ -154,7 +154,7 @@ const TAB_LABELS: Record<keyof RootTabParamList, string> = {
 };
 
 // Tapping an already-active tab returns to its root screen — match the
-// previous behaviour where pressing the highlighted tab popped the stack.
+// previous behavior where pressing the highlighted tab popped the stack.
 const getRootScreen = (tabName: string): string => {
   switch (tabName) {
     case 'HomeTab':
