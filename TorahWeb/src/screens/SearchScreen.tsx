@@ -49,9 +49,13 @@ const SearchScreen: React.FC = () => {
   const params = route.params ?? {};
   const initialAuthorId = params.authorId;
   const initialTopicSlug = params.topicSlug;
+  const initialParshaLabel = params.parshaLabel;
   const initialContentType = params.contentType;
   const showAllOnMount = params.showAll;
   const headerTitle = params.title;
+  // A single parsha / yom tov is a pure browse list (the leaf of the Parsha /
+  // Yom Tov menus) — no search box or media filters, matching the website.
+  const browseMode = !!initialParshaLabel;
   // Search results are hydrated from content.json summaries and may be
   // missing type-specific fields. Push via the deep-link form so
   // ContentScreen fetches the full per-item record.
@@ -73,6 +77,8 @@ const SearchScreen: React.FC = () => {
           next = await api.getContentByAuthor(initialAuthorId);
         } else if (initialTopicSlug) {
           next = await api.getContentByTopic(initialTopicSlug);
+        } else if (initialParshaLabel) {
+          next = await api.getContentByParsha(initialParshaLabel);
         } else if (query.trim().length > 0 || filter !== 'all' || showAllOnMount) {
           next = await api.searchContent({
             query: query.trim() || undefined,
@@ -106,7 +112,7 @@ const SearchScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [query, filter, initialAuthorId, initialTopicSlug, showAllOnMount]);
+  }, [query, filter, initialAuthorId, initialTopicSlug, initialParshaLabel, showAllOnMount]);
 
   return (
     <View style={styles.container}>
@@ -120,42 +126,46 @@ const SearchScreen: React.FC = () => {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.largeTitle}>{headerTitle ?? 'Search'}</Text>
-            <GlassSurface
-              variant="regular"
-              cornerRadius={radii.md}
-              style={styles.searchBox}>
-              <View style={styles.searchInner}>
-                <Icon name="magnifyingglass" size={18} color={colors.textTertiary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Shiurim, speakers, parshiyot…"
-                  placeholderTextColor={colors.textTertiary}
-                  value={query}
-                  onChangeText={setQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="search"
-                  accessibilityLabel="Search"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-                {query.length > 0 ? (
-                  <Pressable
-                    onPress={() => setQuery('')}
-                    hitSlop={12}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear search">
-                    <Icon name="xmark" size={16} color={colors.textTertiary} />
-                  </Pressable>
-                ) : null}
-              </View>
-            </GlassSurface>
+            {/* Browse mode (a single parsha / yom tov) is a plain list — no
+                search field, matching the website's parsha pages. */}
+            {browseMode ? null : (
+              <GlassSurface
+                variant="regular"
+                cornerRadius={radii.md}
+                style={styles.searchBox}>
+                <View style={styles.searchInner}>
+                  <Icon name="magnifyingglass" size={18} color={colors.textTertiary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Shiurim, speakers, parshiyot…"
+                    placeholderTextColor={colors.textTertiary}
+                    value={query}
+                    onChangeText={setQuery}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    accessibilityLabel="Search"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                  {query.length > 0 ? (
+                    <Pressable
+                      onPress={() => setQuery('')}
+                      hitSlop={12}
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear search">
+                      <Icon name="xmark" size={16} color={colors.textTertiary} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </GlassSurface>
+            )}
 
             {/* When the screen is opened with a preset content type (the
                 Audio / Video / Divrei Torah quick chips on Home), the page
                 is already scoped — surfacing the All/Article/Video/Audio
                 chips would just let the user undo the filter they came in
                 with. Show only the search bar and the results list. */}
-            {initialContentType ? null : (
+            {initialContentType || browseMode ? null : (
               <View style={styles.filterRow}>
                 {FILTERS.map((f) => (
                   <FilterChip
@@ -191,7 +201,11 @@ const SearchScreen: React.FC = () => {
             <View style={styles.empty}>
               <Icon name="magnifyingglass" size={48} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {query.length > 0 ? 'No results.' : 'Search by author, topic, or keyword.'}
+                {query.length > 0
+                  ? 'No results.'
+                  : browseMode
+                    ? 'Nothing here yet.'
+                    : 'Search by author, topic, or keyword.'}
               </Text>
             </View>
           )

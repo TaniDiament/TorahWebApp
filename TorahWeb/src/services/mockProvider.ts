@@ -232,6 +232,16 @@ export class MockProvider implements ContentProvider {
       ALL_CONTENT.filter((c) => c.topics.some((t) => t.slug === topicSlug)),
     );
   }
+  getContentByParsha(parshaLabel: string) {
+    const target = parshaLabel.trim().toLowerCase();
+    return delay(
+      ALL_CONTENT.filter(
+        (c) =>
+          c.kind === 'article' &&
+          (c.parshaLabel ?? '').trim().toLowerCase() === target,
+      ),
+    );
+  }
   getArticle(id: string) {
     return delay(RECENT.find((a) => a.id === id) ?? null);
   }
