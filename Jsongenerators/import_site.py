@@ -274,8 +274,18 @@ def import_articles(rep: Report) -> dict[str, str]:
     can resolve its redirect target to an id."""
     relpath_to_id: dict[str, str] = {}
     torah = SITE / "torah"
-    for path in sorted(torah.glob("[0-9][0-9][0-9][0-9]/*/*.html")):
-        year_str, category = path.parts[-3], path.parts[-2]
+    # Articles are filed under two different path shapes on the site:
+    #   torah/YYYY/{parsha,moadim}/*.html   (year first, then category)
+    #   torah/special/YYYY/*.html           (category first, then year)
+    # The old single glob only matched the year-first shape, so every Special
+    # Topics dvar Torah was silently skipped. Collect both shapes as
+    # (path, year_str, category) so special content is imported too.
+    candidates: list[tuple[Path, str, str]] = []
+    for path in torah.glob("[0-9][0-9][0-9][0-9]/*/*.html"):
+        candidates.append((path, path.parts[-3], path.parts[-2]))
+    for path in torah.glob("special/[0-9][0-9][0-9][0-9]/*.html"):
+        candidates.append((path, path.parts[-2], "special"))
+    for path, year_str, category in sorted(candidates, key=lambda c: str(c[0])):
         if category not in ("parsha", "moadim", "special"):
             continue
         try:

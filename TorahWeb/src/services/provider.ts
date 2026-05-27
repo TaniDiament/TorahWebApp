@@ -21,6 +21,7 @@ export interface ContentProvider {
 
   getContentByAuthor(authorId: string): Promise<Content[]>;
   getContentByTopic(topicSlug: string): Promise<Content[]>;
+  getContentByParsha(parshaLabel: string): Promise<Content[]>;
 
   getArticle(id: string): Promise<Article | null>;
   getVideo(id: string): Promise<Video | null>;

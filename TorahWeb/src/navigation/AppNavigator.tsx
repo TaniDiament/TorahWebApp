@@ -18,6 +18,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/HomeScreen';
+import MenuScreen from '../screens/MenuScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ContentScreen from '../screens/ContentScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
@@ -44,6 +45,7 @@ const Tabs = createBottomTabNavigator<RootTabParamList>();
 const HomeTabStack = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
+    <HomeStack.Screen name="Menu" component={MenuScreen} />
     <HomeStack.Screen name="Search" component={SearchScreen} />
     <HomeStack.Screen name="Content" component={ContentScreen} />
   </HomeStack.Navigator>

@@ -13,13 +13,26 @@ export type ContentRouteParams =
 export type SearchRouteParams = {
   authorId?: string;
   topicSlug?: string;
+  // Browse a single parsha or yom tov by its content `parshaLabel`. Drives
+  // the leaf list of the Parsha / Yom Tov drill-down menus.
+  parshaLabel?: string;
   contentType?: ContentType;
   showAll?: boolean;
   title?: string;
 };
 
+// Drill-down menus that mirror torahweb.org: the Parsha button opens the list
+// of chumashim ('parshaBooks'), each chumash opens its parshiyos
+// ('parshaBook'), and the Yom Tov button opens the list of yomim tovim
+// ('yomtov'). Leaf taps navigate to Search with a `parshaLabel`.
+export type MenuRouteParams =
+  | { menu: 'parshaBooks'; title?: string }
+  | { menu: 'parshaBook'; bookId: string; title?: string }
+  | { menu: 'yomtov'; title?: string };
+
 export type HomeStackParamList = {
   Home: undefined;
+  Menu: MenuRouteParams;
   Search: SearchRouteParams;
   Content: ContentRouteParams;
 };

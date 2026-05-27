@@ -239,6 +239,15 @@ export class RealProvider implements ContentProvider {
     return Promise.all(matches.map((s) => this.hydrateSummary(s)));
   }
 
+  async getContentByParsha(parshaLabel: string): Promise<Content[]> {
+    const target = parshaLabel.trim().toLowerCase();
+    const all = await this.content();
+    const matches = all.filter(
+      (c) => (c.parshaLabel ?? '').trim().toLowerCase() === target,
+    );
+    return Promise.all(matches.map((s) => this.hydrateSummary(s)));
+  }
+
   async getArticle(id: string): Promise<Article | null> {
     const raw = await this.getOrNull<RawArticle>(`articles/${encodeURIComponent(id)}.json`);
     if (!raw) return null;

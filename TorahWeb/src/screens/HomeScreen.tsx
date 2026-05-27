@@ -16,10 +16,10 @@ import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
 import EventBanner from '../components/EventBanner';
 import { colors, radii, spacing, typography } from '../theme';
-import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import { GlassButton } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
-import type { HomeStackParamList } from '../navigation/types';
+import type { HomeStackParamList, MenuRouteParams } from '../navigation/types';
 import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Nav = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
@@ -29,8 +29,22 @@ const HomeScreen: React.FC = () => {
   const chrome = useScreenChromeInsets();
   const onAuthorPress = (author: Author) =>
     navigation.navigate('Search', { authorId: author.id, title: author.name });
-  const onTopicPress = (topic: Topic) =>
+  // Parsha and Yom Tov open the torahweb.org-style drill-down menus
+  // (chumash → parsha, or list of yomim tovim) instead of dumping every
+  // tagged item into one flat list. Other topics keep the flat topic view.
+  const onTopicPress = (topic: Topic) => {
+    if (topic.slug === 'parsha') {
+      const params: MenuRouteParams = { menu: 'parshaBooks', title: topic.name };
+      navigation.navigate('Menu', params);
+      return;
+    }
+    if (topic.slug === 'yomtov') {
+      const params: MenuRouteParams = { menu: 'yomtov', title: topic.name };
+      navigation.navigate('Menu', params);
+      return;
+    }
     navigation.navigate('Search', { topicSlug: topic.slug, title: topic.name });
+  };
   // Always go through the deep-link form so ContentScreen fetches the full
   // per-item record. List-derived Content can be a hydrated skeleton missing
   // type-specific fields (article body, audioUrl, vimeoId) — the fetch path
@@ -137,7 +151,9 @@ const HomeScreen: React.FC = () => {
         {topics.map((topic) => (
           <TopicButton
             key={topic.id}
-            topic={topic}
+            // The live API ships the Parsha CTA as "Read this week"; the app
+            // mirrors the website's "Take a look" wording here.
+            topic={topic.slug === 'parsha' ? { ...topic, cta: 'Take a look' } : topic}
             onPress={() => onTopicPress(topic)}
           />
         ))}

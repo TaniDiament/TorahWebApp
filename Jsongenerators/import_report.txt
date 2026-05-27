@@ -5,7 +5,13 @@
 - torah/2005/parsha/testrtwe_noach.html: test/listing/copy artifact
 - torah/2014/parsha/rros_dt_all.html: empty/short body
 - torah/2015/parsha/test.html: test/listing/copy artifact
+- torah/special/2005/papalFuneral.html: unknown author prefix 'papalfuneral'
+- torah/special/2005/teshuva.html: unknown author prefix 'teshuva'
+- torah/special/2010/homosexuality.html: unknown author prefix 'homosexuality'
 
 ## unmapped parsha/moadim labels (kept, neutral date, no label)
 
 ## unknown author prefixes
+- torah/special/2005/papalFuneral.html
+- torah/special/2005/teshuva.html
+- torah/special/2010/homosexuality.html
