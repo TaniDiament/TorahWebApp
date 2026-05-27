@@ -272,7 +272,7 @@ TOPICS: list[dict] = [
         "id": "parsha", "slug": "parsha", "name": "Parsha",
         "description": "Written divrei Torah on every parsha, by the TorahWeb rebbeim since 1999.",
         "thumbnailUrl": "https://www.torahweb.org/img/home1/course/parsha.jpg",
-        "cta": "Read this week",
+        "cta": "Take a look",
     },
     {
         "id": "yomtov", "slug": "yomtov", "name": "Yomim Tovim",
