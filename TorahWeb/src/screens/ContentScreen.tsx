@@ -149,6 +149,15 @@ const ContentScreen: React.FC = () => {
         <Text style={styles.date}>{formatDate(content.publishedDate)}</Text>
 
         <View style={styles.actionRow}>
+          {isAudio(content) ? (
+            <AudioPlayer
+              audioId={content.id}
+              audioUrl={content.audioUrl}
+              title={content.title}
+              authorName={content.author.name}
+              artworkUrl={content.author.portraitUrl}
+            />
+          ) : null}
           {showDownload ? (
             <GlassButton
               style={styles.downloadButton}
@@ -196,26 +205,14 @@ const ContentScreen: React.FC = () => {
         </View>
       ) : null}
 
-      {isAudio(content) ? (
+      {isAudio(content) && content.description ? (
         <View style={styles.playerWrap}>
-          <AudioPlayer
-            audioId={content.id}
-            audioUrl={content.audioUrl}
-            title={content.title}
-            authorName={content.author.name}
-            artworkUrl={content.author.portraitUrl}
-          />
-          {content.description ? (
-            <Text style={styles.body}>{content.description}</Text>
-          ) : null}
+          <Text style={styles.body}>{content.description}</Text>
         </View>
       ) : null}
 
       {isArticle(content) ? (
         <View style={styles.articleBody}>
-          {content.excerpt ? (
-            <Text selectable style={styles.excerpt}>{content.excerpt}</Text>
-          ) : null}
           <ArticleHtml html={content.content} />
         </View>
       ) : null}
@@ -424,15 +421,6 @@ const styles = StyleSheet.create({
   articleBody: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-  },
-  excerpt: {
-    ...typography.callout,
-    fontStyle: 'italic',
-    color: colors.textSecondary,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.navy,
-    paddingLeft: spacing.md,
-    marginBottom: spacing.lg,
   },
   body: {
     ...typography.body,
