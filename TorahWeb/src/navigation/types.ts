@@ -42,6 +42,14 @@ export type SearchStackParamList = {
   Content: ContentRouteParams;
 };
 
+// The "New" tab is a dedicated Recently Added feed. It reuses SearchScreen
+// (seeded with showAll) so it shares the same list/sort/filter behavior as
+// Home's "See All → Newest".
+export type NewStackParamList = {
+  NewRoot: SearchRouteParams | undefined;
+  Content: ContentRouteParams;
+};
+
 export type LibraryStackParamList = {
   Library: undefined;
   Content: ContentRouteParams;
@@ -49,8 +57,9 @@ export type LibraryStackParamList = {
 
 export type RootTabParamList = {
   HomeTab: NavigatorScreenParams<HomeStackParamList>;
-  SearchTab: NavigatorScreenParams<SearchStackParamList>;
+  NewTab: NavigatorScreenParams<NewStackParamList>;
   LibraryTab: NavigatorScreenParams<LibraryStackParamList>;
+  SearchTab: NavigatorScreenParams<SearchStackParamList>;
 };
 
 declare global {

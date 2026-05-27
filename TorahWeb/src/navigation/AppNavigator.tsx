@@ -21,11 +21,13 @@ import Icon from '../components/ui/Icon';
 import type {
   HomeStackParamList,
   LibraryStackParamList,
+  NewStackParamList,
   RootTabParamList,
   SearchStackParamList,
 } from './types';
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
+const NewStack = createNativeStackNavigator<NewStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const LibraryStack = createNativeStackNavigator<LibraryStackParamList>();
 // Native bottom tabs render through UITabBarController on iOS (which adopts
@@ -53,6 +55,19 @@ const SearchTabStack = () => (
     <SearchStack.Screen name="SearchRoot" component={SearchScreen} />
     <SearchStack.Screen name="Content" component={ContentScreen} />
   </SearchStack.Navigator>
+);
+
+// Recently Added feed: SearchScreen seeded with showAll renders every item
+// sorted newest-first (same path as Home's "See All → Newest").
+const NewTabStack = () => (
+  <NewStack.Navigator screenOptions={{ headerShown: false }}>
+    <NewStack.Screen
+      name="NewRoot"
+      component={SearchScreen}
+      initialParams={{ showAll: true, title: 'Recently Added' }}
+    />
+    <NewStack.Screen name="Content" component={ContentScreen} />
+  </NewStack.Navigator>
 );
 
 const LibraryTabStack = () => (
@@ -86,6 +101,8 @@ const getRootScreen = (tabName: string): string => {
   switch (tabName) {
     case 'HomeTab':
       return 'Home';
+    case 'NewTab':
+      return 'NewRoot';
     case 'SearchTab':
       return 'SearchRoot';
     case 'LibraryTab':
@@ -110,7 +127,7 @@ const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPr
   if (!visible) return null;
   return (
     <View
-      style={[styles.floatingBackWrap, { top: insets.top + 8 }]}
+      style={[styles.floatingBackWrap, { top: insets.top }]}
       pointerEvents="box-none">
       <GlassButton
         style={styles.floatingBack}
@@ -148,6 +165,9 @@ const linking: LinkingOptions<RootTabParamList> = {
           Search: 'search',
           Content: 'content/:contentKind/:contentId',
         },
+      },
+      NewTab: {
+        screens: { NewRoot: 'tabs/new' },
       },
       SearchTab: {
         screens: { SearchRoot: 'tabs/search' },
@@ -194,11 +214,11 @@ const AppNavigator: React.FC = () => {
             }}
           />
           <Tabs.Screen
-            name="SearchTab"
-            component={SearchTabStack}
+            name="NewTab"
+            component={NewTabStack}
             options={{
-              tabBarLabel: 'Search',
-              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify'),
+              tabBarLabel: 'New',
+              tabBarIcon: makeTabIcon('sparkles', 'star-four-points'),
             }}
           />
           <Tabs.Screen
@@ -207,6 +227,14 @@ const AppNavigator: React.FC = () => {
             options={{
               tabBarLabel: 'Library',
               tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple'),
+            }}
+          />
+          <Tabs.Screen
+            name="SearchTab"
+            component={SearchTabStack}
+            options={{
+              tabBarLabel: 'Search',
+              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify'),
             }}
           />
         </Tabs.Navigator>

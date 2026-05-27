@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // here so scrollable screens can reserve matching padding without each
 // duplicating the math.
 export const FLOATING_BACK_HEIGHT = 44;
-export const FLOATING_BACK_TOP_OFFSET = 8;
+// The back overlay is pinned to the very top of the safe area (no extra gap)
+// so it sits as high as possible without being clipped by the status bar.
+export const FLOATING_BACK_TOP_OFFSET = 0;
 
 const CONTENT_GAP = 12;
 
