@@ -315,6 +315,20 @@ describe('LuceneSearchIndex.search — synonyms & fuzzy fallback', () => {
     expect(idx.search('shabbat').map((r) => r.id)).toEqual(['a']);
   });
 
+  test('Ashkenazi -us / modern -ut bridge (malchus finds malchut docs)', () => {
+    // Corpus indexed "malchut" (stem "malchut"); "malchus" stems to "malchu"
+    // and should reach it through the -us/-ut cluster.
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 6,
+        docLens: { a: 6 },
+        terms: { malchut: { df: 1, postings: [['a', 1]] } },
+      }),
+    );
+    expect(idx.search('malchus').map((r) => r.id)).toEqual(['a']);
+  });
+
   test('edit-distance fallback rescues a typo (ranbam → rambam)', () => {
     const idx = LuceneSearchIndex.load(
       singleFieldIndex({
