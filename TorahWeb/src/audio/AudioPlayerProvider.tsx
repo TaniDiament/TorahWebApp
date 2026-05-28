@@ -364,17 +364,19 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
-                  close();
+                  seekBy(30);
                 }}
+                disabled={loading}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Close player"
+                accessibilityLabel="Skip forward 30 seconds"
+                accessibilityState={{ disabled: loading, busy: loading }}
                 android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
                 style={({ pressed }) => [
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name="xmark" size={18} color={colors.text} />
+                <Icon name="goforward.30" size={20} color={colors.text} />
               </Pressable>
               <View style={styles.miniProgressTrack}>
                 <View style={[styles.miniProgressFill, { width: `${progressRatio * 100}%` }]} />

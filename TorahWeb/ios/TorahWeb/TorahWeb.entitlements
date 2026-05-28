@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: lets iOS open https://(www.)torahweb.org links in the
+	     app instead of Safari. Requires an apple-app-site-association file
+	     hosted at the domain root (see /well-known/) AND the "Associated
+	     Domains" capability enabled on the App ID in the Apple Developer
+	     portal (automatic signing in Xcode will register it). -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:torahweb.org</string>
+		<string>applinks:www.torahweb.org</string>
+	</array>
+</dict>
+</plist>

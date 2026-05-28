@@ -6,8 +6,10 @@ the Lucene indexer lives here so the two entry-point scripts stay short.
 from __future__ import annotations
 
 import hashlib
+import html as _html
 import json
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -21,6 +23,16 @@ SOURCE = ROOT / "source"
 DIST = ROOT / "dist"
 API = DIST / "api" / "v1"
 SEARCH_DIR = API / "search"
+
+# dist/ is published at the site root, so dist/content/<kind>/<id>/index.html
+# is served at https://www.torahweb.org/content/<kind>/<id> — the canonical,
+# shareable deep link. The TorahWeb app's `linking` config parses that exact
+# path, and the hosted apple-app-site-association / assetlinks.json scope
+# Universal Links / App Links to /content/*, so a shared link opens the app
+# when it's installed and falls through to this page (which redirects to the
+# real media) when it isn't.
+SITE_ROOT = "https://www.torahweb.org"
+CONTENT_DIR = DIST / "content"
 
 # Durable, monotonic publish counter. Lives OUTSIDE dist/ so that a full
 # rebuild (build_all wipes dist/) never loses or resets the version.
@@ -215,6 +227,101 @@ def validate_references(summaries: list[dict], authors: dict, topics: dict) -> N
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
+
+
+# --- content landing pages --------------------------------------------
+
+# OpenGraph type + human label per content kind. The label drives the small
+# eyebrow on the fallback page; the og:type tweaks how WhatsApp/iMessage
+# render the unfurled card.
+_PAGE_KIND = {
+    "article": ("article", "Divrei Torah", "dvar Torah"),
+    "audio": ("music.song", "Audio Shiur", "shiur"),
+    "video": ("video.other", "Video Shiur", "shiur"),
+}
+
+
+def canonical_content_url(kind: str, content_id: str) -> str:
+    return f"{SITE_ROOT}/content/{kind}/{content_id}"
+
+
+def web_fallback_url(record: dict, kind: str) -> str | None:
+    """Where to send a visitor who does NOT have the app installed.
+
+    Prefer the canonical webpage (`url`) for every kind — for articles that's
+    the dvar Torah page, for audio/video it's the yom-iyun page with the
+    player. Only when no page URL was captured do we fall back to the bare
+    Vimeo link / mp3 file. Returns None when nothing usable exists (the page
+    then just shows its own canonical URL)."""
+    page = record.get("url")
+    if page:
+        return page
+    if kind == "video":
+        vid = record.get("vimeoId")
+        return f"https://vimeo.com/{vid}" if vid else record.get("videoUrl")
+    if kind == "audio":
+        return record.get("audioUrl")
+    return None
+
+
+def content_page_html(record: dict, kind: str, authors: dict) -> str:
+    """A tiny share/redirect page for one content item.
+
+    When the app is installed, iOS/Android intercept the URL and open the app
+    *before* this loads. Otherwise the OpenGraph tags give WhatsApp et al. a
+    rich preview, and the meta-refresh + script send the visitor on to the
+    real media.
+    """
+    e = _html.escape
+    cid = record["id"]
+    og_type, eyebrow, noun = _PAGE_KIND.get(kind, ("website", "", "page"))
+    canonical = canonical_content_url(kind, cid)
+    author = authors.get(record.get("authorId")) or {}
+    author_name = author.get("name", "")
+    title = record.get("title") or "TorahWeb"
+    desc = record.get("excerpt") or (f"By {author_name}" if author_name else "TorahWeb.org")
+    image = record.get("thumbnailUrl") or author.get("portraitUrl") or ""
+    fallback = web_fallback_url(record, kind) or canonical
+    og_image = f'\n<meta property="og:image" content="{e(image)}">' if image else ""
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{e(title)} — TorahWeb</title>
+<link rel="canonical" href="{e(canonical)}">
+<meta property="og:site_name" content="TorahWeb.org">
+<meta property="og:type" content="{og_type}">
+<meta property="og:title" content="{e(title)}">
+<meta property="og:description" content="{e(desc)}">
+<meta property="og:url" content="{e(canonical)}">{og_image}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{e(title)}">
+<meta name="twitter:description" content="{e(desc)}">
+<meta http-equiv="refresh" content="0; url={e(fallback)}">
+<script>location.replace({json.dumps(fallback)});</script>
+</head>
+<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1.5rem;color:#1a3a5c">
+<p style="text-transform:uppercase;letter-spacing:.08em;font-size:.8rem;color:#6b7c93">{e(eyebrow)}</p>
+<h1>{e(title)}</h1>
+<p>{e(author_name)}</p>
+<p><a href="{e(fallback)}">Continue to this {e(noun)} →</a></p>
+</body>
+</html>
+"""
+
+
+def write_content_page(record: dict, kind: str, authors: dict) -> None:
+    path = CONTENT_DIR / kind / record["id"] / "index.html"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content_page_html(record, kind, authors), encoding="utf-8")
+
+
+def wipe_content_pages() -> None:
+    """Drop the whole content/ tree so a full rebuild can't leave pages for
+    records that were deleted from source/."""
+    shutil.rmtree(CONTENT_DIR, ignore_errors=True)
 
 
 # --- Lucene index ------------------------------------------------------

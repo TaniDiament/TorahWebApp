@@ -189,7 +189,14 @@ const AppNavigator: React.FC = () => {
       onStateChange={(state) => setCanGoBack(computeCanGoBack(state))}>
       <View style={styles.root}>
         <Tabs.Navigator
-          screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.navy }}
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: colors.navy,
+            // Always show the label under every tab's icon (Android's Material
+            // bottom-nav otherwise hides labels for unselected tabs once there
+            // are 4+ items; iOS shows them all regardless).
+            tabBarLabelVisibilityMode: 'labeled',
+          }}
           screenListeners={({ navigation, route }) => ({
             // Re-pressing the active tab returns it to its root screen. The
             // native tab bar emits `tabPress`; on a switch the pressed route
@@ -218,7 +225,7 @@ const AppNavigator: React.FC = () => {
             component={NewTabStack}
             options={{
               tabBarLabel: 'New',
-              tabBarIcon: makeTabIcon('sparkles', 'star-four-points'),
+              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid'),
             }}
           />
           <Tabs.Screen

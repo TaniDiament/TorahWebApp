@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_WITH_TEAMID.org.torahweb.app"],
+        "components": [
+          {
+            "/": "/content/*",
+            "comment": "Open every shared TorahWeb content link in the app."
+          }
+        ]
+      }
+    ]
+  }
+}

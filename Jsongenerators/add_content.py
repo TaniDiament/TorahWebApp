@@ -22,7 +22,7 @@ from pathlib import Path
 from _common import (
     API, SOURCE,
     begin_publish, current_version, index_by, load_full_entries, publish_search,
-    read_json, search_entry, summarize, validate_references,
+    read_json, search_entry, summarize, validate_references, write_content_page,
     write_json, write_manifest, write_publish_state,
 )
 
@@ -68,9 +68,10 @@ def main() -> int:
     # Fail the publish on a dangling author/topic reference before writing.
     validate_references([summary], authors_by_id, topics_by_slug)
 
-    # 1. write the per-item full record
+    # 1. write the per-item full record + its canonical share/redirect page
     target_dir = {"article": "articles", "audio": "audio", "video": "videos"}[kind]
     write_json(API / target_dir / f"{rec_id}.json", record)
+    write_content_page(record, kind, authors_by_id)
 
     # 2. update content.json (add or replace)
     content_path = API / "content.json"

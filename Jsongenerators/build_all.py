@@ -18,7 +18,8 @@ from _common import (
     API, DIST, SEARCH_DIR, SOURCE,
     begin_publish, current_version, index_by, load_full_entries,
     load_source_records, publish_search, read_json, search_entry, summarize,
-    validate_references, write_json, write_manifest, write_publish_state,
+    validate_references, wipe_content_pages, write_content_page, write_json,
+    write_manifest, write_publish_state,
 )
 
 
@@ -74,6 +75,17 @@ def main() -> int:
         write_json(API / "audio" / f"{record['id']}.json", record)
     for record in videos:
         write_json(API / "videos" / f"{record['id']}.json", record)
+
+    # content/<kind>/<id>/index.html — the canonical share/redirect pages that
+    # back the app's deep links. Wipe first so a deleted source record can't
+    # leave an orphan page behind.
+    wipe_content_pages()
+    for record in articles:
+        write_content_page(record, "article", authors_by_id)
+    for record in audio:
+        write_content_page(record, "audio", authors_by_id)
+    for record in videos:
+        write_content_page(record, "video", authors_by_id)
 
     h_authors = write_json(API / "authors.json", authors)
     h_topics = write_json(API / "topics.json", topics)
