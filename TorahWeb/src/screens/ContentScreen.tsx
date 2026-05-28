@@ -14,7 +14,7 @@ import RenderHTML, {
   type MixedStyleDeclaration,
   type MixedStyleRecord,
 } from 'react-native-render-html';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
@@ -22,24 +22,13 @@ import AudioPlayer from '../components/AudioPlayer';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
+import ErrorView from '../components/ErrorView';
 import { api } from '../services/api';
 import { canDownloadContent, downloadContent } from '../services/download';
-import type { HomeStackParamList } from '../navigation/types';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { HomeStackParamList, RootTabParamList } from '../navigation/types';
+import { contentShareUrl, resolveInternalLink } from '../navigation/links';
 import { useScreenChromeInsets } from '../navigation/chromeInsets';
-
-// Pick the most "preview-friendly" URL for the share sheet. Vimeo and most
-// publisher URLs unfurl into a rich card in Messages / WhatsApp / Mail;
-// a bare .mp3 URL doesn't, so we share it anyway but lean on the message
-// body to carry the human-readable title + author.
-const buildShareTarget = (content: Content) => {
-  if (isArticle(content) && content.url) return content.url;
-  if (isVideo(content)) {
-    if (content.vimeoId) return `https://vimeo.com/${content.vimeoId}`;
-    if (content.videoUrl) return content.videoUrl;
-  }
-  if (isAudio(content)) return content.audioUrl;
-  return undefined;
-};
 
 // Content screens are registered in every per-tab stack with the same
 // route name and the same params shape — typing against the HomeStack's
@@ -56,12 +45,67 @@ const formatDate = (iso: string) =>
 
 const ContentScreen: React.FC = () => {
   const route = useRoute<ContentRoute>();
+  const navigation = useNavigation();
   const chrome = useScreenChromeInsets();
   const params = route.params;
   const [content, setContent] = useState<Content | null>(
     'content' in params ? params.content : null,
   );
+  // Deep-link fetch outcome when `content` is still null: 'error' is a
+  // network/throw (retryable), 'missing' is a 404/null (the item is gone).
+  const [loadFailed, setLoadFailed] = useState<'error' | 'missing' | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [downloading, setDownloading] = useState(false);
+
+  // Links inside an article body: keep torahweb.org section links (e.g. the
+  // trailing "More divrei Torah on Special Topics") inside the app, and send
+  // everything else to the system browser. ContentScreen sits in several tab
+  // stacks, so we hop through the parent tab navigator (Search / Home) — the
+  // only navigator guaranteed to reach those list/menu screens from here.
+  const renderersProps = useMemo(
+    () => ({
+      a: {
+        onPress: (_event: unknown, href: string) => {
+          const link = resolveInternalLink(href);
+          const parent =
+            navigation.getParent<BottomTabNavigationProp<RootTabParamList>>();
+          if (link && parent) {
+            switch (link.kind) {
+              case 'topic':
+                parent.navigate('SearchTab', {
+                  screen: 'SearchRoot',
+                  params: { topicSlug: link.slug, title: link.title },
+                });
+                return;
+              case 'author':
+                parent.navigate('SearchTab', {
+                  screen: 'SearchRoot',
+                  params: { authorId: link.authorId },
+                });
+                return;
+              case 'yomtov':
+                parent.navigate('HomeTab', {
+                  screen: 'Menu',
+                  params: { menu: 'yomtov', title: 'Yom Tov' },
+                });
+                return;
+              case 'parsha':
+                parent.navigate('HomeTab', {
+                  screen: 'Menu',
+                  params: { menu: 'parshaBooks', title: 'Parsha' },
+                });
+                return;
+            }
+          }
+          // External link (or nothing we can route): open in the browser.
+          Linking.openURL(href).catch(() => {
+            // Silently ignore — the user can long-press to copy if they want.
+          });
+        },
+      },
+    }),
+    [navigation],
+  );
 
   // Deep-link entry: only an id + kind are in the URL, so resolve the full
   // record via the provider. In-app pushes carry the hydrated Content and
@@ -70,22 +114,61 @@ const ContentScreen: React.FC = () => {
     if (content) return;
     if (!('contentId' in params)) return;
     let cancelled = false;
+    setLoadFailed(null);
     (async () => {
-      const { contentId, contentKind } = params;
-      const fetched =
-        contentKind === 'article'
-          ? await api.getArticle(contentId)
-          : contentKind === 'video'
-            ? await api.getVideo(contentId)
-            : await api.getAudio(contentId);
-      if (!cancelled && fetched) setContent(fetched);
+      try {
+        const { contentId, contentKind } = params;
+        const fetched =
+          contentKind === 'article'
+            ? await api.getArticle(contentId)
+            : contentKind === 'video'
+              ? await api.getVideo(contentId)
+              : await api.getAudio(contentId);
+        if (cancelled) return;
+        // A null result is a 404 / removed item — distinct from a thrown
+        // network error so we can show the right message and skip a pointless
+        // retry on something that no longer exists.
+        if (fetched) setContent(fetched);
+        else setLoadFailed('missing');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('ContentScreen load failed:', err);
+        setLoadFailed('error');
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [content, params]);
+  }, [content, params, reloadKey]);
 
   if (!content) {
+    if (loadFailed) {
+      const isMissing = loadFailed === 'missing';
+      const canGoBack = navigation.canGoBack();
+      return (
+        <View style={styles.loadingWrap}>
+          <ErrorView
+            icon={isMissing ? 'exclamationmark.triangle' : 'wifi.slash'}
+            title={isMissing ? 'Not available' : "Couldn't load"}
+            message={
+              isMissing
+                ? "This item isn't available anymore."
+                : 'Check your connection and try again.'
+            }
+            // 404s won't recover on retry, so offer a way out instead. A
+            // network error is retryable in place.
+            onRetry={
+              isMissing
+                ? canGoBack
+                  ? () => navigation.goBack()
+                  : undefined
+                : () => setReloadKey((k) => k + 1)
+            }
+            retryLabel={isMissing ? 'Go Back' : 'Try Again'}
+          />
+        </View>
+      );
+    }
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator size="large" color={colors.navy} />
@@ -107,10 +190,12 @@ const ContentScreen: React.FC = () => {
   };
 
   const onShare = async () => {
-    const target = buildShareTarget(content);
-    const message = target
-      ? `${content.title}\n${content.author.name}\n\n${target}`
-      : `${content.title}\n${content.author.name}`;
+    // Always share the canonical torahweb.org/content/<kind>/<id> link: it
+    // deep-links straight back into the app on a recipient's phone (Universal
+    // Link / App Link) and falls through to a web preview+redirect page for
+    // anyone without the app installed.
+    const target = contentShareUrl(content);
+    const message = `${content.title}\n${content.author.name}\n\n${target}`;
     try {
       // `url` is iOS-only; on Android the share-sheet reads `message`. We
       // include both so iOS recipients get a previewable link attachment
@@ -118,7 +203,7 @@ const ContentScreen: React.FC = () => {
       await Share.share({
         title: content.title,
         message,
-        ...(target ? { url: target } : {}),
+        url: target,
       });
     } catch {
       // User dismissed the sheet or the platform rejected the payload —
@@ -213,7 +298,7 @@ const ContentScreen: React.FC = () => {
 
       {isArticle(content) ? (
         <View style={styles.articleBody}>
-          <ArticleHtml html={content.content} />
+          <ArticleHtml html={content.content} renderersProps={renderersProps} />
         </View>
       ) : null}
 
@@ -285,21 +370,16 @@ const HTML_TAGS_STYLES: MixedStyleRecord = {
   a: { color: colors.navy, textDecorationLine: 'underline' },
 };
 
-const HTML_RENDERERS_PROPS = {
-  // Route every <a> tap through Linking so external URLs open in the
-  // system browser. WebView in-app open would require its own screen.
-  a: {
-    onPress: (_event: unknown, href: string) => {
-      Linking.openURL(href).catch(() => {
-        // Silently ignore — the user can long-press to copy if they want.
-      });
-    },
-  },
-};
-
 const ARTICLE_BODY_HPADDING = spacing.lg;
 
-const ArticleHtml: React.FC<{ html: string }> = ({ html }) => {
+type RenderHTMLRenderersProps = React.ComponentProps<typeof RenderHTML>['renderersProps'];
+
+const ArticleHtml: React.FC<{
+  html: string;
+  // `<a>` tap routing is owned by ContentScreen (it has the navigation ref);
+  // ArticleHtml just forwards it to RenderHTML.
+  renderersProps: RenderHTMLRenderersProps;
+}> = ({ html, renderersProps }) => {
   const { width } = useWindowDimensions();
   // articleBody sits inside the screen's horizontal padding (spacing.lg
   // on each side). RenderHTML needs the *interior* width to size images
@@ -314,7 +394,7 @@ const ArticleHtml: React.FC<{ html: string }> = ({ html }) => {
       contentWidth={contentWidth}
       source={source}
       tagsStyles={HTML_TAGS_STYLES}
-      renderersProps={HTML_RENDERERS_PROPS}
+      renderersProps={renderersProps}
       defaultTextProps={{ selectable: true }}
       // The server sanitizes content before publishing; these are belt-and-
       // suspenders blocks against anything that slipped through. Iframes

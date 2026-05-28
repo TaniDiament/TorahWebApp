@@ -1,42 +1,41 @@
 import React from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import {
   NavigationContainer,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import type { LinkingOptions, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import {
-  createBottomTabNavigator,
-  type BottomTabBarProps,
-} from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
+import type { NativeBottomTabIcon } from '@react-navigation/bottom-tabs/unstable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialDesignIcons } from '@react-native-vector-icons/material-design-icons/static';
 import HomeScreen from '../screens/HomeScreen';
 import MenuScreen from '../screens/MenuScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ContentScreen from '../screens/ContentScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
-import { colors, radii, spacing, typography } from '../theme';
-import { GlassButton, GlassSurface } from '../components/ui/Glass';
-import Icon, { type IconName } from '../components/ui/Icon';
+import { colors, radii, spacing } from '../theme';
+import { GlassButton } from '../components/ui/Glass';
+import Icon from '../components/ui/Icon';
 import type {
   HomeStackParamList,
   LibraryStackParamList,
+  NewStackParamList,
   RootTabParamList,
   SearchStackParamList,
 } from './types';
-import { TAB_BAR_BOTTOM_OFFSET, TAB_BAR_HEIGHT } from './chromeInsets';
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
+const NewStack = createNativeStackNavigator<NewStackParamList>();
 const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 const LibraryStack = createNativeStackNavigator<LibraryStackParamList>();
-const Tabs = createBottomTabNavigator<RootTabParamList>();
+// Native bottom tabs render through UITabBarController on iOS (which adopts
+// the iOS 26 Liquid Glass tab bar — including the morphing selection and
+// drag-across-to-select — automatically when the app is built with Xcode 26)
+// and a Material BottomNavigationView on Android. Provided by
+// react-native-screens; no extra dependency required.
+const Tabs = createNativeBottomTabNavigator<RootTabParamList>();
 
 // Each tab keeps its own navigation history so switching tabs preserves
 // drill-down state — same model as the previous hand-rolled
@@ -58,6 +57,19 @@ const SearchTabStack = () => (
   </SearchStack.Navigator>
 );
 
+// Recently Added feed: SearchScreen seeded with showAll renders every item
+// sorted newest-first (same path as Home's "See All → Newest").
+const NewTabStack = () => (
+  <NewStack.Navigator screenOptions={{ headerShown: false }}>
+    <NewStack.Screen
+      name="NewRoot"
+      component={SearchScreen}
+      initialParams={{ showAll: true, title: 'Recently Added' }}
+    />
+    <NewStack.Screen name="Content" component={ContentScreen} />
+  </NewStack.Navigator>
+);
+
 const LibraryTabStack = () => (
   <LibraryStack.Navigator screenOptions={{ headerShown: false }}>
     <LibraryStack.Screen name="Library" component={DownloadsScreen} />
@@ -65,95 +77,23 @@ const LibraryTabStack = () => (
   </LibraryStack.Navigator>
 );
 
-// Custom tab bar reuses the glass-pill design from the previous AppShell.
-// We render via the `tabBar` prop so we keep visual parity (rounded pill,
-// floating above the content) while the navigator owns route state.
-const GlassTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <View
-      pointerEvents="box-none"
-      style={[
-        styles.tabBarWrap,
-        { bottom: TAB_BAR_BOTTOM_OFFSET + Math.max(insets.bottom, 8) },
-      ]}>
-      <GlassSurface
-        variant="prominent"
-        cornerRadius={radii.pill}
-        style={styles.tabBar}>
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
-          const { options } = descriptors[route.key];
-          const label =
-            typeof options.tabBarLabel === 'string'
-              ? options.tabBarLabel
-              : options.title ?? route.name;
-          const icon = (options.tabBarAccessibilityLabel ?? route.name) as string;
-          const iconName = TAB_ICONS[route.name as keyof RootTabParamList];
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (focused && !event.defaultPrevented) {
-              // Tapping the active tab in iOS-style: pop to the tab's root.
-              // The nested-navigate typing here is intentionally loose —
-              // the navigator's per-tab stacks have different param shapes
-              // so a strictly-typed call would need a per-tab branch.
-              (navigation.navigate as (
-                name: string,
-                params?: { screen: string },
-              ) => void)(route.name, { screen: getRootScreen(route.name) });
-              return;
-            }
-            if (!event.defaultPrevented) {
-              navigation.navigate(route.name as never);
-            }
-          };
-          return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              accessibilityRole="tab"
-              accessibilityLabel={icon}
-              accessibilityState={{ selected: focused }}
-              android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
-              style={({ pressed }) => [
-                styles.tabItem,
-                pressed && { opacity: Platform.OS === 'ios' ? 0.7 : 1 },
-              ]}>
-              <Icon
-                name={iconName}
-                size={22}
-                color={focused ? colors.navy : colors.textTertiary}
-              />
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color: focused ? colors.navy : colors.textTertiary },
-                ]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </GlassSurface>
-    </View>
-  );
-};
+type SFSymbolName = Extract<NativeBottomTabIcon, { type: 'sfSymbol' }>['name'];
+type MDIGlyph = Parameters<typeof MaterialDesignIcons.getImageSourceSync>[0];
 
-const TAB_ICONS: Record<keyof RootTabParamList, IconName> = {
-  HomeTab: 'house.fill',
-  SearchTab: 'magnifyingglass',
-  LibraryTab: 'rectangle.stack.fill',
-};
-
-const TAB_LABELS: Record<keyof RootTabParamList, string> = {
-  HomeTab: 'Home',
-  SearchTab: 'Search',
-  LibraryTab: 'Library',
-};
+// iOS renders SF Symbols, which the iOS 26 tab bar turns into Liquid Glass
+// controls. Android's Material tab bar takes raster images, so we rasterize a
+// Material Design glyph from the icon font once (Material applies the active
+// tint itself). The glyph names mirror Icon.tsx's SF-Symbol → MDI mapping.
+const makeTabIcon = (
+  sfSymbol: SFSymbolName,
+  mdiGlyph: MDIGlyph,
+): NativeBottomTabIcon =>
+  Platform.OS === 'ios'
+    ? { type: 'sfSymbol', name: sfSymbol }
+    : {
+        type: 'image',
+        source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, colors.navy),
+      };
 
 // Tapping an already-active tab returns to its root screen — match the
 // previous behavior where pressing the highlighted tab popped the stack.
@@ -161,6 +101,8 @@ const getRootScreen = (tabName: string): string => {
   switch (tabName) {
     case 'HomeTab':
       return 'Home';
+    case 'NewTab':
+      return 'NewRoot';
     case 'SearchTab':
       return 'SearchRoot';
     case 'LibraryTab':
@@ -185,7 +127,7 @@ const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPr
   if (!visible) return null;
   return (
     <View
-      style={[styles.floatingBackWrap, { top: insets.top + 8 }]}
+      style={[styles.floatingBackWrap, { top: insets.top }]}
       pointerEvents="box-none">
       <GlassButton
         style={styles.floatingBack}
@@ -224,6 +166,9 @@ const linking: LinkingOptions<RootTabParamList> = {
           Content: 'content/:contentKind/:contentId',
         },
       },
+      NewTab: {
+        screens: { NewRoot: 'tabs/new' },
+      },
       SearchTab: {
         screens: { SearchRoot: 'tabs/search' },
       },
@@ -244,22 +189,60 @@ const AppNavigator: React.FC = () => {
       onStateChange={(state) => setCanGoBack(computeCanGoBack(state))}>
       <View style={styles.root}>
         <Tabs.Navigator
-          screenOptions={{ headerShown: false }}
-          tabBar={(props) => <GlassTabBar {...props} />}>
+          screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: colors.navy,
+            // Always show the label under every tab's icon (Android's Material
+            // bottom-nav otherwise hides labels for unselected tabs once there
+            // are 4+ items; iOS shows them all regardless).
+            tabBarLabelVisibilityMode: 'labeled',
+          }}
+          screenListeners={({ navigation, route }) => ({
+            // Re-pressing the active tab returns it to its root screen. The
+            // native tab bar emits `tabPress`; on a switch the pressed route
+            // differs from the focused one, so this is a no-op and the default
+            // switch happens.
+            tabPress: () => {
+              const tabState = navigation.getState();
+              const focused = tabState.routes[tabState.index]?.name === route.name;
+              if (!focused) return;
+              (navigation.navigate as (
+                name: string,
+                params?: { screen: string },
+              ) => void)(route.name, { screen: getRootScreen(route.name) });
+            },
+          })}>
           <Tabs.Screen
             name="HomeTab"
             component={HomeTabStack}
-            options={{ tabBarLabel: TAB_LABELS.HomeTab }}
+            options={{
+              tabBarLabel: 'Home',
+              tabBarIcon: makeTabIcon('house.fill', 'home'),
+            }}
           />
           <Tabs.Screen
-            name="SearchTab"
-            component={SearchTabStack}
-            options={{ tabBarLabel: TAB_LABELS.SearchTab }}
+            name="NewTab"
+            component={NewTabStack}
+            options={{
+              tabBarLabel: 'New',
+              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid'),
+            }}
           />
           <Tabs.Screen
             name="LibraryTab"
             component={LibraryTabStack}
-            options={{ tabBarLabel: TAB_LABELS.LibraryTab }}
+            options={{
+              tabBarLabel: 'Library',
+              tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple'),
+            }}
+          />
+          <Tabs.Screen
+            name="SearchTab"
+            component={SearchTabStack}
+            options={{
+              tabBarLabel: 'Search',
+              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify'),
+            }}
           />
         </Tabs.Navigator>
         <FloatingBackOverlay
@@ -297,31 +280,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tabBarWrap: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    height: TAB_BAR_HEIGHT,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    borderRadius: radii.pill,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xs,
-  },
-  tabLabel: {
-    ...typography.caption,
-    fontSize: 10,
-    marginTop: 2,
-    fontWeight: '600',
   },
 });
 

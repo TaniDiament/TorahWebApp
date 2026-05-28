@@ -4,17 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from './src/theme';
 import { AudioPlayerProvider } from './src/audio/AudioPlayerProvider';
 import OfflineBanner from './src/components/OfflineBanner';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
 
 const App: React.FC = () => (
-  <AudioPlayerProvider>
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <OfflineBanner />
-      <View style={styles.body}>
-        <AppNavigator />
-      </View>
-    </SafeAreaView>
-  </AudioPlayerProvider>
+  <ErrorBoundary>
+    <AudioPlayerProvider>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <OfflineBanner />
+        <View style={styles.body}>
+          <AppNavigator />
+        </View>
+      </SafeAreaView>
+    </AudioPlayerProvider>
+  </ErrorBoundary>
 );
 
 const styles = StyleSheet.create({

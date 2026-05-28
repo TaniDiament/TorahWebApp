@@ -15,6 +15,7 @@ import AuthorButton from '../components/AuthorButton';
 import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
 import EventBanner from '../components/EventBanner';
+import ErrorView from '../components/ErrorView';
 import { colors, radii, spacing, typography } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
@@ -66,11 +67,15 @@ const HomeScreen: React.FC = () => {
   const [recent, setRecent] = useState<Content[]>([]);
   const [event, setEvent] = useState<EventFlier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  // Bumped by the retry button to re-run the load effect.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(false);
       try {
         const [a, t, r, e] = await Promise.all([
           api.getAuthors(),
@@ -84,7 +89,9 @@ const HomeScreen: React.FC = () => {
         setRecent(r);
         setEvent(e);
       } catch (err) {
+        if (cancelled) return;
         console.error('HomeScreen load failed:', err);
+        setError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -92,7 +99,7 @@ const HomeScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   const onEventVideoPress = (videoContentId: string) =>
     navigation.navigate('Content', { contentId: videoContentId, contentKind: 'video' });
@@ -101,6 +108,19 @@ const HomeScreen: React.FC = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.navy} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ErrorView
+          icon="wifi.slash"
+          title="Couldn't load"
+          message="Check your connection and try again."
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
       </View>
     );
   }

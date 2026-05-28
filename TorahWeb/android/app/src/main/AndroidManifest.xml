@@ -36,18 +36,23 @@
             <data android:scheme="torahweb" />
         </intent-filter>
 
-        <!-- HTTPS app links to (www.)torahweb.org. `autoVerify="true"` lets
-             Android consult the site's
-             /.well-known/assetlinks.json (which must list this app's
-             SHA-256 signing fingerprint) to skip the disambiguation chooser
-             and route matching URLs straight to the app. Without that file
-             the filter still works — users just see a "Open with" prompt. -->
+        <!-- HTTPS app links to (www.)torahweb.org/content/*. `autoVerify="true"`
+             lets Android consult the site's /.well-known/assetlinks.json (which
+             must list this app's SHA-256 signing fingerprint) to skip the
+             disambiguation chooser and route matching URLs straight to the app.
+             Without that file the filter still works — users just see an
+             "Open with" prompt.
+
+             Scoped to the /content/ prefix on purpose: those are the canonical
+             deep links the app can resolve (content/<kind>/<id>). Leaving it
+             host-wide would capture every legacy torahweb.org page and dump the
+             user on the app's home screen with nothing to show. -->
         <intent-filter android:autoVerify="true">
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="https" android:host="www.torahweb.org" />
-            <data android:scheme="https" android:host="torahweb.org" />
+            <data android:scheme="https" android:host="www.torahweb.org" android:pathPrefix="/content" />
+            <data android:scheme="https" android:host="torahweb.org" android:pathPrefix="/content" />
         </intent-filter>
       </activity>
     </application>

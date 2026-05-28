@@ -32,6 +32,7 @@ each run, then you run build_all.py.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -48,7 +49,9 @@ from _taxonomy import (
 )
 
 ROOT = Path(__file__).resolve().parent
-SITE = ROOT.parent / "torahweb.org"
+# The legacy site mirror defaults to <repo>/torahweb.org, but can live anywhere
+# (e.g. ~/Downloads) — point at it with the TORAHWEB_SITE env var.
+SITE = Path(os.environ.get("TORAHWEB_SITE") or ROOT.parent / "torahweb.org")
 SOURCE = ROOT / "source"
 SITE_BASE = "https://www.torahweb.org/"
 
@@ -399,6 +402,12 @@ def import_media(rep: Report, rss: dict[str, dict]) -> None:
             rep.note_skip(path, "no vimeo or audio media found")
             continue
 
+        # The yom-iyun page itself (the one we're parsing) is the canonical
+        # "normal webpage" for this shiur — it carries the title, player, and
+        # mp3 link. Store it so a shared audio/video link can land there
+        # instead of on a bare mp3 / Vimeo. `path` is the exact page, so this
+        # captures the _video.html variant correctly for video-only shiurim.
+        page_url = site_url(path)
         if audio_url:
             aid = unique_id(f"{base_id}-aud")
             write_record(SOURCE / "audio" / f"{aid}.json", {
@@ -410,6 +419,7 @@ def import_media(rep: Report, rss: dict[str, dict]) -> None:
                 "publishedDate": published,
                 "duration": duration,
                 "description": None,
+                "url": page_url,
             })
             rep.audio += 1
         if vimeo:
@@ -425,6 +435,7 @@ def import_media(rep: Report, rss: dict[str, dict]) -> None:
                 "publishedDate": published,
                 "duration": duration,
                 "description": None,
+                "url": page_url,
             })
             rep.videos += 1
 
