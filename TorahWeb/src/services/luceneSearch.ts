@@ -203,6 +203,109 @@ const STOP_WORDS = new Set([
   'to', 'was', 'will', 'with',
 ]);
 
+// ---------------------------------------------------------------------------
+// Transliteration synonyms + gated fuzzy fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * Hebrew/Aramaic words have no single English spelling, so the same concept
+ * shows up under several transliterations across the corpus ("Shabbos" vs
+ * "Shabbat", "teshuva" vs "teshuvah"). Each row groups spellings of one word.
+ * At load time every spelling is run through the same Porter stemmer the query
+ * pipeline uses and cross-linked, so a search for one spelling also matches
+ * documents indexed under another. Extend freely — a row only contributes if
+ * it stems to 2+ distinct stems (otherwise the exact lookup already covers it).
+ */
+const SYNONYM_CLUSTERS: string[][] = [
+  ['shabbos', 'shabbas', 'shabbes', 'shabbat', 'shabos'],
+  ['teshuva', 'teshuvah', 'tshuva', 'tshuvah'],
+  ['sukkos', 'sukkot', 'sukkoth', 'succos', 'succot'],
+  ['sukkah', 'sukka', 'succah', 'succa'],
+  ['chanukah', 'chanuka', 'chanukkah', 'hanukkah', 'hanukah'],
+  ['shavuos', 'shavuot', 'shavuoth'],
+  ['pesach', 'pesah', 'passover'],
+  ['kippur', 'kipur'],
+  ['mitzvah', 'mitzva', 'mitzvos', 'mitzvot', 'mitzvoth'],
+  ['bracha', 'brocho', 'beracha', 'berachah', 'brachos', 'berachos', 'berachot'],
+  ['halacha', 'halachah', 'halakha', 'halocho'],
+  ['gemara', 'gemora', 'gmara'],
+  ['tefilla', 'tefillah', 'tefila', 'tefillos', 'tefilos', 'tefilot'],
+  ['emuna', 'emunah'],
+  ['parsha', 'parshah', 'parasha', 'parshas'],
+  ['neshama', 'neshamah', 'neshomo'],
+  ['tzedaka', 'tzedakah', 'tzdaka'],
+  ['simcha', 'simchah', 'simcho'],
+  ['avoda', 'avodah'],
+  ['hashana', 'hashanah', 'hashono'],
+];
+
+/**
+ * stem → the other same-meaning stems in its cluster (not itself), so callers
+ * expand a query stem to `[stem, ...SYNONYM_STEMS.get(stem)]`. Built once.
+ */
+const SYNONYM_STEMS: Map<string, string[]> = (() => {
+  const map = new Map<string, string[]>();
+  for (const cluster of SYNONYM_CLUSTERS) {
+    const stems = Array.from(new Set(cluster.map((w) => porterStem(w))));
+    if (stems.length < 2) continue;
+    for (const s of stems) {
+      let bucket = map.get(s);
+      if (!bucket) {
+        bucket = [];
+        map.set(s, bucket);
+      }
+      for (const other of stems) {
+        if (other !== s && !bucket.includes(other)) bucket.push(other);
+      }
+    }
+  }
+  return map;
+})();
+
+/** Below this length a term is too short to fuzz without nonsense matches. */
+const FUZZY_MIN_LEN = 4;
+/** Lucene-style length-scaled edit budget. */
+const maxEditsFor = (len: number): number => (len <= 3 ? 0 : len <= 5 ? 1 : 2);
+/** Fuzzy hits are spelling guesses — keep them ranked below exact/synonym hits. */
+const FUZZY_SCORE_PENALTY = 0.5;
+/** Cap how many equally-close fuzzy candidates we score, to bound cost. */
+const FUZZY_MAX_CANDIDATES = 8;
+
+/**
+ * Levenshtein edit distance with an early-exit ceiling: returns the distance
+ * when it's ≤ max, or -1 as soon as it's provably greater. Two-row DP with a
+ * per-row minimum check so a hopeless comparison bails before finishing.
+ */
+function boundedLevenshtein(a: string, b: string, max: number): number {
+  const la = a.length;
+  const lb = b.length;
+  if (Math.abs(la - lb) > max) return -1;
+  if (la === 0) return lb <= max ? lb : -1;
+  if (lb === 0) return la <= max ? la : -1;
+
+  let prev = new Array<number>(lb + 1);
+  let curr = new Array<number>(lb + 1);
+  for (let j = 0; j <= lb; j++) prev[j] = j;
+
+  for (let i = 1; i <= la; i++) {
+    curr[0] = i;
+    let rowMin = i;
+    const ai = a.charCodeAt(i - 1);
+    for (let j = 1; j <= lb; j++) {
+      const cost = ai === b.charCodeAt(j - 1) ? 0 : 1;
+      const cell = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      curr[j] = cell;
+      if (cell < rowMin) rowMin = cell;
+    }
+    if (rowMin > max) return -1;
+    const tmp = prev;
+    prev = curr;
+    curr = tmp;
+  }
+  const d = prev[lb];
+  return d <= max ? d : -1;
+}
+
 export class LuceneSearchIndex {
   readonly docCount: number;
   private readonly k1: number;
@@ -291,6 +394,66 @@ export class LuceneSearchIndex {
   }
 
   /**
+   * Score one query position: its exact stem plus any transliteration
+   * synonyms, merged by best (max) per-doc score since the variants denote the
+   * same concept. Only when nothing matched exactly does it fall back to a
+   * gated edit-distance search — so correctly-spelled, in-vocabulary terms
+   * never pay the fuzzy cost nor pull in noisy near-spellings.
+   */
+  private scoreQueryTerm(stem: string): Map<string, number> {
+    const variants = [stem, ...(SYNONYM_STEMS.get(stem) ?? [])];
+    const exact = this.scoreVariants(variants);
+    if (exact.size > 0) return exact;
+
+    if (stem.length < FUZZY_MIN_LEN) return exact;
+    const maxEdits = maxEditsFor(stem.length);
+    if (maxEdits === 0) return exact;
+    const candidates = this.fuzzyTerms(stem, maxEdits);
+    if (candidates.length === 0) return new Map();
+    const fuzzy = this.scoreVariants(candidates);
+    for (const [id, s] of fuzzy) fuzzy.set(id, s * FUZZY_SCORE_PENALTY);
+    return fuzzy;
+  }
+
+  /** Score several index terms and merge by best (max) per-doc score. */
+  private scoreVariants(stems: string[]): Map<string, number> {
+    const seen = new Set<string>();
+    const out = new Map<string, number>();
+    for (const stem of stems) {
+      if (seen.has(stem)) continue;
+      seen.add(stem);
+      const scores = this.scoreTerm(stem);
+      for (const [id, score] of scores) {
+        const prev = out.get(id);
+        if (prev === undefined || score > prev) out.set(id, score);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Vocabulary terms within `maxEdits` of `stem`, returning only those at the
+   * smallest distance found (closest spelling wins) and capped for cost. The
+   * length pre-filter skips the bulk of the vocabulary before the DP runs.
+   */
+  private fuzzyTerms(stem: string, maxEdits: number): string[] {
+    let best = maxEdits + 1;
+    let out: string[] = [];
+    for (const term of this.terms.keys()) {
+      if (Math.abs(term.length - stem.length) > maxEdits) continue;
+      const d = boundedLevenshtein(stem, term, maxEdits);
+      if (d < 0) continue;
+      if (d < best) {
+        best = d;
+        out = [term];
+      } else if (d === best && out.length < FUZZY_MAX_CANDIDATES) {
+        out.push(term);
+      }
+    }
+    return best <= maxEdits ? out : [];
+  }
+
+  /**
    * Search the index. Returns document IDs ranked by total BM25 score.
    *
    * Semantics: AND across all query terms — a document must appear in
@@ -303,7 +466,7 @@ export class LuceneSearchIndex {
 
     let acc: Map<string, number> | null = null;
     for (const stem of stems) {
-      const termScores = this.scoreTerm(stem);
+      const termScores = this.scoreQueryTerm(stem);
       if (termScores.size === 0) return []; // AND: missing term → no results
       if (acc === null) {
         acc = termScores;

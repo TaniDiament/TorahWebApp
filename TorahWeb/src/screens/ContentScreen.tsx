@@ -22,6 +22,7 @@ import AudioPlayer from '../components/AudioPlayer';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
+import ErrorView from '../components/ErrorView';
 import { api } from '../services/api';
 import { canDownloadContent, downloadContent } from '../services/download';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -50,6 +51,10 @@ const ContentScreen: React.FC = () => {
   const [content, setContent] = useState<Content | null>(
     'content' in params ? params.content : null,
   );
+  // Deep-link fetch outcome when `content` is still null: 'error' is a
+  // network/throw (retryable), 'missing' is a 404/null (the item is gone).
+  const [loadFailed, setLoadFailed] = useState<'error' | 'missing' | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [downloading, setDownloading] = useState(false);
 
   // Links inside an article body: keep torahweb.org section links (e.g. the
@@ -109,22 +114,61 @@ const ContentScreen: React.FC = () => {
     if (content) return;
     if (!('contentId' in params)) return;
     let cancelled = false;
+    setLoadFailed(null);
     (async () => {
-      const { contentId, contentKind } = params;
-      const fetched =
-        contentKind === 'article'
-          ? await api.getArticle(contentId)
-          : contentKind === 'video'
-            ? await api.getVideo(contentId)
-            : await api.getAudio(contentId);
-      if (!cancelled && fetched) setContent(fetched);
+      try {
+        const { contentId, contentKind } = params;
+        const fetched =
+          contentKind === 'article'
+            ? await api.getArticle(contentId)
+            : contentKind === 'video'
+              ? await api.getVideo(contentId)
+              : await api.getAudio(contentId);
+        if (cancelled) return;
+        // A null result is a 404 / removed item — distinct from a thrown
+        // network error so we can show the right message and skip a pointless
+        // retry on something that no longer exists.
+        if (fetched) setContent(fetched);
+        else setLoadFailed('missing');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('ContentScreen load failed:', err);
+        setLoadFailed('error');
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [content, params]);
+  }, [content, params, reloadKey]);
 
   if (!content) {
+    if (loadFailed) {
+      const isMissing = loadFailed === 'missing';
+      const canGoBack = navigation.canGoBack();
+      return (
+        <View style={styles.loadingWrap}>
+          <ErrorView
+            icon={isMissing ? 'exclamationmark.triangle' : 'wifi.slash'}
+            title={isMissing ? 'Not available' : "Couldn't load"}
+            message={
+              isMissing
+                ? "This item isn't available anymore."
+                : 'Check your connection and try again.'
+            }
+            // 404s won't recover on retry, so offer a way out instead. A
+            // network error is retryable in place.
+            onRetry={
+              isMissing
+                ? canGoBack
+                  ? () => navigation.goBack()
+                  : undefined
+                : () => setReloadKey((k) => k + 1)
+            }
+            retryLabel={isMissing ? 'Go Back' : 'Try Again'}
+          />
+        </View>
+      );
+    }
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator size="large" color={colors.navy} />

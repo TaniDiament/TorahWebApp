@@ -1,3 +1,4 @@
+/* eslint-env jest */
 jest.mock('react-native-webview', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -50,11 +51,26 @@ jest.mock('react-native-gesture-handler', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const GestureHandlerRootView = ({ children, style }) =>
+  const passthrough = ({ children, style }) =>
     React.createElement(View, { style }, children);
 
+  // Chainable no-op gesture builder so `Gesture.Pan().activeOffsetY(10)
+  // .onEnd(fn)…` (AudioPlayerProvider) works without the native module. Every
+  // configurator returns the same proxy, and the proxy is callable so
+  // `Gesture.Pan()` resolves too.
+  const makeChainable = () => {
+    const proxy = new Proxy(function () {}, {
+      get: () => () => proxy,
+      apply: () => proxy,
+    });
+    return proxy;
+  };
+  const Gesture = new Proxy({}, { get: () => () => makeChainable() });
+
   return {
-    GestureHandlerRootView,
+    GestureHandlerRootView: passthrough,
+    GestureDetector: passthrough,
+    Gesture,
   };
 });
 
@@ -92,6 +108,8 @@ jest.mock('react-native-track-player', () => {
       }),
       registerPlaybackService: jest.fn(),
     },
+    // Hook consumed by AudioPlayerProvider on every render.
+    useProgress: () => ({ position: 0, duration: 0, buffered: 0 }),
     Event: {
       PlaybackState: 'playback-state',
       RemotePlay: 'remote-play',
@@ -117,6 +135,18 @@ jest.mock('react-native-track-player', () => {
     },
   };
 });
+
+// NetInfo touches NativeModules.RNCNetInfo at import time, which is null under
+// Jest — mock the slice OfflineBanner uses (event subscription + one-shot fetch).
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    addEventListener: jest.fn(() => jest.fn()),
+    fetch: jest.fn(() =>
+      Promise.resolve({ isConnected: true, isInternetReachable: true }),
+    ),
+  },
+}));
 
 global.flushAsync = () => new Promise((resolve) => setImmediate(resolve));
 

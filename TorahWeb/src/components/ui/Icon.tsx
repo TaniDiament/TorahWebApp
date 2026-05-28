@@ -34,6 +34,7 @@ export type IconName =
   | 'rectangle.stack.fill'
   | 'square.and.arrow.up'
   | 'wifi.slash'
+  | 'exclamationmark.triangle'
   | 'torah.scroll';
 
 // Map our SF-Symbols-style names onto MaterialDesignIcons glyph names. Keeps
@@ -68,6 +69,7 @@ const MCI_MAP: Record<IconName, MCIName> = {
   'rectangle.stack.fill': 'file-multiple',
   'square.and.arrow.up': 'share-variant',
   'wifi.slash': 'wifi-off',
+  'exclamationmark.triangle': 'alert-outline',
   'torah.scroll': 'book-open-page-variant',
 };
 

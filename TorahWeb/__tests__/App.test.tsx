@@ -12,6 +12,7 @@ jest.mock('../src/services/api', () => ({
     getAuthors: jest.fn().mockResolvedValue([]),
     getTopics: jest.fn().mockResolvedValue([]),
     getRecent: jest.fn().mockResolvedValue([]),
+    getCurrentEvent: jest.fn().mockResolvedValue(null),
     getContentByAuthor: jest.fn().mockResolvedValue([]),
     getContentByTopic: jest.fn().mockResolvedValue([]),
     searchContent: jest.fn().mockResolvedValue([]),

@@ -299,3 +299,77 @@ describe('LuceneSearchIndex.search — BM25 properties', () => {
     expect(out[0].score).toBeCloseTo(Math.log(1 + 9.5 / 1.5), 5);
   });
 });
+
+describe('LuceneSearchIndex.search — synonyms & fuzzy fallback', () => {
+  test('transliteration synonym bridges spellings (shabbat finds shabbos docs)', () => {
+    // Corpus indexed "shabbos" (stem "shabbo"); a search for "shabbat" should
+    // still find it via the synonym cluster.
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 5,
+        docLens: { a: 5 },
+        terms: { shabbo: { df: 1, postings: [['a', 1]] } },
+      }),
+    );
+    expect(idx.search('shabbat').map((r) => r.id)).toEqual(['a']);
+  });
+
+  test('edit-distance fallback rescues a typo (ranbam → rambam)', () => {
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 6,
+        docLens: { a: 6 },
+        terms: { rambam: { df: 1, postings: [['a', 1]] } },
+      }),
+    );
+    const out = idx.search('ranbam');
+    expect(out.map((r) => r.id)).toEqual(['a']);
+    expect(out[0].score).toBeGreaterThan(0);
+  });
+
+  test('a fuzzy hit ranks below the exact hit for the same doc', () => {
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 6,
+        docLens: { a: 6 },
+        terms: { rambam: { df: 1, postings: [['a', 1]] } },
+      }),
+    );
+    const exact = idx.search('rambam')[0].score;
+    const fuzzy = idx.search('ranbam')[0].score;
+    expect(fuzzy).toBeGreaterThan(0);
+    expect(fuzzy).toBeLessThan(exact);
+  });
+
+  test('terms too short to fuzz are left exact (dan ≠ din)', () => {
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 3,
+        docLens: { a: 3 },
+        terms: { din: { df: 1, postings: [['a', 1]] } },
+      }),
+    );
+    expect(idx.search('dan')).toEqual([]);
+  });
+
+  test('a correctly-spelled in-vocabulary term is unaffected by fuzzing', () => {
+    // "lesson" matches exactly, so the edit-distance fallback must not run and
+    // pull in its distance-1 neighbor "lessen" (doc b).
+    const idx = LuceneSearchIndex.load(
+      singleFieldIndex({
+        docCount: 3,
+        avgLen: 5,
+        docLens: { a: 5, b: 5 },
+        terms: {
+          lesson: { df: 1, postings: [['a', 1]] },
+          lessen: { df: 1, postings: [['b', 1]] },
+        },
+      }),
+    );
+    expect(idx.search('lesson').map((r) => r.id)).toEqual(['a']);
+  });
+});

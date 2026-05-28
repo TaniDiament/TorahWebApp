@@ -15,6 +15,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
+import ErrorView from '../components/ErrorView';
 import { colors, radii, spacing, typography } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
@@ -63,14 +64,36 @@ const SearchScreen: React.FC = () => {
     navigation.navigate('Content', { contentId: content.id, contentKind: content.kind });
 
   const [query, setQuery] = useState('');
+  // `query` drives the (always-responsive) text field; `debouncedQuery` is what
+  // actually runs a search. See the debounce effect below.
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filter, setFilter] = useState<Filter>(initialContentType ?? 'all');
   const [results, setResults] = useState<Content[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  // Bumped by the retry button to re-run the load effect.
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Debounce the free-text query so a search (index load + BM25 scoring +
+  // hydrating the whole result set) doesn't fire on every keystroke. Discrete
+  // actions — filter chips, author/topic/parsha entry — stay immediate; only
+  // typing is debounced. Clearing the box commits instantly so stale results
+  // don't linger behind a 250 ms delay.
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      setDebouncedQuery('');
+      return;
+    }
+    const id = setTimeout(() => setDebouncedQuery(trimmed), 250);
+    return () => clearTimeout(id);
+  }, [query]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(false);
       try {
         let next: Content[];
         if (initialAuthorId) {
@@ -79,9 +102,9 @@ const SearchScreen: React.FC = () => {
           next = await api.getContentByTopic(initialTopicSlug);
         } else if (initialParshaLabel) {
           next = await api.getContentByParsha(initialParshaLabel);
-        } else if (query.trim().length > 0 || filter !== 'all' || showAllOnMount) {
+        } else if (debouncedQuery.length > 0 || filter !== 'all' || showAllOnMount) {
           next = await api.searchContent({
-            query: query.trim() || undefined,
+            query: debouncedQuery || undefined,
             contentType: filter === 'all' ? undefined : filter,
           });
         } else {
@@ -94,7 +117,7 @@ const SearchScreen: React.FC = () => {
         // on those paths too.
         const typed =
           filter === 'all' ? next : next.filter((c) => c.kind === filter);
-        const hasQuery = query.trim().length > 0;
+        const hasQuery = debouncedQuery.length > 0;
         const sorted = hasQuery
           ? typed
           : [...typed].sort(
@@ -104,7 +127,9 @@ const SearchScreen: React.FC = () => {
             );
         setResults(sorted);
       } catch (e) {
+        if (cancelled) return;
         console.error('Search failed:', e);
+        setError(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -112,7 +137,11 @@ const SearchScreen: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [query, filter, initialAuthorId, initialTopicSlug, initialParshaLabel, showAllOnMount]);
+  }, [debouncedQuery, filter, initialAuthorId, initialTopicSlug, initialParshaLabel, showAllOnMount, reloadKey]);
+
+  // True while the user has typed something the debounce hasn't committed yet,
+  // so the empty slot shows a spinner instead of flashing "No results."
+  const pending = query.trim().length > 0 && query.trim() !== debouncedQuery;
 
   return (
     <View style={styles.container}>
@@ -193,15 +222,24 @@ const SearchScreen: React.FC = () => {
           />
         )}
         ListEmptyComponent={
-          loading ? (
+          loading || pending ? (
             <View style={styles.loading}>
               <ActivityIndicator size="large" color={colors.navy} />
             </View>
+          ) : error ? (
+            // Only reached when the failed load left nothing to show; a failed
+            // refresh over existing results keeps the stale list instead.
+            <ErrorView
+              icon="wifi.slash"
+              title="Couldn't load"
+              message="Check your connection and try again."
+              onRetry={() => setReloadKey((k) => k + 1)}
+            />
           ) : (
             <View style={styles.empty}>
               <Icon name="magnifyingglass" size={48} color={colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {query.length > 0
+                {debouncedQuery.length > 0
                   ? 'No results.'
                   : browseMode
                     ? 'Nothing here yet.'
