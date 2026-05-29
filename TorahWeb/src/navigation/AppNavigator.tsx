@@ -219,6 +219,14 @@ const AppNavigator: React.FC = () => {
           screenOptions={{
             headerShown: false,
             tabBarActiveTintColor: c.accent,
+            // Let iOS render its native Liquid Glass tab bar. React Navigation
+            // otherwise defaults tabBarBlurEffect to a concrete systemMaterial
+            // blur, which makes react-native-screens set an explicit
+            // UIBlurEffect backgroundEffect and *overrides* the iOS 26 Liquid
+            // Glass material. 'systemDefault' tells RNS to leave the appearance
+            // alone so the system glass (translucent, auto dark/light via the
+            // navigation theme's `dark` flag) shows through. No-op on Android.
+            tabBarBlurEffect: 'systemDefault',
             // Always show the label under every tab's icon (Android's Material
             // bottom-nav otherwise hides labels for unselected tabs once there
             // are 4+ items; iOS shows them all regardless).
