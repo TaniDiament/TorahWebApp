@@ -8,7 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { colors, radii, shadows } from '../../theme';
+import { Palette, radii, shadows, useTheme } from '../../theme';
 
 export type GlassVariant = 'regular' | 'clear' | 'tinted' | 'prominent';
 
@@ -56,17 +56,17 @@ const cornerFromStyle = (style: ViewStyle, fallback?: number): number => {
   return radii.lg;
 };
 
-const androidFillFor = (variant: GlassVariant, tint?: string) => {
+const androidFillFor = (c: Palette, variant: GlassVariant, tint?: string) => {
   if (tint) return tint;
   switch (variant) {
     case 'prominent':
-      return colors.androidPrimaryContainer;
+      return c.androidPrimaryContainer;
     case 'tinted':
-      return colors.androidSurfaceContainerHigh;
+      return c.androidSurfaceContainerHigh;
     case 'clear':
-      return colors.androidSurface;
+      return c.androidSurface;
     default:
-      return colors.androidSurfaceContainer;
+      return c.androidSurfaceContainer;
   }
 };
 
@@ -79,6 +79,7 @@ export const GlassSurface: React.FC<GlassProps> = ({
   interactive,
   shadow,
 }) => {
+  const c = useTheme();
   const flat = flattenStyle(style);
   const corner = cornerFromStyle(flat, cornerRadius);
   // Shadows are heavy on stacked surfaces; opt in by default only for the
@@ -114,9 +115,9 @@ export const GlassSurface: React.FC<GlassProps> = ({
         style,
         {
           borderRadius: corner,
-          backgroundColor: androidFillFor(variant, tint),
+          backgroundColor: androidFillFor(c, variant, tint),
           borderWidth: variant === 'clear' ? 0 : StyleSheet.hairlineWidth,
-          borderColor: colors.hairline,
+          borderColor: c.hairline,
         },
         variant === 'prominent' ? shadows.elevated : shadows.card,
       ]}>

@@ -103,8 +103,12 @@ struct LiquidGlassSwiftUIView: View {
   // `.regular` / `.clear` map to the only two first-class Glass styles; tint
   // and interactivity are applied via Glass modifiers so the chain remains
   // strongly typed.
+  // Not `@ViewBuilder`: this body imperatively mutates a `Glass` value before
+  // returning a single view. Under `@ViewBuilder` the `glass = …` assignments
+  // are read as view statements of type `()`, which fails to compile
+  // ("type '()' cannot conform to 'View'"). A plain function with an explicit
+  // `return` keeps the mutation legal and still satisfies `some View`.
   @available(iOS 26.0, *)
-  @ViewBuilder
   private func modernGlass(shape: RoundedRectangle) -> some View {
     var glass: Glass = (variant == "clear") ? .clear : .regular
     if let tint = tintColor {
@@ -114,7 +118,7 @@ struct LiquidGlassSwiftUIView: View {
       glass = glass.interactive()
     }
 
-    Color.clear
+    return Color.clear
       .glassEffect(glass, in: shape)
   }
 

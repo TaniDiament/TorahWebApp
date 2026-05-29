@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import {
   Animated,
+  AppState,
   Image,
   Modal,
   Pressable,
@@ -30,9 +31,10 @@ import TrackPlayer, {
   useProgress,
 } from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
+import { playbackPositions } from './playbackPositions';
 
 const TAB_BAR_CLEARANCE = 90;
 
@@ -102,6 +104,8 @@ const formatClock = (seconds: number) => {
 
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const insets = useSafeAreaInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [currentTrack, setCurrentTrack] = useState<AudioTrackPayload | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -115,6 +119,43 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // native player has had a beat to settle (same window as seekingRef).
   const [seekOverride, setSeekOverride] = useState<number | null>(null);
   const progress = seekOverride ?? livePosition;
+
+  // Latest values mirrored into refs so the save callbacks (interval / app
+  // background / event listener) read current data without re-subscribing.
+  const progressRef = useRef(0);
+  const durationRef = useRef(0);
+  const currentTrackRef = useRef<AudioTrackPayload | null>(null);
+  progressRef.current = progress;
+  durationRef.current = duration;
+  currentTrackRef.current = currentTrack;
+
+  // Persist the current track's position so it resumes next time. Stable
+  // identity (reads refs) so the effects below don't re-run on every tick.
+  const saveNow = useCallback(async () => {
+    const track = currentTrackRef.current;
+    if (!track) return;
+    await playbackPositions.save(track.id, progressRef.current, durationRef.current);
+  }, []);
+
+  // Checkpoint every few seconds while playing — frequent enough to survive an
+  // app kill, rare enough not to hammer the disk on every 1 s progress tick.
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) return;
+    const id = setInterval(() => {
+      saveNow();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [isPlaying, currentTrack, saveNow]);
+
+  // The app can be killed from the background without any further JS running,
+  // so flush the position the moment we lose foreground.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') saveNow();
+    });
+    return () => sub.remove();
+  }, [saveNow]);
+
   const translateY = useRef(new Animated.Value(0)).current;
   // True while a seek is in flight. React Native Track Player emits a
   // transient State.Playing during seekTo even when the player was paused,
@@ -135,10 +176,16 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           return;
         case State.Paused:
         case State.Stopped:
-        case State.Ended:
         case State.Error:
           setIsPlaying(false);
           return;
+        case State.Ended: {
+          // Played to the end — forget the resume point so it replays fresh.
+          setIsPlaying(false);
+          const track = currentTrackRef.current;
+          if (track) playbackPositions.clear(track.id);
+          return;
+        }
         default:
           // Buffering / Loading / Ready / None → leave the icon alone so
           // the user doesn't see a flash mid-seek or mid-rebuffer.
@@ -163,7 +210,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         artist: track.artist,
         artwork: track.artworkUrl,
       });
+      // Resume where this track was last left off (0 if new / finished). The
+      // seek is queued before playback settles; TrackPlayer applies it once the
+      // media loads, so the listener starts at their saved spot.
+      const resumeAt = await playbackPositions.getPosition(track.id);
       await TrackPlayer.play();
+      if (resumeAt > 0) await TrackPlayer.seekTo(resumeAt);
       setCurrentTrack(track);
       setIsPlaying(true);
       setIsExpanded(false);
@@ -179,11 +231,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (state === State.Playing) {
       await TrackPlayer.pause();
       setIsPlaying(false);
+      saveNow();
       return;
     }
     await TrackPlayer.play();
     setIsPlaying(true);
-  }, [currentTrack]);
+  }, [currentTrack, saveNow]);
 
   const seekBy = useCallback(
     async (deltaSeconds: number) => {
@@ -236,13 +289,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const close = useCallback(async () => {
     await ensurePlayer();
+    // Persist before tearing down so closing the player still resumes later.
+    await saveNow();
     await TrackPlayer.stop();
     await TrackPlayer.reset();
     setCurrentTrack(null);
     setIsPlaying(false);
     setIsExpanded(false);
     setSeekOverride(null);
-  }, []);
+  }, [saveNow]);
 
   // Commits a slider seek and briefly suppresses the next PlaybackState
   // event so the play/pause icon doesn't flicker through the transient
@@ -337,7 +392,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.miniArtwork} />
               ) : (
                 <View style={[styles.miniArtwork, styles.miniArtworkPlaceholder]}>
-                  <Icon name="waveform" size={20} color={colors.textInverse} />
+                  <Icon name="waveform" size={20} color={c.textInverse} />
                 </View>
               )}
               <View style={styles.miniTextWrap}>
@@ -354,12 +409,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 accessibilityRole="button"
                 accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
                 accessibilityState={{ disabled: loading, busy: loading }}
-                android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                android_ripple={{ color: c.ripple, borderless: true }}
                 style={({ pressed }) => [
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={colors.text} />
+                <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={c.text} />
               </Pressable>
               <Pressable
                 onPress={(e) => {
@@ -371,12 +426,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 accessibilityRole="button"
                 accessibilityLabel="Skip forward 30 seconds"
                 accessibilityState={{ disabled: loading, busy: loading }}
-                android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                android_ripple={{ color: c.ripple, borderless: true }}
                 style={({ pressed }) => [
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name="goforward.30" size={20} color={colors.text} />
+                <Icon name="goforward.30" size={20} color={c.text} />
               </Pressable>
               <View style={styles.miniProgressTrack}>
                 <View style={[styles.miniProgressFill, { width: `${progressRatio * 100}%` }]} />
@@ -405,12 +460,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   hitSlop={12}
                   accessibilityRole="button"
                   accessibilityLabel="Close player"
-                  android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                  android_ripple={{ color: c.ripple, borderless: true }}
                   style={({ pressed }) => [
                     styles.sheetCloseButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="xmark" size={20} color={colors.text} />
+                  <Icon name="xmark" size={20} color={c.text} />
                 </Pressable>
               </View>
 
@@ -418,7 +473,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.sheetArtwork} />
               ) : (
                 <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]}>
-                  <Icon name="waveform" size={64} color={colors.textInverse} />
+                  <Icon name="waveform" size={64} color={c.textInverse} />
                 </View>
               )}
 
@@ -430,9 +485,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 minimumValue={0}
                 maximumValue={Math.max(1, duration)}
                 value={progress}
-                minimumTrackTintColor={colors.navy}
-                maximumTrackTintColor="rgba(60, 60, 67, 0.18)"
-                thumbTintColor={colors.navy}
+                minimumTrackTintColor={c.accent}
+                maximumTrackTintColor={c.separator}
+                thumbTintColor={c.accent}
                 onSlidingComplete={commitSeek}
                 accessibilityLabel="Playback position"
               />
@@ -446,12 +501,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   onPress={() => seekBy(-15)}
                   accessibilityRole="button"
                   accessibilityLabel="Back 15 seconds"
-                  android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                  android_ripple={{ color: c.ripple, borderless: true }}
                   style={({ pressed }) => [
                     styles.skipButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="gobackward.15" size={32} color={colors.text} />
+                  <Icon name="gobackward.15" size={32} color={c.text} />
                 </Pressable>
 
                 <Pressable
@@ -465,19 +520,19 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.playButton,
                     pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
                   ]}>
-                  <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={colors.textInverse} />
+                  <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={c.textInverse} />
                 </Pressable>
 
                 <Pressable
                   onPress={() => seekBy(30)}
                   accessibilityRole="button"
                   accessibilityLabel="Forward 30 seconds"
-                  android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                  android_ripple={{ color: c.ripple, borderless: true }}
                   style={({ pressed }) => [
                     styles.skipButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="goforward.30" size={32} color={colors.text} />
+                  <Icon name="goforward.30" size={32} color={c.text} />
                 </Pressable>
               </View>
 
@@ -499,7 +554,8 @@ export const useAudioPlayer = () => {
   return ctx;
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   root: {
     flex: 1,
   },
@@ -520,7 +576,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radii.sm,
-    backgroundColor: colors.navyDark,
+    backgroundColor: c.navyDark,
   },
   miniArtworkPlaceholder: {
     alignItems: 'center',
@@ -532,12 +588,12 @@ const styles = StyleSheet.create({
   },
   miniTitle: {
     ...typography.subheadline,
-    color: colors.text,
+    color: c.text,
     fontWeight: '600',
   },
   miniArtist: {
     ...typography.footnote,
-    color: colors.textTertiary,
+    color: c.textTertiary,
     marginTop: 1,
   },
   miniIconButton: {
@@ -552,11 +608,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: 'rgba(60, 60, 67, 0.12)',
+    backgroundColor: c.hairline,
   },
   miniProgressFill: {
     height: '100%',
-    backgroundColor: colors.navy,
+    backgroundColor: c.accent,
   },
   gestureRoot: {
     flex: 1,
@@ -564,7 +620,7 @@ const styles = StyleSheet.create({
   sheetOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    backgroundColor: c.overlay,
   },
   sheet: {
     paddingTop: spacing.md,
@@ -578,7 +634,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: radii.pill,
-    backgroundColor: 'rgba(60, 60, 67, 0.28)',
+    backgroundColor: c.separator,
     marginBottom: spacing.lg,
   },
   sheetHeader: {
@@ -589,14 +645,14 @@ const styles = StyleSheet.create({
   },
   sheetEyebrow: {
     ...typography.eyebrow,
-    color: colors.textSecondary,
+    color: c.textSecondary,
   },
   sheetArtwork: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: radii.lg,
     marginBottom: spacing.xl,
-    backgroundColor: colors.navyDark,
+    backgroundColor: c.navyDark,
   },
   sheetArtworkPlaceholder: {
     alignItems: 'center',
@@ -604,12 +660,12 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     ...typography.title2,
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.xs,
   },
   sheetArtist: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: c.textSecondary,
     marginBottom: spacing.xl,
   },
   sheetSlider: {
@@ -627,7 +683,7 @@ const styles = StyleSheet.create({
   },
   sheetTime: {
     ...typography.footnote,
-    color: colors.textTertiary,
+    color: c.textTertiary,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -646,7 +702,7 @@ const styles = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 46,
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     alignItems: 'center',
     justifyContent: 'center',
     // Drop any platform default border/shadow that GlassSurface or Pressable
@@ -657,7 +713,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(60, 60, 67, 0.12)',
+    backgroundColor: c.surfaceTint,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,10 +1,12 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import {
+  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   useNavigationContainerRef,
 } from '@react-navigation/native';
-import type { LinkingOptions, NavigationState } from '@react-navigation/native';
+import type { LinkingOptions, NavigationState, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import type { NativeBottomTabIcon } from '@react-navigation/bottom-tabs/unstable';
@@ -15,7 +17,7 @@ import MenuScreen from '../screens/MenuScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ContentScreen from '../screens/ContentScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
-import { colors, radii, spacing } from '../theme';
+import { radii, spacing, useTheme } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import type {
@@ -87,12 +89,13 @@ type MDIGlyph = Parameters<typeof MaterialDesignIcons.getImageSourceSync>[0];
 const makeTabIcon = (
   sfSymbol: SFSymbolName,
   mdiGlyph: MDIGlyph,
+  tint: string,
 ): NativeBottomTabIcon =>
   Platform.OS === 'ios'
     ? { type: 'sfSymbol', name: sfSymbol }
     : {
         type: 'image',
-        source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, colors.navy),
+        source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, tint),
       };
 
 // Tapping an already-active tab returns to its root screen — match the
@@ -124,6 +127,7 @@ type FloatingBackOverlayProps = {
 };
 const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPress }) => {
   const insets = useSafeAreaInsets();
+  const c = useTheme();
   if (!visible) return null;
   return (
     <View
@@ -138,7 +142,7 @@ const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPr
         accessibilityLabel="Go back"
         hitSlop={12}
         onPress={onPress}>
-        <Icon name="chevron.left" size={22} color={colors.text} />
+        <Icon name="chevron.left" size={22} color={c.text} />
       </GlassButton>
     </View>
   );
@@ -182,16 +186,47 @@ const linking: LinkingOptions<RootTabParamList> = {
 const AppNavigator: React.FC = () => {
   const navigationRef = useNavigationContainerRef();
   const [canGoBack, setCanGoBack] = React.useState(false);
+  const c = useTheme();
+  const scheme = useColorScheme();
+  // React Navigation draws the native tab bar background, screen backgrounds,
+  // and default tints from the NavigationContainer theme — not our palette.
+  // Without this prop it falls back to the built-in light DefaultTheme, so the
+  // tab bar (colors.card) stays white in dark mode. Follow the OS scheme and
+  // map our palette onto the navigation theme so they switch together.
+  const navTheme = React.useMemo<Theme>(() => {
+    const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: c.accent,
+        background: c.background,
+        card: c.surface,
+        text: c.text,
+        border: c.border,
+        notification: c.destructive,
+      },
+    };
+  }, [scheme, c]);
   return (
     <NavigationContainer
       ref={navigationRef}
+      theme={navTheme}
       linking={linking}
       onStateChange={(state) => setCanGoBack(computeCanGoBack(state))}>
       <View style={styles.root}>
         <Tabs.Navigator
           screenOptions={{
             headerShown: false,
-            tabBarActiveTintColor: colors.navy,
+            tabBarActiveTintColor: c.accent,
+            // Let iOS render its native Liquid Glass tab bar. React Navigation
+            // otherwise defaults tabBarBlurEffect to a concrete systemMaterial
+            // blur, which makes react-native-screens set an explicit
+            // UIBlurEffect backgroundEffect and *overrides* the iOS 26 Liquid
+            // Glass material. 'systemDefault' tells RNS to leave the appearance
+            // alone so the system glass (translucent, auto dark/light via the
+            // navigation theme's `dark` flag) shows through. No-op on Android.
+            tabBarBlurEffect: 'systemDefault',
             // Always show the label under every tab's icon (Android's Material
             // bottom-nav otherwise hides labels for unselected tabs once there
             // are 4+ items; iOS shows them all regardless).
@@ -217,7 +252,7 @@ const AppNavigator: React.FC = () => {
             component={HomeTabStack}
             options={{
               tabBarLabel: 'Home',
-              tabBarIcon: makeTabIcon('house.fill', 'home'),
+              tabBarIcon: makeTabIcon('house.fill', 'home', c.accent),
             }}
           />
           <Tabs.Screen
@@ -225,7 +260,7 @@ const AppNavigator: React.FC = () => {
             component={NewTabStack}
             options={{
               tabBarLabel: 'New',
-              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid'),
+              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid', c.accent),
             }}
           />
           <Tabs.Screen
@@ -233,7 +268,7 @@ const AppNavigator: React.FC = () => {
             component={LibraryTabStack}
             options={{
               tabBarLabel: 'Library',
-              tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple'),
+              tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple', c.accent),
             }}
           />
           <Tabs.Screen
@@ -241,7 +276,7 @@ const AppNavigator: React.FC = () => {
             component={SearchTabStack}
             options={{
               tabBarLabel: 'Search',
-              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify'),
+              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify', c.accent),
             }}
           />
         </Tabs.Navigator>

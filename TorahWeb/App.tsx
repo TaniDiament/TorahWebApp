@@ -1,29 +1,44 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from './src/theme';
+import { ThemeProvider, useTheme } from './src/theme';
 import { AudioPlayerProvider } from './src/audio/AudioPlayerProvider';
 import OfflineBanner from './src/components/OfflineBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
 
-const App: React.FC = () => (
-  <ErrorBoundary>
+const Shell: React.FC = () => {
+  const c = useTheme();
+  const scheme = useColorScheme();
+  return (
     <AudioPlayerProvider>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: c.background }]}
+        edges={['top']}>
         <OfflineBanner />
         <View style={styles.body}>
           <AppNavigator />
         </View>
       </SafeAreaView>
     </AudioPlayerProvider>
+  );
+};
+
+// ErrorBoundary sits outside ThemeProvider so its crash fallback never depends
+// on context (it renders the static light palette — acceptable for a rare
+// last-resort screen).
+const App: React.FC = () => (
+  <ErrorBoundary>
+    <ThemeProvider>
+      <Shell />
+    </ThemeProvider>
   </ErrorBoundary>
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   body: {
     flex: 1,

@@ -217,26 +217,90 @@ const STOP_WORDS = new Set([
  * it stems to 2+ distinct stems (otherwise the exact lookup already covers it).
  */
 const SYNONYM_CLUSTERS: string[][] = [
+  // — Festivals & calendar —
   ['shabbos', 'shabbas', 'shabbes', 'shabbat', 'shabos'],
-  ['teshuva', 'teshuvah', 'tshuva', 'tshuvah'],
   ['sukkos', 'sukkot', 'sukkoth', 'succos', 'succot'],
   ['sukkah', 'sukka', 'succah', 'succa'],
   ['chanukah', 'chanuka', 'chanukkah', 'hanukkah', 'hanukah'],
   ['shavuos', 'shavuot', 'shavuoth'],
   ['pesach', 'pesah', 'passover'],
   ['kippur', 'kipur'],
-  ['mitzvah', 'mitzva', 'mitzvos', 'mitzvot', 'mitzvoth'],
+  ['hashana', 'hashanah', 'hashono'],
+  ['atzeres', 'atzeret', 'atzereth'],
+  ['aliyah', 'aliya', 'aliyos', 'aliyot'],
+
+  // — Lifecycle & community —
+  ['chosson', 'chossen', 'choson', 'chasan', 'chatan'],
+  ['kallah', 'kalla', 'kalloh'],
+  ['chuppah', 'chupah', 'chuppa'],
+  ['bris', 'briss', 'brit'],
+  ['shiva', 'shivah'],
+  ['aveilus', 'aveilut', 'avelus', 'avelut'],
+
+  // — Prayer & ritual objects —
+  ['tefilla', 'tefillah', 'tefila', 'tefillos', 'tefilos', 'tefilot'],
+  ['tefillin', 'tefilin', 'tphillin'],
+  ['tzitzis', 'tzitzit', 'tzitzes'],
+  ['mezuzah', 'mezuza', 'mezuzos', 'mezuzot'],
+  ['siddur', 'sidur'],
   ['bracha', 'brocho', 'beracha', 'berachah', 'brachos', 'berachos', 'berachot'],
+
+  // — Torah, halacha & learning —
+  ['mitzvah', 'mitzva', 'mitzvos', 'mitzvot', 'mitzvoth'],
   ['halacha', 'halachah', 'halakha', 'halocho'],
   ['gemara', 'gemora', 'gmara'],
-  ['tefilla', 'tefillah', 'tefila', 'tefillos', 'tefilos', 'tefilot'],
-  ['emuna', 'emunah'],
+  ['mishna', 'mishnah', 'mishnayos', 'mishnayot'],
+  ['tosfos', 'tosafot', 'tosfot', 'tosafos'],
+  ['midrash', 'medrash'],
+  ['aggada', 'aggadah', 'agada', 'agadah'],
+  ['mussar', 'musar'],
+  ['chumash', 'chumosh', 'chumesh'],
   ['parsha', 'parshah', 'parasha', 'parshas'],
+  ['sugya', 'sugyos', 'sugyot'],
+  ['machlokes', 'machloket', 'machlokis'],
+  ['chiddush', 'chidush', 'chiddushim', 'chidushim'],
+  ['sheilah', 'sheila', 'shaila', 'shailah'],
+  ['svara', 'sevara', 'svoro', 'sevoro'],
+  ['minhag', 'minhog', 'minhagim', 'minhogim'],
+  ['korban', 'korbon', 'korbanos', 'korbanot', 'korbonos'],
+  ['aveira', 'aveirah', 'aveiros', 'aveirot'],
+
+  // — Concepts & hashkafa —
+  ['teshuva', 'teshuvah', 'tshuva', 'tshuvah'],
+  ['emuna', 'emunah'],
+  ['bitachon', 'bitochon', 'betachon'],
+  ['mesorah', 'mesora', 'masorah', 'masora', 'mesoroh'],
   ['neshama', 'neshamah', 'neshomo'],
+  ['kedusha', 'kedushah', 'kedushas'],
+  ['tahara', 'taharah', 'tahoro'],
+  ['tumah', 'tuma', 'tumo'],
   ['tzedaka', 'tzedakah', 'tzdaka'],
-  ['simcha', 'simchah', 'simcho'],
+  ['chesed', 'chessed'],
+  ['simcha', 'simchah', 'simcho', 'simchas', 'simchat'],
   ['avoda', 'avodah'],
-  ['hashana', 'hashanah', 'hashono'],
+  ['kavod', 'kovod'],
+  ['kavana', 'kavanah', 'kavanos', 'kavanot'],
+  ['yiras', 'yirah', 'yirat'],
+  ['ahava', 'ahavah', 'ahavas'],
+  ['zechus', 'zechut', 'zchus', 'zchut'],
+  ['galus', 'galut', 'golus', 'golut'],
+  ['geula', 'geulah', 'geulo'],
+  ['nevua', 'nevuah', 'nevuos', 'nevuot'],
+
+  // — People & places —
+  ['soloveitchik', 'soloveichik', 'soloveitchick', 'solovaychik'],
+  ['tzaddik', 'tzadik', 'tzadeik'],
+  ['kohen', 'cohen', 'kohein', 'kohan'],
+  ['yisrael', 'yisroel', 'israel'],
+  ['moshiach', 'mashiach', 'moshiah'],
+  ['avos', 'avot', 'avoth'],
+
+  // — Abstract -us / -ut nouns (Ashkenazi -us ↔ modern -ut) —
+  ['malchus', 'malchut'],
+  ['achdus', 'achdut'],
+  ['gadlus', 'gadlut'],
+  ['shleimus', 'shleimut', 'shlemus', 'shlemut'],
+  ['chashivus', 'chashivut'],
 ];
 
 /**

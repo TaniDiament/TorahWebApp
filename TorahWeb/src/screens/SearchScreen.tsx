@@ -16,7 +16,7 @@ import { Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
 import ErrorView from '../components/ErrorView';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
@@ -47,6 +47,8 @@ const SearchScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<SearchRouteFromHome | SearchRouteFromTab>();
   const chrome = useScreenChromeInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const params = route.params ?? {};
   const initialAuthorId = params.authorId;
   const initialTopicSlug = params.topicSlug;
@@ -116,7 +118,7 @@ const SearchScreen: React.FC = () => {
         // facet — re-apply the filter here so the chip selection is honored
         // on those paths too.
         const typed =
-          filter === 'all' ? next : next.filter((c) => c.kind === filter);
+          filter === 'all' ? next : next.filter((item) => item.kind === filter);
         const hasQuery = debouncedQuery.length > 0;
         const sorted = hasQuery
           ? typed
@@ -163,11 +165,11 @@ const SearchScreen: React.FC = () => {
                 cornerRadius={radii.md}
                 style={styles.searchBox}>
                 <View style={styles.searchInner}>
-                  <Icon name="magnifyingglass" size={18} color={colors.textTertiary} />
+                  <Icon name="magnifyingglass" size={18} color={c.textTertiary} />
                   <TextInput
                     style={styles.input}
                     placeholder="Shiurim, speakers, parshiyot…"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={c.textTertiary}
                     value={query}
                     onChangeText={setQuery}
                     autoCapitalize="none"
@@ -182,7 +184,7 @@ const SearchScreen: React.FC = () => {
                       hitSlop={12}
                       accessibilityRole="button"
                       accessibilityLabel="Clear search">
-                      <Icon name="xmark" size={16} color={colors.textTertiary} />
+                      <Icon name="xmark" size={16} color={c.textTertiary} />
                     </Pressable>
                   ) : null}
                 </View>
@@ -224,7 +226,7 @@ const SearchScreen: React.FC = () => {
         ListEmptyComponent={
           loading || pending ? (
             <View style={styles.loading}>
-              <ActivityIndicator size="large" color={colors.navy} />
+              <ActivityIndicator size="large" color={c.accent} />
             </View>
           ) : error ? (
             // Only reached when the failed load left nothing to show; a failed
@@ -237,7 +239,7 @@ const SearchScreen: React.FC = () => {
             />
           ) : (
             <View style={styles.empty}>
-              <Icon name="magnifyingglass" size={48} color={colors.textTertiary} />
+              <Icon name="magnifyingglass" size={48} color={c.textTertiary} />
               <Text style={styles.emptyText}>
                 {debouncedQuery.length > 0
                   ? 'No results.'
@@ -257,26 +259,31 @@ const FilterChip: React.FC<{
   label: string;
   active: boolean;
   onPress: () => void;
-}> = ({ label, active, onPress }) => (
-  <Pressable
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-    accessibilityState={{ selected: active }}
-    android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
-    style={({ pressed }) => [
-      styles.chip,
-      active && styles.chipActive,
-      pressed && { opacity: 0.7 },
-    ]}>
-    <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-  </Pressable>
-);
+}> = ({ label, active, onPress }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      android_ripple={{ color: c.ripple, borderless: false }}
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipActive,
+        pressed && { opacity: 0.7 },
+      ]}>
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   list: {
     paddingHorizontal: spacing.lg,
@@ -288,7 +295,7 @@ const styles = StyleSheet.create({
   },
   largeTitle: {
     ...typography.largeTitle,
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
@@ -307,7 +314,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     ...typography.body,
-    color: colors.text,
+    color: c.text,
     padding: 0,
   },
   filterRow: {
@@ -321,18 +328,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: c.surfaceTint,
   },
   chipActive: {
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
   },
   chipText: {
     ...typography.footnote,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
   chipTextActive: {
-    color: colors.textInverse,
+    color: c.textInverse,
   },
   loading: {
     flex: 1,
@@ -347,7 +354,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.body,
-    color: colors.textTertiary,
+    color: c.textTertiary,
     textAlign: 'center',
   },
 });
