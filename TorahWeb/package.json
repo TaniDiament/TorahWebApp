@@ -72,6 +72,11 @@
     "jsSrcsDir": "src/components/ui",
     "android": {
       "javaPackageName": "com.torahweb.specs"
+    },
+    "ios": {
+      "componentProvider": {
+        "TorahWebLiquidGlassView": "TorahWebLiquidGlassViewComponentView"
+      }
     }
   }
 }
