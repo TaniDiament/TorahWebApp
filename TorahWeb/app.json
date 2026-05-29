@@ -1,4 +1,13 @@
 {
   "name": "TorahWeb",
-  "displayName": "TorahWeb"
+  "displayName": "TorahWeb",
+  "expo": {
+    "name": "TorahWeb",
+    "slug": "torahwebapp",
+    "extra": {
+      "eas": {
+        "projectId": "334f8e76-bb50-409b-ac44-5f5ecbaca432"
+      }
+    }
+  }
 }
