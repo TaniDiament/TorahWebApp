@@ -1,10 +1,12 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import {
+  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   useNavigationContainerRef,
 } from '@react-navigation/native';
-import type { LinkingOptions, NavigationState } from '@react-navigation/native';
+import type { LinkingOptions, NavigationState, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import type { NativeBottomTabIcon } from '@react-navigation/bottom-tabs/unstable';
@@ -185,9 +187,31 @@ const AppNavigator: React.FC = () => {
   const navigationRef = useNavigationContainerRef();
   const [canGoBack, setCanGoBack] = React.useState(false);
   const c = useTheme();
+  const scheme = useColorScheme();
+  // React Navigation draws the native tab bar background, screen backgrounds,
+  // and default tints from the NavigationContainer theme — not our palette.
+  // Without this prop it falls back to the built-in light DefaultTheme, so the
+  // tab bar (colors.card) stays white in dark mode. Follow the OS scheme and
+  // map our palette onto the navigation theme so they switch together.
+  const navTheme = React.useMemo<Theme>(() => {
+    const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: c.accent,
+        background: c.background,
+        card: c.surface,
+        text: c.text,
+        border: c.border,
+        notification: c.destructive,
+      },
+    };
+  }, [scheme, c]);
   return (
     <NavigationContainer
       ref={navigationRef}
+      theme={navTheme}
       linking={linking}
       onStateChange={(state) => setCanGoBack(computeCanGoBack(state))}>
       <View style={styles.root}>
