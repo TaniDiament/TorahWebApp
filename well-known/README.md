@@ -28,7 +28,7 @@ Serving requirements:
 ### 1. `apple-app-site-association` → `REPLACE_WITH_TEAMID`
 Your 10-character Apple Developer **Team ID**. Find it at
 developer.apple.com → Membership, or in Xcode → Signing & Capabilities.
-Result looks like: `"appIDs": ["AB12CD34EF.org.torahweb.app"]`
+Result looks like: `"appIDs": ["AB12CD34EF.org.torahweb.TorahWebMobile"]`
 
 ### 2. `assetlinks.json` → `REPLACE_WITH_RELEASE_SHA256_FINGERPRINT`
 The SHA-256 fingerprint of the certificate that signs the **release** build.

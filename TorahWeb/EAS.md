@@ -68,7 +68,7 @@ provisioning profile on Expo's servers; you authenticate interactively.
 - **Prerequisite:** Apple ID enrolled in the **Apple Developer Program** ($99/yr)
   with **2FA** enabled.
 - **Easy path:** run a device build (`npm run build:preview:ios`) and log in when
-  prompted. EAS registers the bundle ID `org.torahweb.app`, creates the
+  prompted. EAS registers the bundle ID `org.torahweb.TorahWebMobile`, creates the
   Distribution Certificate + Provisioning Profile, and reuses them next time.
 - **Manage anytime:** `eas credentials` (interactive menu).
 - **Register test devices** for `preview` (ad-hoc only installs on known devices):
