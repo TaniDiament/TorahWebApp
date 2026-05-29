@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["REPLACE_WITH_TEAMID.org.torahweb.app"],
+        "appIDs": ["SJFYBA2H2N.org.torahweb.TorahWebMobile"],
         "components": [
           {
             "/": "/content/*",

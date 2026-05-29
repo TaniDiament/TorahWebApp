@@ -9,6 +9,7 @@ import {
   Video,
 } from '../types';
 import { ContentProvider } from './provider';
+import { byAuthorLastName, byNewestFirst } from './ordering';
 
 const TW_BASE = 'https://www.torahweb.org';
 const portrait = (slug: string) => `${TW_BASE}/img/portraits/480/${slug}-480.jpg`;
@@ -202,7 +203,7 @@ const delay = <T>(v: T, ms = 150): Promise<T> =>
 
 export class MockProvider implements ContentProvider {
   getAuthors() {
-    return delay(AUTHORS);
+    return delay([...AUTHORS].sort(byAuthorLastName));
   }
   getAuthor(idOrSlug: string) {
     return delay(byId(idOrSlug) ?? null);
@@ -225,7 +226,9 @@ export class MockProvider implements ContentProvider {
     return delay(EVENT);
   }
   getContentByAuthor(authorId: string) {
-    return delay(ALL_CONTENT.filter((c) => c.author.id === authorId));
+    return delay(
+      ALL_CONTENT.filter((c) => c.author.id === authorId).sort(byNewestFirst),
+    );
   }
   getContentByTopic(topicSlug: string) {
     return delay(

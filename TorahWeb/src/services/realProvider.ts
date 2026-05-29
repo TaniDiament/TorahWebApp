@@ -10,6 +10,7 @@ import {
   Video,
 } from '../types';
 import { ContentProvider } from './provider';
+import { byAuthorLastName, byNewestFirst } from './ordering';
 import { SearchIndexCache, normalizeQuery } from './searchIndexCache';
 import { CatalogCache } from './catalogCache';
 
@@ -167,8 +168,11 @@ export class RealProvider implements ContentProvider {
     return v;
   }
 
-  getAuthors() {
-    return this.authors();
+  async getAuthors() {
+    // authors.json ships in id order; the directory shows them alphabetized by
+    // surname. Sort a copy — the CatalogCache array is shared/cached.
+    const authors = await this.authors();
+    return [...authors].sort(byAuthorLastName);
   }
 
   async getAuthor(idOrSlug: string) {
@@ -220,7 +224,9 @@ export class RealProvider implements ContentProvider {
   async getContentByAuthor(authorId: string): Promise<Content[]> {
     const all = await this.content();
     const matches = all.filter((c) => c.authorId === authorId);
-    return Promise.all(matches.map((s) => this.hydrateSummary(s)));
+    const hydrated = await Promise.all(matches.map((s) => this.hydrateSummary(s)));
+    // An author's page lists their shiurim/divrei torah most-recent-first.
+    return hydrated.sort(byNewestFirst);
   }
 
   async getContentByTopic(topicSlug: string): Promise<Content[]> {
