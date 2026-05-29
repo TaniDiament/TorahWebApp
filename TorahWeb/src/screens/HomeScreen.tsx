@@ -16,7 +16,7 @@ import TopicButton from '../components/TopicButton';
 import ArticleCard from '../components/ArticleCard';
 import EventBanner from '../components/EventBanner';
 import ErrorView from '../components/ErrorView';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
@@ -28,6 +28,8 @@ type Nav = NativeStackNavigationProp<HomeStackParamList, 'Home'>;
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const chrome = useScreenChromeInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const onAuthorPress = (author: Author) =>
     navigation.navigate('Search', { authorId: author.id, title: author.name });
   // Parsha and Yom Tov open the torahweb.org-style drill-down menus
@@ -107,7 +109,7 @@ const HomeScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.navy} />
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
@@ -208,8 +210,10 @@ const SectionHeader: React.FC<{
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
-}> = ({ title, subtitle, actionLabel, onAction }) => (
-  <View style={styles.sectionHeader}>
+}> = ({ title, subtitle, actionLabel, onAction }) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.sectionHeader}>
     <View style={styles.sectionHeaderText}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
@@ -223,15 +227,19 @@ const SectionHeader: React.FC<{
         <Text style={styles.sectionAction}>{actionLabel}</Text>
       </Pressable>
     ) : null}
-  </View>
-);
+    </View>
+  );
+};
 
 const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }> = ({
   label,
   icon,
   onPress,
-}) => (
-  <GlassButton
+}) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <GlassButton
     style={styles.quickChip}
     contentStyle={styles.quickChipInner}
     cornerRadius={radii.md}
@@ -239,7 +247,7 @@ const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }
     accessibilityRole="button"
     accessibilityLabel={label}
     onPress={onPress}>
-    <Icon name={icon} size={20} color={colors.text} />
+    <Icon name={icon} size={20} color={c.text} />
     <Text
       style={styles.quickChipText}
       numberOfLines={1}
@@ -248,12 +256,14 @@ const QuickChip: React.FC<{ label: string; icon: IconName; onPress: () => void }
       {label}
     </Text>
   </GlassButton>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   scrollContent: {
     // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
@@ -262,7 +272,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   titleBlock: {
     paddingHorizontal: spacing.lg,
@@ -272,7 +282,7 @@ const styles = StyleSheet.create({
   },
   largeTitle: {
     ...typography.largeTitle,
-    color: colors.text,
+    color: c.text,
     textAlign: 'center',
   },
   quickRow: {
@@ -300,7 +310,7 @@ const styles = StyleSheet.create({
   quickChipText: {
     ...typography.caption,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
     textAlign: 'center',
   },
   sectionHeader: {
@@ -316,16 +326,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.title2,
-    color: colors.text,
+    color: c.text,
   },
   sectionSubtitle: {
     ...typography.footnote,
-    color: colors.textTertiary,
+    color: c.textTertiary,
     marginTop: 2,
   },
   sectionAction: {
     ...typography.subheadline,
-    color: colors.navy,
+    color: c.accent,
     fontWeight: '600',
   },
   sectionBody: {
@@ -342,7 +352,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...typography.footnote,
-    color: colors.textTertiary,
+    color: c.textTertiary,
   },
 });
 

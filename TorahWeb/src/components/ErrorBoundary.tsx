@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii, spacing, typography } from '../theme';
+import { Appearance, Pressable, StyleSheet, Text, View } from 'react-native';
+import { darkColors, lightColors, Palette, radii, spacing, typography } from '../theme';
 
 interface Props {
   children: React.ReactNode;
@@ -14,10 +14,11 @@ interface State {
 // caught here instead of unmounting the whole React tree to a blank screen.
 //
 // The fallback is intentionally dependency-light — plain View / Text / Pressable
-// and the static theme, with no Icon, Glass, navigation, or data access — so it
-// can't itself throw. React does NOT catch errors thrown by an error boundary's
-// own fallback; such an error would propagate past this boundary and crash the
-// app, defeating the purpose. Keep this render trivially safe.
+// — so it can't itself throw. React does NOT catch errors thrown by an error
+// boundary's own fallback; such an error would propagate past this boundary and
+// crash the app, defeating the purpose. As a class component it can't use the
+// useTheme hook, so it reads the system scheme directly (a one-shot read — the
+// crash screen doesn't need to react to live appearance changes).
 class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
@@ -35,6 +36,8 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (!this.state.hasError) return this.props.children;
+    const c = Appearance.getColorScheme() === 'dark' ? darkColors : lightColors;
+    const styles = makeStyles(c);
     return (
       <View style={styles.wrap}>
         <Text style={styles.title}>Something went wrong</Text>
@@ -54,40 +57,41 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
-  title: {
-    ...typography.title2,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  message: {
-    ...typography.subheadline,
-    color: colors.textTertiary,
-    textAlign: 'center',
-  },
-  button: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.pill,
-    backgroundColor: colors.navy,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonText: {
-    ...typography.subheadline,
-    color: colors.textInverse,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    wrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+      gap: spacing.md,
+      backgroundColor: c.background,
+    },
+    title: {
+      ...typography.title2,
+      color: c.text,
+      textAlign: 'center',
+    },
+    message: {
+      ...typography.subheadline,
+      color: c.textTertiary,
+      textAlign: 'center',
+    },
+    button: {
+      marginTop: spacing.sm,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: c.navy,
+    },
+    buttonPressed: {
+      opacity: 0.85,
+    },
+    buttonText: {
+      ...typography.subheadline,
+      color: c.textInverse,
+      fontWeight: '700',
+    },
+  });
 
 export default ErrorBoundary;

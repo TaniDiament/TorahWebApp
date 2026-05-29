@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import Icon from './ui/Icon';
 
 // A connection counts as "offline" if NetInfo says we're not connected at
@@ -20,6 +20,8 @@ const BANNER_HEIGHT = 30;
 
 const OfflineBanner: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [offline, setOffline] = useState(false);
   const translateY = useRef(new Animated.Value(-(BANNER_HEIGHT + 40))).current;
 
@@ -55,38 +57,39 @@ const OfflineBanner: React.FC = () => {
         },
       ]}>
       <View style={styles.inner}>
-        <Icon name="wifi.slash" size={14} color={colors.textInverse} />
+        <Icon name="wifi.slash" size={14} color={c.textInverse} />
         <Text style={styles.text}>You're offline — downloaded content is still available</Text>
       </View>
     </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.navy,
-    zIndex: 100,
-    elevation: 12,
-  },
-  inner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    height: BANNER_HEIGHT,
-    paddingHorizontal: spacing.lg,
-    borderBottomLeftRadius: radii.sm,
-    borderBottomRightRadius: radii.sm,
-  },
-  text: {
-    ...typography.footnote,
-    color: colors.textInverse,
-    fontWeight: '600',
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    wrap: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: c.navy,
+      zIndex: 100,
+      elevation: 12,
+    },
+    inner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      height: BANNER_HEIGHT,
+      paddingHorizontal: spacing.lg,
+      borderBottomLeftRadius: radii.sm,
+      borderBottomRightRadius: radii.sm,
+    },
+    text: {
+      ...typography.footnote,
+      color: c.textInverse,
+      fontWeight: '600',
+    },
+  });
 
 export default OfflineBanner;

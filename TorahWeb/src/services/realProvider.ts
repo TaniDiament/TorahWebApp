@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { ContentProvider } from './provider';
 import { SearchIndexCache, normalizeQuery } from './searchIndexCache';
+import { CatalogCache } from './catalogCache';
 
 /**
  * RealProvider — fetches static JSON files published by torahweb.org.
@@ -19,13 +20,6 @@ import { SearchIndexCache, normalizeQuery } from './searchIndexCache';
  * are plain files (no query strings), so every request is cacheable by any
  * CDN. Search runs client-side against a prebuilt haystack index.
  */
-
-interface Manifest {
-  version: number;
-  generatedAt: string;
-  counts: { authors: number; topics: number; content: number };
-  hashes: Record<string, string>;
-}
 
 interface ContentSummary {
   id: string;
@@ -78,30 +72,23 @@ interface RawVideo {
 }
 
 export class RealProvider implements ContentProvider {
-  private authorsP?: Promise<Author[]>;
-  private topicsP?: Promise<Topic[]>;
-  private contentP?: Promise<ContentSummary[]>;
-  private recentP?: Promise<string[]>;
-  private thisWeekP?: Promise<string | null>;
-  private eventP?: Promise<EventFlier | null>;
   private readonly searchCache: SearchIndexCache;
+  // Catalog files (authors / topics / content / recent / this-week / events)
+  // are read through CatalogCache, which persists them to disk and revalidates
+  // against manifest.json — so it owns their memoization and offline fallback.
+  private readonly catalog: CatalogCache;
 
   constructor(private readonly baseUrl: string) {
     this.searchCache = new SearchIndexCache(baseUrl);
+    this.catalog = new CatalogCache(baseUrl);
   }
 
   private url(path: string) {
     return `${this.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
   }
 
-  private async get<T>(path: string): Promise<T> {
-    const res = await fetch(this.url(path));
-    if (!res.ok) {
-      throw new Error(`TorahWeb ${path} → ${res.status}`);
-    }
-    return (await res.json()) as T;
-  }
-
+  // Per-item files (articles/audio/videos) are fetched on demand and aren't
+  // part of the manifest-cached catalog, so they keep a direct fetch path.
   private async getOrNull<T>(path: string): Promise<T | null> {
     const res = await fetch(this.url(path));
     if (res.status === 404) return null;
@@ -110,23 +97,24 @@ export class RealProvider implements ContentProvider {
   }
 
   private authors() {
-    return (this.authorsP ??= this.get<Author[]>('authors.json'));
+    return this.catalog.getFile<Author[]>('authors', 'authors.json');
   }
   private topics() {
-    return (this.topicsP ??= this.get<Topic[]>('topics.json'));
+    return this.catalog.getFile<Topic[]>('topics', 'topics.json');
   }
   private content() {
-    return (this.contentP ??= this.get<ContentSummary[]>('content.json'));
+    return this.catalog.getFile<ContentSummary[]>('content', 'content.json');
   }
-  private recent() {
-    return (this.recentP ??= this.get<{ ids: string[] }>('recent.json').then(
-      (r) => r.ids,
-    ));
+  private async recent(): Promise<string[]> {
+    const r = await this.catalog.getFile<{ ids: string[] }>('recent', 'recent.json');
+    return r.ids;
   }
-  private thisWeekId() {
-    return (this.thisWeekP ??= this.get<{ articleId: string | null }>(
+  private async thisWeekId(): Promise<string | null> {
+    const r = await this.catalog.getFile<{ articleId: string | null }>(
+      'thisWeek',
       'this-week.json',
-    ).then((r) => r.articleId));
+    );
+    return r.articleId;
   }
 
   private async hydrateSummary(s: ContentSummary): Promise<Content> {
@@ -220,11 +208,13 @@ export class RealProvider implements ContentProvider {
   }
 
   getCurrentEvent(): Promise<EventFlier | null> {
-    // events.json is optional — `getOrNull` swallows a 404, and a malformed
-    // payload (e.g. `{}`) falls through to `null` so the banner just hides.
-    return (this.eventP ??= this.getOrNull<{ event: EventFlier | null }>(
-      'events.json',
-    ).then((r) => r?.event ?? null));
+    // events.json rides the same manifest-validated cache so the banner
+    // survives offline; a 404, network error, or malformed payload all resolve
+    // to `null` and the banner simply hides.
+    return this.catalog
+      .getFile<{ event: EventFlier | null }>('event', 'events.json')
+      .then((r) => r?.event ?? null)
+      .catch(() => null);
   }
 
   async getContentByAuthor(authorId: string): Promise<Content[]> {

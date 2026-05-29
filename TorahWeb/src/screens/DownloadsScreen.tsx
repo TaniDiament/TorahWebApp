@@ -14,9 +14,9 @@ import {
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Content, DownloadItem } from '../types';
+import { DownloadItem } from '../types';
 import type { LibraryStackParamList } from '../navigation/types';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import {
   getDownloadedItems,
   loadDownloadedArticle,
@@ -45,6 +45,8 @@ const kindIcon = (kind: string) => {
 };
 
 const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const swipeRef = useRef<React.ElementRef<typeof Swipeable> | null>(null);
 
   const performDelete = async () => {
@@ -82,7 +84,7 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
           pressed && { opacity: 0.85 },
         ]}
         onPress={onDeletePress}>
-        <Icon name="xmark" size={20} color={colors.textInverse} />
+        <Icon name="xmark" size={20} color={c.textInverse} />
         <Text style={styles.swipeDeleteText}>Delete</Text>
       </Pressable>
     </View>
@@ -100,7 +102,7 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
         accessibilityRole="button"
         accessibilityLabel={`Open ${item.title}, ${item.kind}, by ${item.authorName}`}
         accessibilityHint="Swipe left to delete"
-        android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
+        android_ripple={{ color: c.ripple, borderless: false }}
         style={({ pressed }) => [
           styles.row,
           pressed && { opacity: 0.85 },
@@ -109,7 +111,7 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
           <Image source={{ uri: item.artworkUrl }} style={styles.portrait} />
         ) : (
           <View style={styles.kindBadge}>
-            <Icon name={kindIcon(item.kind) as any} size={20} color={colors.textInverse} />
+            <Icon name={kindIcon(item.kind) as any} size={20} color={c.textInverse} />
           </View>
         )}
         <View style={styles.body}>
@@ -119,7 +121,7 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
             {item.authorName} · {formatDate(item.publishedDate)}
           </Text>
         </View>
-        <Icon name="chevron.right" size={18} color={colors.textTertiary} />
+        <Icon name="chevron.right" size={18} color={c.textTertiary} />
       </Pressable>
     </Swipeable>
   );
@@ -128,12 +130,12 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
 const DownloadsScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const chrome = useScreenChromeInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { playTrack, expand } = useAudioPlayer();
-  const onContentSelect = (content: Content) =>
-    navigation.navigate('Content', { content });
 
   const onOpen = useCallback(
     async (item: DownloadItem) => {
@@ -161,7 +163,7 @@ const DownloadsScreen: React.FC = () => {
       if (item.kind === 'article') {
         const article = await loadDownloadedArticle(item);
         if (article) {
-          onContentSelect(article);
+          navigation.navigate('Content', { content: article });
           return;
         }
         // Legacy article downloads (pre-snapshot format) fall through to the
@@ -205,7 +207,7 @@ const DownloadsScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={colors.navy} />
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
@@ -231,7 +233,7 @@ const DownloadsScreen: React.FC = () => {
       )}
       ListEmptyComponent={
         <View style={styles.emptyWrap}>
-          <Icon name="rectangle.stack.fill" size={56} color={colors.textTertiary} />
+          <Icon name="rectangle.stack.fill" size={56} color={c.textTertiary} />
           <Text style={styles.emptyTitle}>Nothing downloaded</Text>
           <Text style={styles.emptyText}>
             Tap the download icon on any item to keep it here for offline.
@@ -242,16 +244,17 @@ const DownloadsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   listContent: {
     paddingHorizontal: spacing.lg,
@@ -264,17 +267,17 @@ const styles = StyleSheet.create({
   },
   largeTitle: {
     ...typography.largeTitle,
-    color: colors.text,
+    color: c.text,
   },
   subtitle: {
     ...typography.subheadline,
-    color: colors.textSecondary,
+    color: c.textSecondary,
     marginTop: 4,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     padding: spacing.md,
     borderRadius: radii.md,
     marginBottom: spacing.md,
@@ -284,7 +287,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radii.sm,
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -292,7 +295,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radii.sm,
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: c.surfaceTint,
   },
   body: {
     flex: 1,
@@ -302,17 +305,17 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textTertiary,
+    color: c.textTertiary,
     letterSpacing: 0.4,
     marginBottom: 2,
   },
   title: {
     ...typography.headline,
-    color: colors.text,
+    color: c.text,
   },
   meta: {
     ...typography.subheadline,
-    color: colors.textSecondary,
+    color: c.textSecondary,
     marginTop: 2,
   },
   swipeActionWrap: {
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   swipeDeleteAction: {
-    backgroundColor: colors.destructive,
+    backgroundColor: c.destructive,
     width: 96,
     height: '86%',
     borderRadius: radii.md,
@@ -331,7 +334,7 @@ const styles = StyleSheet.create({
   },
   swipeDeleteText: {
     ...typography.caption,
-    color: colors.textInverse,
+    color: c.textInverse,
     fontWeight: '700',
   },
   emptyWrap: {
@@ -344,11 +347,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.title2,
-    color: colors.text,
+    color: c.text,
   },
   emptyText: {
     ...typography.subheadline,
-    color: colors.textTertiary,
+    color: c.textTertiary,
     textAlign: 'center',
   },
 });

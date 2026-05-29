@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { colors, radii, typography } from '../theme';
+import { Palette, radii, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from './ui/Glass';
 
 interface VideoPlayerProps {
@@ -36,6 +36,8 @@ const buildHtml = (embedUrl: string) => `
 </html>`;
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [fallback, setFallback] = useState(false);
 
   const embedUrl = vimeoId
@@ -73,7 +75,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
           style={styles.openButton}
           contentStyle={styles.openButtonInner}
           cornerRadius={radii.pill}
-          tint="rgba(26, 58, 92, 0.92)"
+          tint={c.navy}
           accessibilityRole="button"
           accessibilityLabel="Open video in browser"
           onPress={() => openInBrowser(embedUrl)}
@@ -100,40 +102,43 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ vimeoId, videoUrl }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: '#000',
-    borderRadius: radii.sm,
-    overflow: 'hidden',
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  message: {
-    ...typography.body,
-    color: colors.surface,
-    textAlign: 'center',
-    marginTop: 40,
-    paddingHorizontal: 20,
-  },
-  openButton: {
-    alignSelf: 'center',
-    marginTop: 16,
-    borderRadius: radii.pill,
-  },
-  openButtonInner: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: radii.pill,
-  },
-  openButtonText: {
-    ...typography.subheadline,
-    color: colors.textInverse,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    container: {
+      // The media surface is always black regardless of theme.
+      width: '100%',
+      aspectRatio: 16 / 9,
+      backgroundColor: '#000',
+      borderRadius: radii.sm,
+      overflow: 'hidden',
+    },
+    webview: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    message: {
+      ...typography.body,
+      // On the black surface, always a light color.
+      color: c.textInverse,
+      textAlign: 'center',
+      marginTop: 40,
+      paddingHorizontal: 20,
+    },
+    openButton: {
+      alignSelf: 'center',
+      marginTop: 16,
+      borderRadius: radii.pill,
+    },
+    openButtonInner: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: radii.pill,
+    },
+    openButtonText: {
+      ...typography.subheadline,
+      color: c.textInverse,
+      fontWeight: '700',
+    },
+  });
 
 export default VideoPlayer;

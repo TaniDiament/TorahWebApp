@@ -19,7 +19,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
 import VideoPlayer from '../components/VideoPlayer';
 import AudioPlayer from '../components/AudioPlayer';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import ErrorView from '../components/ErrorView';
@@ -47,6 +47,8 @@ const ContentScreen: React.FC = () => {
   const route = useRoute<ContentRoute>();
   const navigation = useNavigation();
   const chrome = useScreenChromeInsets();
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const params = route.params;
   const [content, setContent] = useState<Content | null>(
     'content' in params ? params.content : null,
@@ -171,7 +173,7 @@ const ContentScreen: React.FC = () => {
     }
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={colors.navy} />
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
@@ -248,7 +250,7 @@ const ContentScreen: React.FC = () => {
               style={styles.downloadButton}
               contentStyle={styles.downloadButtonInner}
               cornerRadius={radii.pill}
-              tint="rgba(26, 58, 92, 0.92)"
+              tint={c.navy}
               disabled={downloading}
               accessibilityRole="button"
               accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
@@ -257,7 +259,7 @@ const ContentScreen: React.FC = () => {
               <Icon
                 name="arrow.down.circle.fill"
                 size={18}
-                color={colors.textInverse}
+                color={c.textInverse}
               />
               <Text style={styles.downloadText}>
                 {downloading ? 'Downloading…' : 'Download'}
@@ -272,7 +274,7 @@ const ContentScreen: React.FC = () => {
             accessibilityRole="button"
             accessibilityLabel={`Share ${content.title}`}
             onPress={onShare}>
-            <Icon name="square.and.arrow.up" size={18} color={colors.text} />
+            <Icon name="square.and.arrow.up" size={18} color={c.text} />
           </GlassButton>
         </View>
       </View>
@@ -322,9 +324,9 @@ const ContentScreen: React.FC = () => {
 // styles are kept as plain MixedStyleDeclaration objects so they survive
 // react-native-render-html's style merger without the fontWeight / number
 // typing pitfalls that `StyleSheet.create` introduces.
-const HTML_TAGS_STYLES: MixedStyleRecord = {
+const makeHtmlStyles = (c: Palette): MixedStyleRecord => ({
   body: {
-    color: colors.text,
+    color: c.text,
     fontSize: typography.body.fontSize,
     lineHeight: typography.body.lineHeight,
     fontWeight: typography.body.fontWeight,
@@ -340,35 +342,35 @@ const HTML_TAGS_STYLES: MixedStyleRecord = {
   i: { fontStyle: 'italic' },
   h1: {
     ...(typography.title1 as MixedStyleDeclaration),
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   h2: {
     ...(typography.title2 as MixedStyleDeclaration),
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   h3: {
     ...(typography.title3 as MixedStyleDeclaration),
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   blockquote: {
     borderLeftWidth: 3,
-    borderLeftColor: colors.navy,
+    borderLeftColor: c.accent,
     paddingLeft: spacing.md,
     marginVertical: spacing.md,
-    color: colors.textSecondary,
+    color: c.textSecondary,
     fontStyle: 'italic',
   },
   ul: { marginTop: 0, marginBottom: spacing.md, paddingLeft: spacing.lg },
   ol: { marginTop: 0, marginBottom: spacing.md, paddingLeft: spacing.lg },
   li: { marginBottom: spacing.xs },
-  a: { color: colors.navy, textDecorationLine: 'underline' },
-};
+  a: { color: c.accent, textDecorationLine: 'underline' },
+});
 
 const ARTICLE_BODY_HPADDING = spacing.lg;
 
@@ -380,6 +382,7 @@ const ArticleHtml: React.FC<{
   // ArticleHtml just forwards it to RenderHTML.
   renderersProps: RenderHTMLRenderersProps;
 }> = ({ html, renderersProps }) => {
+  const c = useTheme();
   const { width } = useWindowDimensions();
   // articleBody sits inside the screen's horizontal padding (spacing.lg
   // on each side). RenderHTML needs the *interior* width to size images
@@ -389,11 +392,12 @@ const ArticleHtml: React.FC<{
     [width],
   );
   const source = useMemo(() => ({ html }), [html]);
+  const tagsStyles = useMemo(() => makeHtmlStyles(c), [c]);
   return (
     <RenderHTML
       contentWidth={contentWidth}
       source={source}
-      tagsStyles={HTML_TAGS_STYLES}
+      tagsStyles={tagsStyles}
       renderersProps={renderersProps}
       defaultTextProps={{ selectable: true }}
       // The server sanitizes content before publishing; these are belt-and-
@@ -405,16 +409,17 @@ const ArticleHtml: React.FC<{
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   loadingWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   scrollContent: {
     // paddingTop / paddingBottom set at runtime from useScreenChromeInsets.
@@ -428,32 +433,32 @@ const styles = StyleSheet.create({
     width: '78%',
     aspectRatio: 1,
     borderRadius: radii.lg,
-    backgroundColor: colors.navyDark,
+    backgroundColor: c.navyDark,
     marginBottom: spacing.xl,
     ...shadows.elevated,
   },
   artworkPlaceholder: {
-    backgroundColor: colors.navy,
+    backgroundColor: c.navy,
   },
   eyebrow: {
     ...typography.eyebrow,
-    color: colors.navy,
+    color: c.accent,
     marginBottom: spacing.xs,
   },
   title: {
     ...typography.title1,
-    color: colors.text,
+    color: c.text,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   author: {
     ...typography.headline,
-    color: colors.textSecondary,
+    color: c.textSecondary,
     marginTop: spacing.xs,
   },
   date: {
     ...typography.subheadline,
-    color: colors.textTertiary,
+    color: c.textTertiary,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
@@ -481,7 +486,7 @@ const styles = StyleSheet.create({
   },
   downloadText: {
     ...typography.subheadline,
-    color: colors.textInverse,
+    color: c.textInverse,
     fontWeight: '700',
   },
   shareButton: {
@@ -504,7 +509,7 @@ const styles = StyleSheet.create({
   },
   body: {
     ...typography.body,
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.md,
   },
   topicsSection: {
@@ -513,7 +518,7 @@ const styles = StyleSheet.create({
   },
   topicsHeading: {
     ...typography.title3,
-    color: colors.text,
+    color: c.text,
     marginBottom: spacing.sm,
   },
   topicsRow: {
@@ -525,12 +530,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radii.pill,
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: c.surfaceTint,
   },
   topicChipText: {
     ...typography.footnote,
     fontWeight: '600',
-    color: colors.text,
+    color: c.text,
   },
 });
 

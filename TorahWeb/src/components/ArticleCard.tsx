@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Content, isArticle, isAudio, isVideo } from '../types';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import Icon, { IconName } from './ui/Icon';
 
 interface ArticleCardProps {
@@ -35,6 +35,8 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   compact,
   onDownloadPress,
 }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [downloading, setDownloading] = useState(false);
   const artwork = content.author.portraitUrl;
 
@@ -54,7 +56,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${kindLabel(content)}: ${content.title}, by ${content.author.name}`}
-      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
+      android_ripple={{ color: c.ripple, borderless: false }}
       style={({ pressed }) => [
         styles.card,
         compact && styles.cardCompact,
@@ -64,12 +66,12 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
         <Image source={{ uri: artwork }} style={styles.artwork} />
       ) : (
         <View style={[styles.artwork, styles.artworkPlaceholder]}>
-          <Icon name={kindIcon(content)} size={28} color={colors.textInverse} />
+          <Icon name={kindIcon(content)} size={28} color={c.textInverse} />
         </View>
       )}
       <View style={styles.body}>
         <View style={styles.metaRow}>
-          <Icon name={kindIcon(content)} size={11} color={colors.textTertiary} />
+          <Icon name={kindIcon(content)} size={11} color={c.textTertiary} />
           <Text style={styles.eyebrow}>{kindLabel(content).toUpperCase()}</Text>
           <Text style={styles.dot}>·</Text>
           <Text style={styles.eyebrow}>{formatDate(content.publishedDate)}</Text>
@@ -89,81 +91,82 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
           accessibilityRole="button"
           accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
           accessibilityState={{ disabled: downloading, busy: downloading }}
-          android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+          android_ripple={{ color: c.ripple, borderless: true }}
           style={({ pressed }) => [
             styles.downloadButton,
             pressed && { opacity: 0.6 },
             downloading && { opacity: 0.5 },
           ]}>
-          <Icon name="arrow.down.circle.fill" size={26} color={colors.navy} />
+          <Icon name="arrow.down.circle.fill" size={26} color={c.accent} />
         </Pressable>
       ) : null}
     </Pressable>
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    ...shadows.card,
-  },
-  cardCompact: {
-    padding: spacing.sm,
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
-  },
-  artwork: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceTint,
-  },
-  artworkPlaceholder: {
-    backgroundColor: colors.navy,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
-  },
-  eyebrow: {
-    ...typography.caption,
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textTertiary,
-    letterSpacing: 0.4,
-  },
-  dot: {
-    color: colors.textTertiary,
-    marginHorizontal: 2,
-  },
-  title: {
-    ...typography.headline,
-    color: colors.text,
-  },
-  author: {
-    ...typography.subheadline,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  downloadButton: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+      ...shadows.card,
+    },
+    cardCompact: {
+      padding: spacing.sm,
+    },
+    pressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.99 }],
+    },
+    artwork: {
+      width: 64,
+      height: 64,
+      borderRadius: radii.sm,
+      backgroundColor: c.surfaceTint,
+    },
+    artworkPlaceholder: {
+      backgroundColor: c.navy,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    body: {
+      flex: 1,
+      paddingHorizontal: spacing.md,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: 2,
+    },
+    eyebrow: {
+      ...typography.caption,
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.textTertiary,
+      letterSpacing: 0.4,
+    },
+    dot: {
+      color: c.textTertiary,
+      marginHorizontal: 2,
+    },
+    title: {
+      ...typography.headline,
+      color: c.text,
+    },
+    author: {
+      ...typography.subheadline,
+      color: c.textSecondary,
+      marginTop: 2,
+    },
+    downloadButton: {
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+    },
+  });
 
 export default ArticleCard;

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import Icon from '../components/ui/Icon';
 import { TORAH_BOOKS, YOMIM_TOVIM, getBook } from '../data/torahStructure';
 import type { HomeStackParamList } from '../navigation/types';
@@ -22,6 +22,7 @@ const MenuScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<MenuRoute>();
   const chrome = useScreenChromeInsets();
+  const styles = useThemedStyles(makeStyles);
   const params = route.params;
 
   const { title, rows } = buildMenu(params, navigation);
@@ -96,35 +97,40 @@ const MenuRow: React.FC<{ label: string; onPress: () => void; last: boolean }> =
   label,
   onPress,
   last,
-}) => (
-  <Pressable
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel={label}
-    android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
-    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-    <Text style={styles.rowLabel}>{label}</Text>
-    <Icon name="chevron.right" size={18} color={colors.textTertiary} />
-    {last ? null : <View style={styles.separator} />}
-  </Pressable>
-);
+}) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      android_ripple={{ color: c.ripple, borderless: false }}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Icon name="chevron.right" size={18} color={c.textTertiary} />
+      {last ? null : <View style={styles.separator} />}
+    </Pressable>
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: c.background,
   },
   content: {
     paddingHorizontal: spacing.lg,
   },
   largeTitle: {
     ...typography.largeTitle,
-    color: colors.text,
+    color: c.text,
     marginTop: spacing.sm,
     marginBottom: spacing.lg,
   },
   group: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radii.lg,
     overflow: 'hidden',
     ...shadows.card,
@@ -138,11 +144,11 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   rowPressed: {
-    backgroundColor: colors.surfaceTint,
+    backgroundColor: c.surfaceTint,
   },
   rowLabel: {
     ...typography.body,
-    color: colors.text,
+    color: c.text,
     flex: 1,
   },
   separator: {
@@ -151,7 +157,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.separator,
+    backgroundColor: c.separator,
   },
 });
 

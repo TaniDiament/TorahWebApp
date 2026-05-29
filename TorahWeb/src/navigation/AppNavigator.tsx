@@ -15,7 +15,7 @@ import MenuScreen from '../screens/MenuScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ContentScreen from '../screens/ContentScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
-import { colors, radii, spacing } from '../theme';
+import { radii, spacing, useTheme } from '../theme';
 import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import type {
@@ -87,12 +87,13 @@ type MDIGlyph = Parameters<typeof MaterialDesignIcons.getImageSourceSync>[0];
 const makeTabIcon = (
   sfSymbol: SFSymbolName,
   mdiGlyph: MDIGlyph,
+  tint: string,
 ): NativeBottomTabIcon =>
   Platform.OS === 'ios'
     ? { type: 'sfSymbol', name: sfSymbol }
     : {
         type: 'image',
-        source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, colors.navy),
+        source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, tint),
       };
 
 // Tapping an already-active tab returns to its root screen — match the
@@ -124,6 +125,7 @@ type FloatingBackOverlayProps = {
 };
 const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPress }) => {
   const insets = useSafeAreaInsets();
+  const c = useTheme();
   if (!visible) return null;
   return (
     <View
@@ -138,7 +140,7 @@ const FloatingBackOverlay: React.FC<FloatingBackOverlayProps> = ({ visible, onPr
         accessibilityLabel="Go back"
         hitSlop={12}
         onPress={onPress}>
-        <Icon name="chevron.left" size={22} color={colors.text} />
+        <Icon name="chevron.left" size={22} color={c.text} />
       </GlassButton>
     </View>
   );
@@ -182,6 +184,7 @@ const linking: LinkingOptions<RootTabParamList> = {
 const AppNavigator: React.FC = () => {
   const navigationRef = useNavigationContainerRef();
   const [canGoBack, setCanGoBack] = React.useState(false);
+  const c = useTheme();
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -191,7 +194,7 @@ const AppNavigator: React.FC = () => {
         <Tabs.Navigator
           screenOptions={{
             headerShown: false,
-            tabBarActiveTintColor: colors.navy,
+            tabBarActiveTintColor: c.accent,
             // Always show the label under every tab's icon (Android's Material
             // bottom-nav otherwise hides labels for unselected tabs once there
             // are 4+ items; iOS shows them all regardless).
@@ -217,7 +220,7 @@ const AppNavigator: React.FC = () => {
             component={HomeTabStack}
             options={{
               tabBarLabel: 'Home',
-              tabBarIcon: makeTabIcon('house.fill', 'home'),
+              tabBarIcon: makeTabIcon('house.fill', 'home', c.accent),
             }}
           />
           <Tabs.Screen
@@ -225,7 +228,7 @@ const AppNavigator: React.FC = () => {
             component={NewTabStack}
             options={{
               tabBarLabel: 'New',
-              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid'),
+              tabBarIcon: makeTabIcon('square.grid.2x2.fill', 'view-grid', c.accent),
             }}
           />
           <Tabs.Screen
@@ -233,7 +236,7 @@ const AppNavigator: React.FC = () => {
             component={LibraryTabStack}
             options={{
               tabBarLabel: 'Library',
-              tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple'),
+              tabBarIcon: makeTabIcon('rectangle.stack.fill', 'file-multiple', c.accent),
             }}
           />
           <Tabs.Screen
@@ -241,7 +244,7 @@ const AppNavigator: React.FC = () => {
             component={SearchTabStack}
             options={{
               tabBarLabel: 'Search',
-              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify'),
+              tabBarIcon: makeTabIcon('magnifyingglass', 'magnify', c.accent),
             }}
           />
         </Tabs.Navigator>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Author } from '../types';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 
 interface AuthorButtonProps {
   author: Author;
@@ -19,13 +19,16 @@ const initialsOf = (name: string) =>
     .toUpperCase();
 
 const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress, variant = 'circle' }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   if (variant === 'circle') {
     return (
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`Open speaker ${author.name}`}
-        android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+        android_ripple={{ color: c.ripple, borderless: true }}
         style={({ pressed }) => [
           styles.circleWrap,
           pressed && { opacity: 0.7 },
@@ -51,7 +54,7 @@ const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress, variant = 
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Open speaker ${author.name}`}
-      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
+      android_ripple={{ color: c.ripple, borderless: false }}
       style={({ pressed }) => [
         styles.tile,
         pressed && { opacity: 0.85 },
@@ -70,56 +73,57 @@ const AuthorButton: React.FC<AuthorButtonProps> = ({ author, onPress, variant = 
   );
 };
 
-const styles = StyleSheet.create({
-  circleWrap: {
-    width: 96,
-    alignItems: 'center',
-  },
-  circleImageWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    overflow: 'hidden',
-    backgroundColor: colors.navyDark,
-    marginBottom: spacing.sm,
-  },
-  circleImage: {
-    width: '100%',
-    height: '100%',
-  },
-  circleName: {
-    ...typography.footnote,
-    color: colors.text,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  tile: {
-    width: '31%',
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  tileImage: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: radii.md,
-    backgroundColor: colors.navyDark,
-    marginBottom: spacing.xs,
-  },
-  tileName: {
-    ...typography.caption,
-    color: colors.text,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  placeholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    color: colors.textInverse,
-    fontWeight: '700',
-    fontSize: 22,
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    circleWrap: {
+      width: 96,
+      alignItems: 'center',
+    },
+    circleImageWrap: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      overflow: 'hidden',
+      backgroundColor: c.navyDark,
+      marginBottom: spacing.sm,
+    },
+    circleImage: {
+      width: '100%',
+      height: '100%',
+    },
+    circleName: {
+      ...typography.footnote,
+      color: c.text,
+      textAlign: 'center',
+      fontWeight: '600',
+    },
+    tile: {
+      width: '31%',
+      marginBottom: spacing.md,
+      alignItems: 'center',
+    },
+    tileImage: {
+      width: '100%',
+      aspectRatio: 1,
+      borderRadius: radii.md,
+      backgroundColor: c.navyDark,
+      marginBottom: spacing.xs,
+    },
+    tileName: {
+      ...typography.caption,
+      color: c.text,
+      textAlign: 'center',
+      fontWeight: '600',
+    },
+    placeholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    placeholderText: {
+      color: c.textInverse,
+      fontWeight: '700',
+      fontSize: 22,
+    },
+  });
 
 export default AuthorButton;

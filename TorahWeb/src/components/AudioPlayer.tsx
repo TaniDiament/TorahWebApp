@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text } from 'react-native';
-import { colors, radii, spacing, typography } from '../theme';
+import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from './ui/Glass';
 import Icon from './ui/Icon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
@@ -25,6 +25,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   authorName,
   artworkUrl,
 }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const {
     currentTrack,
     isPlaying,
@@ -78,19 +80,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       style={styles.playButton}
       contentStyle={styles.playButtonInner}
       cornerRadius={radii.pill}
-      tint="rgba(26, 58, 92, 0.94)"
+      tint={c.navy}
       accessibilityRole="button"
       accessibilityLabel={`${playLabel} ${title}`}
       accessibilityState={{ disabled: loading, busy: loading }}
       disabled={loading}
       onPress={onPrimaryAction}>
       {loading ? (
-        <ActivityIndicator color={colors.textInverse} size="small" />
+        <ActivityIndicator color={c.textInverse} size="small" />
       ) : (
         <Icon
           name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
           size={18}
-          color={colors.textInverse}
+          color={c.textInverse}
         />
       )}
       <Text style={styles.playText}>{playLabel}</Text>
@@ -98,25 +100,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  // Matches downloadButton/downloadButtonInner in ContentScreen so the three
-  // controls (Play, Download, Share) read as one 40 px-tall control cluster.
-  playButton: {
-    borderRadius: radii.pill,
-  },
-  playButtonInner: {
-    height: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-    borderRadius: radii.pill,
-  },
-  playText: {
-    ...typography.subheadline,
-    color: colors.textInverse,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    // Matches downloadButton/downloadButtonInner in ContentScreen so the three
+    // controls (Play, Download, Share) read as one 40 px-tall control cluster.
+    playButton: {
+      borderRadius: radii.pill,
+    },
+    playButtonInner: {
+      height: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+      borderRadius: radii.pill,
+    },
+    playText: {
+      ...typography.subheadline,
+      color: c.textInverse,
+      fontWeight: '700',
+    },
+  });
 
 export default AudioPlayer;
