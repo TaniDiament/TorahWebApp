@@ -9,10 +9,16 @@
 
 #import <React/RCTConversions.h>
 
-// CocoaPods exposes Swift symbols via <PodName/PodName-Swift.h>. Targets that
-// import this header need DEFINES_MODULE = YES on the LiquidGlass pod (set in
-// the podspec) so the module header is generated and visible.
+// The Swift-generated interface header is imported differently depending on how
+// the pod is linked: as a framework (USE_FRAMEWORKS) it's <LiquidGlass/...>; as
+// a static library (React Native's default, and what EAS builds) it's the
+// quoted form. DEFINES_MODULE = YES in the podspec generates the header either
+// way; the __has_include guard picks the path that actually exists.
+#if __has_include(<LiquidGlass/LiquidGlass-Swift.h>)
 #import <LiquidGlass/LiquidGlass-Swift.h>
+#else
+#import "LiquidGlass-Swift.h"
+#endif
 
 using namespace facebook::react;
 
