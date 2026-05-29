@@ -98,23 +98,6 @@ const makeTabIcon = (
         source: MaterialDesignIcons.getImageSourceSync(mdiGlyph, 24, tint),
       };
 
-// Tapping an already-active tab returns to its root screen — match the
-// previous behavior where pressing the highlighted tab popped the stack.
-const getRootScreen = (tabName: string): string => {
-  switch (tabName) {
-    case 'HomeTab':
-      return 'Home';
-    case 'NewTab':
-      return 'NewRoot';
-    case 'SearchTab':
-      return 'SearchRoot';
-    case 'LibraryTab':
-      return 'Library';
-    default:
-      return 'Home';
-  }
-};
-
 // Renders the floating glass back chevron when the active tab's stack has
 // pushed at least one route. Lives as a sibling of the navigator so its
 // position is unaffected by per-screen layout — matches the previous
@@ -231,22 +214,14 @@ const AppNavigator: React.FC = () => {
             // bottom-nav otherwise hides labels for unselected tabs once there
             // are 4+ items; iOS shows them all regardless).
             tabBarLabelVisibilityMode: 'labeled',
-          }}
-          screenListeners={({ navigation, route }) => ({
-            // Re-pressing the active tab returns it to its root screen. The
-            // native tab bar emits `tabPress`; on a switch the pressed route
-            // differs from the focused one, so this is a no-op and the default
-            // switch happens.
-            tabPress: () => {
-              const tabState = navigation.getState();
-              const focused = tabState.routes[tabState.index]?.name === route.name;
-              if (!focused) return;
-              (navigation.navigate as (
-                name: string,
-                params?: { screen: string },
-              ) => void)(route.name, { screen: getRootScreen(route.name) });
-            },
-          })}>
+          }}>
+          {/*
+            Re-pressing the active tab pops its stack to root automatically:
+            react-native-screens' native tabs ship the `repeatedTabSelection`
+            popToRoot special effect (enabled by default on iOS and Android).
+            A JS `tabPress` listener that also navigated to the root ran the
+            pop a second time, producing a visible double transition.
+          */}
           <Tabs.Screen
             name="HomeTab"
             component={HomeTabStack}
