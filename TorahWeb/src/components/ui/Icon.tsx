@@ -26,6 +26,7 @@ export type IconName =
   | 'plus'
   | 'ellipsis'
   | 'waveform'
+  | 'speedometer'
   | 'video.fill'
   | 'doc.text.fill'
   | 'mic.fill'
@@ -61,6 +62,7 @@ const MCI_MAP: Record<IconName, MCIName> = {
   plus: 'plus',
   ellipsis: 'dots-horizontal',
   waveform: 'waveform',
+  speedometer: 'speedometer',
   'video.fill': 'video',
   'doc.text.fill': 'file-document',
   'mic.fill': 'microphone',

@@ -12,6 +12,7 @@ import {
   AppState,
   Image,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -27,16 +28,22 @@ import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
   Event,
+  PitchAlgorithm,
   State,
   useProgress,
 } from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
-import Icon from '../components/ui/Icon';
+import SymbolIcon from '../components/ui/SymbolIcon';
 import { playbackPositions } from './playbackPositions';
+import { DEFAULT_PLAYBACK_RATE, PLAYBACK_RATES, playbackRateStore } from './playbackRate';
 
-const TAB_BAR_CLEARANCE = 90;
+// Distance from the screen bottom to the mini-player's lower edge — it floats
+// just above the system tab bar. The visible gap is this minus the tab bar's
+// item-area height: iOS's UITabBar is ~49pt, so ~56 leaves only a slight gap.
+// Android's Material bottom nav is taller, so it keeps a larger clearance.
+const TAB_BAR_CLEARANCE = Platform.OS === 'ios' ? 56 : 90;
 
 export interface AudioTrackPayload {
   id: string;
@@ -53,9 +60,11 @@ interface AudioPlayerContextValue {
   progress: number;
   duration: number;
   loading: boolean;
+  playbackRate: number;
   playTrack: (track: AudioTrackPayload) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekBy: (deltaSeconds: number) => Promise<void>;
+  cyclePlaybackRate: () => Promise<void>;
   expand: () => void;
   collapse: () => void;
   close: () => Promise<void>;
@@ -102,6 +111,10 @@ const formatClock = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// "1×", "1.25×", "1.5×". The presets are clean decimals, so the default number
+// formatting already reads correctly (no trailing zeros to trim).
+const formatRate = (rate: number) => `${rate}×`;
+
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const insets = useSafeAreaInsets();
   const c = useTheme();
@@ -110,6 +123,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
   // Position/duration come from react-native-track-player's own subscription
   // hook. Polled on the native side at the requested interval; we don't have
   // to maintain a setInterval here.
@@ -125,9 +139,26 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const progressRef = useRef(0);
   const durationRef = useRef(0);
   const currentTrackRef = useRef<AudioTrackPayload | null>(null);
+  // The chosen rate is read inside playback callbacks (which apply it to the
+  // native player) so it must be available without re-creating those callbacks.
+  const rateRef = useRef(playbackRate);
   progressRef.current = progress;
   durationRef.current = duration;
   currentTrackRef.current = currentTrack;
+  rateRef.current = playbackRate;
+
+  // Restore the listener's last-chosen speed on launch. We only update React
+  // state / the ref here — the rate is pushed to the native player on the next
+  // play() (see playTrack / togglePlayPause), since there's no track loaded yet.
+  useEffect(() => {
+    let active = true;
+    playbackRateStore.get().then((stored) => {
+      if (active) setPlaybackRate(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Persist the current track's position so it resumes next time. Stable
   // identity (reads refs) so the effects below don't re-run on every tick.
@@ -173,6 +204,13 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       switch (event.state) {
         case State.Playing:
           setIsPlaying(true);
+          // Whenever playback actually starts, re-assert the chosen speed.
+          // iOS's AVPlayer resets rate to 1.0 on play, and this fires for
+          // every resume path — including the lock screen / Control Center /
+          // headphone remote that bypass togglePlayPause — so the chosen
+          // speed survives all of them. Fire-and-forget; rate is cosmetic
+          // relative to keeping playback going.
+          TrackPlayer.setRate(rateRef.current).catch(() => {});
           return;
         case State.Paused:
         case State.Stopped:
@@ -198,6 +236,20 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, []);
 
+  // Push the chosen rate to the native player. Called after every play() (not
+  // just on user change) because iOS's AVPlayer resets its rate to 1.0 whenever
+  // playback (re)starts — without re-applying here, resuming or starting a new
+  // track would silently drop back to normal speed. Idempotent and best-effort:
+  // a setRate failure must never break play/pause. Stable identity (reads the
+  // ref) so the playback callbacks below don't churn.
+  const applyRateToPlayer = useCallback(async () => {
+    try {
+      await TrackPlayer.setRate(rateRef.current);
+    } catch {
+      // Rate is cosmetic relative to playback — ignore and keep playing.
+    }
+  }, []);
+
   const playTrack = useCallback(async (track: AudioTrackPayload) => {
     setLoading(true);
     try {
@@ -209,6 +261,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         title: track.title,
         artist: track.artist,
         artwork: track.artworkUrl,
+        // These shiurim are speech, so keep pitch corrected at faster speeds —
+        // otherwise 1.5×–2× turns the maggid shiur into a chipmunk on iOS.
+        pitchAlgorithm: PitchAlgorithm.Voice,
       });
       // Resume where this track was last left off (0 if new / finished). The
       // seek is queued before playback settles; TrackPlayer applies it once the
@@ -216,13 +271,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const resumeAt = await playbackPositions.getPosition(track.id);
       await TrackPlayer.play();
       if (resumeAt > 0) await TrackPlayer.seekTo(resumeAt);
+      // Carry the listener's chosen speed onto the freshly-loaded track.
+      await applyRateToPlayer();
       setCurrentTrack(track);
       setIsPlaying(true);
       setIsExpanded(false);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyRateToPlayer]);
 
   const togglePlayPause = useCallback(async () => {
     if (!currentTrack) return;
@@ -235,8 +292,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     await TrackPlayer.play();
+    // Restore the chosen speed — iOS resets rate to 1.0 on resume.
+    await applyRateToPlayer();
     setIsPlaying(true);
-  }, [currentTrack, saveNow]);
+  }, [applyRateToPlayer, currentTrack, saveNow]);
 
   const seekBy = useCallback(
     async (deltaSeconds: number) => {
@@ -263,6 +322,27 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     },
     [currentTrack, duration],
   );
+
+  // Advance to the next preset speed and apply it. We only push the rate to the
+  // native player when it's actively playing: setting a non-zero rate on a
+  // paused iOS AVPlayer would start playback. When paused we just remember the
+  // choice (state/ref + disk) and let the next play() apply it via
+  // applyRateToPlayer, so changing speed never resumes a paused shiur.
+  const cyclePlaybackRate = useCallback(async () => {
+    const idx = PLAYBACK_RATES.indexOf(rateRef.current as (typeof PLAYBACK_RATES)[number]);
+    const next = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
+    rateRef.current = next;
+    setPlaybackRate(next);
+    playbackRateStore.save(next);
+    try {
+      if ((await TrackPlayer.getState()) === State.Playing) {
+        await TrackPlayer.setRate(next);
+      }
+    } catch {
+      // No player yet / transient native error — the rate is stored and will
+      // be applied on the next play().
+    }
+  }, []);
 
   const expand = useCallback(() => {
     if (!currentTrack) return;
@@ -356,14 +436,16 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       progress,
       duration,
       loading,
+      playbackRate,
       playTrack,
       togglePlayPause,
       seekBy,
+      cyclePlaybackRate,
       expand,
       collapse,
       close,
     }),
-    [collapse, close, currentTrack, duration, expand, isExpanded, isPlaying, loading, playTrack, progress, seekBy, togglePlayPause],
+    [collapse, close, currentTrack, cyclePlaybackRate, duration, expand, isExpanded, isPlaying, loading, playbackRate, playTrack, progress, seekBy, togglePlayPause],
   );
 
   // Mini-player fill bar uses the same `progress` value as the sheet slider;
@@ -392,7 +474,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.miniArtwork} />
               ) : (
                 <View style={[styles.miniArtwork, styles.miniArtworkPlaceholder]}>
-                  <Icon name="waveform" size={20} color={c.textInverse} />
+                  <SymbolIcon name="waveform" size={20} color={c.textInverse} />
                 </View>
               )}
               <View style={styles.miniTextWrap}>
@@ -414,7 +496,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={c.text} />
+                <SymbolIcon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={c.text} />
               </Pressable>
               <Pressable
                 onPress={(e) => {
@@ -431,7 +513,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name="goforward.30" size={20} color={c.text} />
+                <SymbolIcon name="goforward.30" size={20} color={c.text} />
               </Pressable>
               <View style={styles.miniProgressTrack}>
                 <View style={[styles.miniProgressFill, { width: `${progressRatio * 100}%` }]} />
@@ -465,7 +547,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.sheetCloseButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="xmark" size={20} color={c.text} />
+                  <SymbolIcon name="xmark" size={20} color={c.text} />
                 </Pressable>
               </View>
 
@@ -473,7 +555,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.sheetArtwork} />
               ) : (
                 <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]}>
-                  <Icon name="waveform" size={64} color={c.textInverse} />
+                  <SymbolIcon name="waveform" size={64} color={c.textInverse} />
                 </View>
               )}
 
@@ -506,7 +588,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.skipButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="gobackward.15" size={32} color={c.text} />
+                  <SymbolIcon name="gobackward.15" size={32} color={c.text} />
                 </Pressable>
 
                 <Pressable
@@ -520,7 +602,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.playButton,
                     pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
                   ]}>
-                  <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={c.textInverse} />
+                  <SymbolIcon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={c.textInverse} />
                 </Pressable>
 
                 <Pressable
@@ -532,7 +614,24 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     styles.skipButton,
                     pressed && { opacity: 0.6 },
                   ]}>
-                  <Icon name="goforward.30" size={32} color={c.text} />
+                  <SymbolIcon name="goforward.30" size={32} color={c.text} />
+                </Pressable>
+              </View>
+
+              <View style={styles.speedRow}>
+                <Pressable
+                  onPress={cyclePlaybackRate}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Playback speed ${formatRate(playbackRate)}`}
+                  accessibilityHint="Cycles through playback speeds"
+                  android_ripple={{ color: c.ripple, borderless: false }}
+                  style={({ pressed }) => [
+                    styles.speedChip,
+                    pressed && { opacity: 0.6 },
+                  ]}>
+                  <SymbolIcon name="speedometer" size={16} color={c.text} />
+                  <Text style={styles.speedChipText}>{formatRate(playbackRate)}</Text>
                 </Pressable>
               </View>
 
@@ -691,6 +790,30 @@ const makeStyles = (c: Palette) =>
     alignItems: 'center',
     gap: spacing.xl,
     marginBottom: spacing.xl,
+  },
+  speedRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  speedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 72,
+    height: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: c.surfaceTint,
+  },
+  speedChipText: {
+    ...typography.subheadline,
+    color: c.text,
+    fontWeight: '700',
+    // Keep the chip from reflowing as the digit count changes (1× → 1.25×).
+    fontVariant: ['tabular-nums'],
   },
   skipButton: {
     width: 64,

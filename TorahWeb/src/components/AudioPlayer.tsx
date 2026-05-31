@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text } from 'react-native';
 import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from './ui/Glass';
-import Icon from './ui/Icon';
+import SymbolIcon from './ui/SymbolIcon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
 
 interface AudioPlayerProps {
@@ -89,7 +89,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {loading ? (
         <ActivityIndicator color={c.textInverse} size="small" />
       ) : (
-        <Icon
+        <SymbolIcon
           name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
           size={18}
           color={c.textInverse}
