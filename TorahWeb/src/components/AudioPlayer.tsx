@@ -4,6 +4,7 @@ import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '
 import { GlassButton } from './ui/Glass';
 import SymbolIcon from './ui/SymbolIcon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
+import type { Audio } from '../types';
 
 interface AudioPlayerProps {
   audioId: string;
@@ -13,6 +14,9 @@ interface AudioPlayerProps {
   artworkUrl?: string;
   // Canonical content link, forwarded to the Now Playing sheet's share button.
   shareUrl?: string;
+  // The originating Audio record, carried into the Now Playing sheet so its
+  // download button can save this shiur offline without a re-fetch.
+  source?: Audio;
 }
 
 // Renders only the primary play / pause / resume control as a pill, sized to
@@ -27,6 +31,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   authorName,
   artworkUrl,
   shareUrl,
+  source,
 }) => {
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -71,6 +76,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         artist: authorName,
         artworkUrl,
         shareUrl,
+        source,
       });
     } catch (err) {
       const message =

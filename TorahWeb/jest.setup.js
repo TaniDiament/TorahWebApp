@@ -136,6 +136,18 @@ jest.mock('react-native-track-player', () => {
   };
 });
 
+// VolumeManager touches a native module at import time; mock the slice the
+// Now Playing volume slider uses (read/set + change subscription + HUD toggle).
+jest.mock('react-native-volume-manager', () => ({
+  __esModule: true,
+  VolumeManager: {
+    getVolume: jest.fn(() => Promise.resolve({ volume: 0.5 })),
+    setVolume: jest.fn(() => Promise.resolve()),
+    addVolumeListener: jest.fn(() => ({ remove: jest.fn() })),
+    showNativeVolumeUI: jest.fn(() => Promise.resolve()),
+  },
+}));
+
 // NetInfo touches NativeModules.RNCNetInfo at import time, which is null under
 // Jest — mock the slice OfflineBanner uses (event subscription + one-shot fetch).
 jest.mock('@react-native-community/netinfo', () => ({

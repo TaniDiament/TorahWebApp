@@ -189,24 +189,14 @@ const ContentScreen: React.FC = () => {
     (entry) => entry.contentId === content.id && entry.status === 'downloading',
   );
 
-  // Jump straight to the Library tab (its root list). ContentScreen lives in
-  // several tab stacks, so we hop through the parent tab navigator — the same
-  // pattern the in-article link router uses below.
-  const goToLibrary = () => {
-    navigation
-      .getParent<BottomTabNavigationProp<RootTabParamList>>()
-      ?.navigate('LibraryTab', { screen: 'Library' });
-  };
-
-  // Apple-Podcasts behavior: tapping download kicks off the fetch and takes the
-  // user straight to the Library, where the item shows a live progress ring. If
-  // it's already downloaded or in flight, just show them where it is.
+  // Tapping download kicks off the fetch and stays on the page — progress shows
+  // in the Library (the ring) and on this button ("Downloading…"). No automatic
+  // jump to the Library tab.
   const onDownload = () => {
     if (!showDownload) return;
     if (!isDownloaded && !isDownloading) {
       startDownload(content);
     }
-    goToLibrary();
   };
 
   const onShare = async () => {
@@ -262,6 +252,7 @@ const ContentScreen: React.FC = () => {
               authorName={content.author.name}
               artworkUrl={content.author.portraitUrl}
               shareUrl={contentShareUrl(content)}
+              source={content}
             />
           ) : null}
           {showDownload ? (
