@@ -23,17 +23,24 @@ const MINI_PLAYER_CLEARANCE = 76;
 // clears the floating back overlay (when visible) and the floating audio
 // mini-player. Top reservation is skipped on tab-root screens, where the
 // back overlay isn't rendered.
+//
+// The app's root <SafeAreaView edges={['top']}> already pads content below the
+// status bar, so we must NOT add `insets.top` again here for tab roots — doing
+// so double-counts the notch and leaves a visible gap above the large title.
+// On a pushed screen the floating back overlay sits a safe-area inset down
+// (it lives inside that same SafeAreaView), so its content still has to reserve
+// `insets.top` on top of the back-button height to clear it.
 export const useScreenChromeInsets = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const hasBackOverlay = navigation.canGoBack();
 
-  const topChrome = hasBackOverlay
-    ? FLOATING_BACK_TOP_OFFSET + FLOATING_BACK_HEIGHT + CONTENT_GAP
+  const top = hasBackOverlay
+    ? insets.top + FLOATING_BACK_TOP_OFFSET + FLOATING_BACK_HEIGHT + CONTENT_GAP
     : CONTENT_GAP;
 
   return {
-    top: insets.top + topChrome,
+    top,
     bottom: Math.max(insets.bottom, 8) + MINI_PLAYER_CLEARANCE + CONTENT_GAP,
   };
 };

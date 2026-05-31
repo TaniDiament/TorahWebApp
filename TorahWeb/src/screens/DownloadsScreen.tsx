@@ -14,7 +14,7 @@ import {
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { DownloadItem } from '../types';
+import { DownloadItem, SavedItem } from '../types';
 import type { LibraryStackParamList } from '../navigation/types';
 import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { loadDownloadedArticle, openDownloadedItem } from '../services/download';
@@ -29,15 +29,23 @@ type Nav = NativeStackNavigationProp<LibraryStackParamList, 'Library'>;
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
-// The Library list interleaves in-flight downloads (top) with completed ones.
+// The Library list interleaves in-flight downloads (top), completed downloads,
+// and saved (file-less) references.
 type LibraryRow =
   | { type: 'active'; key: string; download: ActiveDownload }
-  | { type: 'done'; key: string; item: DownloadItem };
+  | { type: 'done'; key: string; item: DownloadItem }
+  | { type: 'saved'; key: string; item: SavedItem };
 
 interface DownloadRowProps {
   item: DownloadItem;
   onOpen: (item: DownloadItem) => void;
   onDelete: (item: DownloadItem) => Promise<void>;
+}
+
+interface SavedRowProps {
+  item: SavedItem;
+  onOpen: (item: SavedItem) => void;
+  onDelete: (contentId: string) => Promise<void>;
 }
 
 const kindIcon = (kind: string) => {
@@ -195,7 +203,89 @@ const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => 
           </View>
         )}
         <View style={styles.body}>
-          <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
+          <View style={styles.kindRow}>
+            <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
+            <Icon name="arrow.down.circle.fill" size={12} color={c.accent} />
+            <Text style={styles.statusLabel}>Downloaded</Text>
+          </View>
+          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {item.authorName} · {formatDate(item.publishedDate)}
+          </Text>
+        </View>
+        <Icon name="chevron.right" size={18} color={c.textTertiary} />
+      </Pressable>
+    </Swipeable>
+  );
+};
+
+// A saved (file-less) Library entry — opens the content to stream/read/watch
+// live, since nothing was downloaded. Mirrors DownloadRow's layout.
+const SavedRow: React.FC<SavedRowProps> = ({ item, onOpen, onDelete }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const swipeRef = useRef<React.ElementRef<typeof Swipeable> | null>(null);
+
+  const performDelete = async () => {
+    try {
+      await onDelete(item.contentId);
+    } finally {
+      swipeRef.current?.close?.();
+    }
+  };
+
+  const onDeletePress = () => {
+    Alert.alert(
+      'Remove from Library?',
+      `"${item.title}" will be removed from your saved items.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => swipeRef.current?.close?.() },
+        { text: 'Remove', style: 'destructive', onPress: performDelete },
+      ],
+    );
+  };
+
+  const renderRightAction = () => (
+    <View style={styles.swipeActionWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${item.title}`}
+        android_ripple={{ color: 'rgba(255,255,255,0.18)', borderless: false }}
+        style={({ pressed }) => [styles.swipeDeleteAction, pressed && { opacity: 0.85 }]}
+        onPress={onDeletePress}>
+        <Icon name="xmark" size={20} color={c.textInverse} />
+        <Text style={styles.swipeDeleteText}>Remove</Text>
+      </Pressable>
+    </View>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      overshootRight={false}
+      rightThreshold={24}
+      friction={Platform.OS === 'ios' ? 1.6 : 1.9}
+      renderRightActions={renderRightAction}>
+      <Pressable
+        onPress={() => onOpen(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${item.title}, ${item.kind}, by ${item.authorName}`}
+        accessibilityHint="Swipe left to remove"
+        android_ripple={{ color: c.ripple, borderless: false }}
+        style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
+        {item.artworkUrl ? (
+          <Image source={{ uri: item.artworkUrl }} style={styles.portrait} />
+        ) : (
+          <View style={styles.kindBadge}>
+            <Icon name={kindIcon(item.kind) as any} size={20} color={c.textInverse} />
+          </View>
+        )}
+        <View style={styles.body}>
+          <View style={styles.kindRow}>
+            <Text style={styles.kind}>{item.kind.toUpperCase()}</Text>
+            <Icon name="bookmark.fill" size={12} color={c.accent} />
+            <Text style={styles.statusLabel}>Saved</Text>
+          </View>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
           <Text style={styles.meta} numberOfLines={1}>
             {item.authorName} · {formatDate(item.publishedDate)}
@@ -212,9 +302,19 @@ const DownloadsScreen: React.FC = () => {
   const chrome = useScreenChromeInsets();
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { items, activeDownloads, loading, refresh, removeItem, dismissActive } = useDownloads();
+  const { items, savedItems, activeDownloads, loading, refresh, removeItem, removeSaved, dismissActive } =
+    useDownloads();
   const [refreshing, setRefreshing] = useState(false);
   const { playTrack, expand } = useAudioPlayer();
+
+  // Saved entries carry no file — open the content to stream / read / watch it
+  // live via the deep-link form (ContentScreen resolves the full record).
+  const onOpenSaved = useCallback(
+    (item: SavedItem) => {
+      navigation.navigate('Content', { contentId: item.contentId, contentKind: item.kind });
+    },
+    [navigation],
+  );
 
   const onOpen = useCallback(
     async (item: DownloadItem) => {
@@ -264,22 +364,41 @@ const DownloadsScreen: React.FC = () => {
   };
 
   // Active downloads ride at the top so a just-tapped item is the first thing
-  // the user sees when they land on the Library; completed downloads follow.
-  // A content id that's still active is filtered out of the completed list so
-  // the handoff at completion never momentarily shows the same item twice.
+  // the user sees; downloaded + saved entries follow, interleaved by recency.
+  // Content ids that are still active (or already downloaded) are filtered out
+  // of the lists below so nothing shows twice during the completion handoff.
   const rows = useMemo<LibraryRow[]>(() => {
     const activeIds = new Set(activeDownloads.map((d) => d.contentId));
+    const downloadedIds = new Set(items.map((i) => i.contentId));
+
+    const settled: { row: LibraryRow; ts: number }[] = [
+      ...items
+        .filter((item) => !activeIds.has(item.contentId))
+        .map((item) => ({
+          row: { type: 'done' as const, key: item.id, item },
+          ts: new Date(item.createdAt).getTime(),
+        })),
+      ...savedItems
+        .filter((s) => !activeIds.has(s.contentId) && !downloadedIds.has(s.contentId))
+        .map((s) => ({
+          row: { type: 'saved' as const, key: `saved-${s.contentId}`, item: s },
+          ts: new Date(s.savedAt).getTime(),
+        })),
+    ];
+    settled.sort((a, b) => b.ts - a.ts);
+
     return [
       ...activeDownloads.map((download) => ({
         type: 'active' as const,
         key: `active-${download.contentId}`,
         download,
       })),
-      ...items
-        .filter((item) => !activeIds.has(item.contentId))
-        .map((item) => ({ type: 'done' as const, key: item.id, item })),
+      ...settled.map((entry) => entry.row),
     ];
-  }, [activeDownloads, items]);
+  }, [activeDownloads, items, savedItems]);
+
+  const downloadingCount = activeDownloads.filter((a) => a.status === 'downloading').length;
+  const libraryCount = rows.length - activeDownloads.length;
 
   if (loading) {
     return (
@@ -303,15 +422,17 @@ const DownloadsScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.largeTitle}>Library</Text>
           <Text style={styles.subtitle}>
-            {activeDownloads.length > 0
-              ? `${activeDownloads.length} downloading · ${items.length} downloaded`
-              : `${items.length} downloaded`}
+            {downloadingCount > 0
+              ? `${downloadingCount} downloading · ${libraryCount} item${libraryCount === 1 ? '' : 's'}`
+              : `${libraryCount} item${libraryCount === 1 ? '' : 's'}`}
           </Text>
         </View>
       }
       renderItem={({ item: row }) =>
         row.type === 'active' ? (
           <ActiveDownloadRow download={row.download} onDismiss={dismissActive} />
+        ) : row.type === 'saved' ? (
+          <SavedRow item={row.item} onOpen={onOpenSaved} onDelete={removeSaved} />
         ) : (
           <DownloadRow item={row.item} onOpen={onOpen} onDelete={removeItem} />
         )
@@ -319,9 +440,10 @@ const DownloadsScreen: React.FC = () => {
       ListEmptyComponent={
         <View style={styles.emptyWrap}>
           <Icon name="rectangle.stack.fill" size={56} color={c.textTertiary} />
-          <Text style={styles.emptyTitle}>Nothing downloaded</Text>
+          <Text style={styles.emptyTitle}>Your Library is empty</Text>
           <Text style={styles.emptyText}>
-            Tap the download icon on any item to keep it here for offline.
+            Tap the bookmark to save anything for later, or download audio and
+            divrei Torah to keep them offline.
           </Text>
         </View>
       }
@@ -386,13 +508,26 @@ const makeStyles = (c: Palette) =>
     flex: 1,
     paddingHorizontal: spacing.md,
   },
+  kindRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
   kind: {
     ...typography.caption,
     fontSize: 11,
     fontWeight: '700',
     color: c.textTertiary,
     letterSpacing: 0.4,
-    marginBottom: 2,
+  },
+  // "Downloaded" / "Saved" badge text next to the kind eyebrow.
+  statusLabel: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: c.accent,
+    letterSpacing: 0.4,
   },
   title: {
     ...typography.headline,

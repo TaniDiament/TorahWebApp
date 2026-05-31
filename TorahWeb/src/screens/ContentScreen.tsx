@@ -58,7 +58,8 @@ const ContentScreen: React.FC = () => {
   // network/throw (retryable), 'missing' is a 404/null (the item is gone).
   const [loadFailed, setLoadFailed] = useState<'error' | 'missing' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const { items, activeDownloads, startDownload } = useDownloads();
+  const { items, savedItems, activeDownloads, startDownload, saveContent, removeSaved } =
+    useDownloads();
 
   // Links inside an article body: keep torahweb.org section links (e.g. the
   // trailing "More divrei Torah on Special Topics") inside the app, and send
@@ -189,6 +190,8 @@ const ContentScreen: React.FC = () => {
     (entry) => entry.contentId === content.id && entry.status === 'downloading',
   );
 
+  const isSaved = savedItems.some((entry) => entry.contentId === content.id);
+
   // Tapping download kicks off the fetch and stays on the page — progress shows
   // in the Library (the ring) and on this button ("Downloading…"). No automatic
   // jump to the Library tab.
@@ -196,6 +199,18 @@ const ContentScreen: React.FC = () => {
     if (!showDownload) return;
     if (!isDownloaded && !isDownloading) {
       startDownload(content);
+    }
+  };
+
+  // Save keeps a file-less reference in the Library (the only option for video).
+  // A downloaded item is already in the Library, so saving it does nothing;
+  // otherwise the bookmark toggles on/off.
+  const onSave = () => {
+    if (isDownloaded) return;
+    if (isSaved) {
+      removeSaved(content.id);
+    } else {
+      saveContent(content);
     }
   };
 
@@ -281,6 +296,28 @@ const ContentScreen: React.FC = () => {
               </Text>
             </GlassButton>
           ) : null}
+          <GlassButton
+            style={styles.shareButton}
+            contentStyle={styles.shareButtonInner}
+            cornerRadius={radii.pill}
+            variant="regular"
+            disabled={isDownloaded}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isDownloaded
+                ? `${content.title} in Library`
+                : isSaved
+                  ? `Remove ${content.title} from Library`
+                  : `Save ${content.title} to Library`
+            }
+            accessibilityState={{ selected: isSaved || isDownloaded, disabled: isDownloaded }}
+            onPress={onSave}>
+            <Icon
+              name={isSaved || isDownloaded ? 'bookmark.fill' : 'bookmark'}
+              size={18}
+              color={isSaved || isDownloaded ? c.accent : c.text}
+            />
+          </GlassButton>
           <GlassButton
             style={styles.shareButton}
             contentStyle={styles.shareButtonInner}
@@ -479,15 +516,16 @@ const makeStyles = (c: Palette) =>
   },
   actionRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     justifyContent: 'center',
+    // Wrap to a second line on narrow screens now that the cluster can be up to
+    // four controls (Play · Download · Save · Share). gap applies to both axes.
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  // Both buttons render at the same height (40 px) so the row reads as a
-  // single control cluster. `alignItems: stretch` on the row + matching
-  // contentStyle height keeps the Download pill and Share circle aligned
-  // even when the icon/text content differs.
+  // Every control renders at the same 40 px height (set in each contentStyle)
+  // so the row reads as a single control cluster, vertically centered.
   downloadButton: {
     borderRadius: radii.pill,
   },

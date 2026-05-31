@@ -31,6 +31,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     return true
   }
+
+  // iOS calls this when it relaunches the app in the background to deliver
+  // events for a background URLSession — e.g. an audio download (started with
+  // `IOSBackgroundTask: true`, see src/services/download.ts) that finished while
+  // the app was suspended. react-native-blob-util owns the session and its
+  // delegate and exposes no hook to forward this handler to, so the most we can
+  // correctly do is acknowledge the wake-up. Calling the completion handler lets
+  // iOS take a fresh UI snapshot and re-suspend the app promptly (and avoids the
+  // system warning you get for never invoking it). The transfer that's still
+  // in flight resumes and saves via the library once the app is foregrounded.
+  func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    completionHandler()
+  }
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {

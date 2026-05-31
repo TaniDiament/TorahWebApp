@@ -26,6 +26,8 @@ export type IconName =
   | 'xmark'
   | 'plus'
   | 'ellipsis'
+  | 'bookmark'
+  | 'bookmark.fill'
   | 'waveform'
   | 'speedometer'
   | 'speaker.fill'
@@ -65,6 +67,8 @@ const MCI_MAP: Record<IconName, MCIName> = {
   xmark: 'close',
   plus: 'plus',
   ellipsis: 'dots-horizontal',
+  bookmark: 'bookmark-outline',
+  'bookmark.fill': 'bookmark',
   waveform: 'waveform',
   speedometer: 'speedometer',
   'speaker.fill': 'volume-low',

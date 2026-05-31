@@ -1,10 +1,13 @@
 import { Alert, Platform, Share } from 'react-native';
 import RNBlobUtil from 'react-native-blob-util';
 import { api } from './api';
-import { Article, Content, DownloadItem, DownloadKind, isArticle, isAudio } from '../types';
+import { Article, Content, DownloadItem, DownloadKind, SavedItem, isArticle, isAudio } from '../types';
 
 const { fs } = RNBlobUtil;
 const MANIFEST_PATH = `${fs.dirs.DocumentDir}/torahweb-downloads.json`;
+// Saved items are a separate, file-less manifest — references the user keeps in
+// their Library without a download (the only option for video).
+const SAVED_MANIFEST_PATH = `${fs.dirs.DocumentDir}/torahweb-saved.json`;
 const ARTICLE_MIME = 'application/json';
 
 const sanitizeFileName = (value: string) =>
@@ -71,6 +74,56 @@ export const canDownloadContent = (content: Content) => isArticle(content) || is
 export const getDownloadedItems = async (): Promise<DownloadItem[]> => {
   const items = await readManifest();
   return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+};
+
+// --- Saved items -----------------------------------------------------------
+// Saved items live in their own manifest and carry no on-disk file; they're
+// pure references resolved live when opened.
+const readSavedManifest = async (): Promise<SavedItem[]> => {
+  try {
+    const exists = await fs.exists(SAVED_MANIFEST_PATH);
+    if (!exists) return [];
+    const raw = await fs.readFile(SAVED_MANIFEST_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SavedItem[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeSavedManifest = async (items: SavedItem[]) => {
+  await fs.writeFile(SAVED_MANIFEST_PATH, JSON.stringify(items), 'utf8');
+};
+
+const buildSavedItem = (content: Content): SavedItem => ({
+  contentId: content.id,
+  kind: content.kind,
+  title: content.title,
+  authorName: content.author.name,
+  publishedDate: content.publishedDate,
+  artworkUrl: content.author.portraitUrl,
+  savedAt: new Date().toISOString(),
+});
+
+export const getSavedItems = async (): Promise<SavedItem[]> => {
+  const items = await readSavedManifest();
+  return items.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
+};
+
+// Save a reference to the Library. Idempotent (matched by stable contentId);
+// returns the existing entry if it's already saved.
+export const saveContent = async (content: Content): Promise<SavedItem> => {
+  const current = await readSavedManifest();
+  const existing = current.find((entry) => entry.contentId === content.id);
+  if (existing) return existing;
+  const item = buildSavedItem(content);
+  await writeSavedManifest([item, ...current]);
+  return item;
+};
+
+export const removeSavedItem = async (contentId: string): Promise<void> => {
+  const current = await readSavedManifest();
+  await writeSavedManifest(current.filter((entry) => entry.contentId !== contentId));
 };
 
 const buildDownloadItem = (
@@ -211,7 +264,15 @@ export const downloadContent = async (
   // file off to another player).
   if (audioRemote) {
     const destination = `${fs.dirs.DocumentDir}/${baseName}.${audioRemote.extension}`;
-    const task = RNBlobUtil.config({ path: destination }).fetch('GET', audioRemote.url);
+    const task = RNBlobUtil.config({
+      path: destination,
+      // Keep downloading when the app is backgrounded: on iOS this runs the
+      // transfer on a background URLSession, so switching to another app (or
+      // locking the phone) mid-download doesn't pause it. On Android the fetch
+      // already runs off the JS thread and continues while the app is cached in
+      // the background.
+      IOSBackgroundTask: true,
+    }).fetch('GET', audioRemote.url);
     // Throttle native→JS progress events to ~5/sec so a large shiur doesn't
     // spam the bridge / re-render the Library list on every received chunk.
     task.progress({ count: -1, interval: 200 }, (received, total) => {

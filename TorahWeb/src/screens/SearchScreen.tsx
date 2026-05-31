@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,16 +12,22 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { RouteProp } from '@react-navigation/native';
-import { Content, ContentType } from '../types';
+import { Author, Content, ContentType } from '../types';
 import { api } from '../services/api';
 import ArticleCard from '../components/ArticleCard';
+import AuthorButton from '../components/AuthorButton';
 import ErrorView from '../components/ErrorView';
 import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
-import type { HomeStackParamList, SearchStackParamList } from '../navigation/types';
+import type {
+  HomeStackParamList,
+  RootTabParamList,
+  SearchStackParamList,
+} from '../navigation/types';
 import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
 type Filter = ContentType | 'all';
@@ -75,6 +82,41 @@ const SearchScreen: React.FC = () => {
   const [error, setError] = useState(false);
   // Bumped by the retry button to re-run the load effect.
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Authors are loaded once so a free-text query can surface a matching speaker
+  // as a tappable circle above the results (like Home's speaker row).
+  const [authors, setAuthors] = useState<Author[]>([]);
+  useEffect(() => {
+    let active = true;
+    api
+      .getAuthors()
+      .then((list) => {
+        if (active) setAuthors(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Only on a plain free-text search (≥2 chars) — not the scoped author / topic
+  // / parsha browse pages, which are already a single facet.
+  const matchedAuthors = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase();
+    if (q.length < 2 || browseMode || initialAuthorId || initialTopicSlug || initialParshaLabel) {
+      return [];
+    }
+    return authors.filter((a) => a.name.toLowerCase().includes(q)).slice(0, 12);
+  }, [authors, debouncedQuery, browseMode, initialAuthorId, initialTopicSlug, initialParshaLabel]);
+
+  // Open the speaker's full content list. Hop through the parent tab navigator
+  // to the Search tab's root (the same path ContentScreen uses for author
+  // links), so this works from any stack SearchScreen is mounted in.
+  const onAuthorPress = (author: Author) =>
+    navigation.getParent<BottomTabNavigationProp<RootTabParamList>>()?.navigate('SearchTab', {
+      screen: 'SearchRoot',
+      params: { authorId: author.id, title: author.name },
+    });
 
   // Debounce the free-text query so a search (index load + BM25 scoring +
   // hydrating the whole result set) doesn't fire on every keystroke. Discrete
@@ -208,6 +250,28 @@ const SearchScreen: React.FC = () => {
                 ))}
               </View>
             )}
+
+            {/* A query that matches a speaker surfaces them as circles up top,
+                before the article results — the quickest path to their page. */}
+            {matchedAuthors.length > 0 ? (
+              <View style={styles.authorSection}>
+                <Text style={styles.authorHeading}>Speakers</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.authorRow}>
+                  {matchedAuthors.map((author) => (
+                    <AuthorButton
+                      key={author.id}
+                      author={author}
+                      onPress={() => onAuthorPress(author)}
+                      variant="circle"
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
           </View>
         }
         renderItem={({ item }) => (
@@ -323,6 +387,21 @@ const makeStyles = (c: Palette) =>
     gap: spacing.sm,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
+  },
+  authorSection: {
+    marginTop: spacing.md,
+  },
+  authorHeading: {
+    ...typography.footnote,
+    fontWeight: '700',
+    color: c.textTertiary,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+  },
+  authorRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
   },
   chip: {
     paddingHorizontal: spacing.md,

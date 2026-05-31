@@ -138,9 +138,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
   // Whether the speed picker popover is showing over the Now Playing sheet.
   const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
-  // Library state powers the Now Playing download button (icon + disabled), and
+  // Whether the "•••" Save / Download menu is showing over the sheet.
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Library state powers the Now Playing more-menu (save / download state), and
   // device volume drives the under-the-controls volume slider.
-  const { items: downloadedItems, activeDownloads, startDownload } = useDownloads();
+  const { items: downloadedItems, savedItems, activeDownloads, startDownload, saveContent } =
+    useDownloads();
   const { volume, setVolume } = useDeviceVolume(isExpanded);
   // Position/duration come from react-native-track-player's own subscription
   // hook. Polled on the native side at the requested interval; we don't have
@@ -390,6 +393,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // has finished, so the next expand() starts from a clean 0.
     setIsExpanded(false);
     setSpeedMenuOpen(false);
+    setMoreMenuOpen(false);
     translateY.stopAnimation();
     setTimeout(() => translateY.setValue(0), 320);
   }, [translateY]);
@@ -404,6 +408,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setIsPlaying(false);
     setIsExpanded(false);
     setSpeedMenuOpen(false);
+    setMoreMenuOpen(false);
     setSeekOverride(null);
   }, [saveNow]);
 
@@ -497,19 +502,27 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Slider handles its own drag state, so no separate dragPreview is needed.
   const progressRatio = duration > 0 ? Math.min(1, progress / duration) : 0;
 
-  // Now Playing download button state for the current track. `source` is only
-  // present for streamed shiurim (a track started from an already-downloaded
-  // file has nothing left to fetch).
+  // Now Playing more-menu (Save / Download) state for the current track.
+  // `source` is only present for streamed shiurim (a track started from an
+  // already-downloaded file has nothing left to fetch or save).
   const trackId = currentTrack?.id;
   const downloadSource = currentTrack?.source;
   const isTrackDownloaded = !!trackId && downloadedItems.some((d) => d.contentId === trackId);
   const isTrackDownloading =
     !!trackId &&
     activeDownloads.some((a) => a.contentId === trackId && a.status === 'downloading');
+  const isTrackSaved = !!trackId && savedItems.some((s) => s.contentId === trackId);
   const canDownloadTrack = !!downloadSource && !isTrackDownloaded && !isTrackDownloading;
+  // A downloaded item is already in the Library, so saving does nothing.
+  const canSaveTrack = !!downloadSource && !isTrackDownloaded && !isTrackSaved;
   const onDownloadTrack = () => {
     // Stays in the player — no jump to the Library.
+    setMoreMenuOpen(false);
     if (canDownloadTrack && downloadSource) startDownload(downloadSource);
+  };
+  const onSaveTrack = () => {
+    setMoreMenuOpen(false);
+    if (canSaveTrack && downloadSource) saveContent(downloadSource);
   };
 
   return (
@@ -668,7 +681,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   contentStyle={styles.speedButtonInner}
                   cornerRadius={radii.pill}
                   variant="regular"
-                  onPress={() => setSpeedMenuOpen((open) => !open)}
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    setSpeedMenuOpen((open) => !open);
+                  }}
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={`Playback speed ${formatRate(playbackRate)}`}
@@ -718,25 +734,18 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   contentStyle={styles.controlButton}
                   cornerRadius={radii.pill}
                   variant="regular"
-                  onPress={onDownloadTrack}
-                  disabled={!canDownloadTrack}
+                  onPress={() => {
+                    setSpeedMenuOpen(false);
+                    setMoreMenuOpen((open) => !open);
+                  }}
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    isTrackDownloaded
-                      ? 'Downloaded'
-                      : isTrackDownloading
-                        ? 'Downloading'
-                        : `Download ${currentTrack?.title ?? ''}`
-                  }
-                  accessibilityState={{ disabled: !canDownloadTrack, busy: isTrackDownloading }}>
+                  accessibilityLabel="More options"
+                  accessibilityHint="Save or download this shiur"
+                  accessibilityState={{ expanded: moreMenuOpen, busy: isTrackDownloading }}>
                   {isTrackDownloading ? (
                     <ActivityIndicator color={c.text} />
                   ) : (
-                    <SymbolIcon
-                      name={isTrackDownloaded ? 'checkmark' : 'arrow.down.circle.fill'}
-                      size={24}
-                      color={isTrackDownloaded ? c.accent : c.text}
-                    />
+                    <SymbolIcon name="ellipsis" size={24} color={c.text} />
                   )}
                 </GlassButton>
               </View>
@@ -805,6 +814,92 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                             </Pressable>
                           );
                         })}
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Save / Download menu, opened by the "•••" transport button.
+                    Same in-tree popover pattern as the speed picker. */}
+                {moreMenuOpen ? (
+                  <View style={styles.speedMenuLayer} pointerEvents="box-none">
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => setMoreMenuOpen(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss menu"
+                    />
+                    <View style={styles.speedMenu}>
+                      <View style={styles.speedMenuClip}>
+                        <Pressable
+                          onPress={onSaveTrack}
+                          disabled={!canSaveTrack}
+                          accessibilityRole="menuitem"
+                          accessibilityState={{ disabled: !canSaveTrack, selected: isTrackSaved }}
+                          accessibilityLabel={
+                            isTrackSaved || isTrackDownloaded
+                              ? 'Saved to Library'
+                              : 'Save to Library'
+                          }
+                          android_ripple={{ color: c.ripple }}
+                          style={({ pressed }) => [
+                            styles.speedMenuItem,
+                            pressed && canSaveTrack && { backgroundColor: c.surfaceTint },
+                            !canSaveTrack && styles.menuItemDisabled,
+                          ]}>
+                          <View style={styles.moreMenuItemLeft}>
+                            <SymbolIcon
+                              name={isTrackSaved || isTrackDownloaded ? 'bookmark.fill' : 'bookmark'}
+                              size={18}
+                              color={isTrackSaved ? c.accent : c.text}
+                            />
+                            <Text style={styles.speedMenuItemText}>
+                              {isTrackSaved ? 'Saved' : 'Save'}
+                            </Text>
+                          </View>
+                          {isTrackSaved ? (
+                            <SymbolIcon name="checkmark" size={15} color={c.accent} />
+                          ) : null}
+                        </Pressable>
+
+                        <Pressable
+                          onPress={onDownloadTrack}
+                          disabled={!canDownloadTrack}
+                          accessibilityRole="menuitem"
+                          accessibilityState={{
+                            disabled: !canDownloadTrack,
+                            busy: isTrackDownloading,
+                          }}
+                          accessibilityLabel={
+                            isTrackDownloaded
+                              ? 'Downloaded'
+                              : isTrackDownloading
+                                ? 'Downloading'
+                                : 'Download'
+                          }
+                          android_ripple={{ color: c.ripple }}
+                          style={({ pressed }) => [
+                            styles.speedMenuItem,
+                            styles.speedMenuItemDivider,
+                            pressed && canDownloadTrack && { backgroundColor: c.surfaceTint },
+                            !canDownloadTrack && !isTrackDownloading && styles.menuItemDisabled,
+                          ]}>
+                          <View style={styles.moreMenuItemLeft}>
+                            <SymbolIcon
+                              name={isTrackDownloaded ? 'checkmark' : 'arrow.down.circle.fill'}
+                              size={18}
+                              color={isTrackDownloaded ? c.accent : c.text}
+                            />
+                            <Text style={styles.speedMenuItemText}>
+                              {isTrackDownloaded
+                                ? 'Downloaded'
+                                : isTrackDownloading
+                                  ? 'Downloading…'
+                                  : 'Download'}
+                            </Text>
+                          </View>
+                          {isTrackDownloading ? <ActivityIndicator color={c.accent} /> : null}
+                        </Pressable>
                       </View>
                     </View>
                   </View>
@@ -1063,6 +1158,15 @@ const makeStyles = (c: Palette) =>
   speedMenuItemTextSelected: {
     color: c.accent,
     fontWeight: '700',
+  },
+  // Leading icon + label group for the Save / Download menu rows.
+  moreMenuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  menuItemDisabled: {
+    opacity: 0.4,
   },
   // Glass content for the header share/close buttons (the glass material
   // provides the fill, so no backgroundColor here).
