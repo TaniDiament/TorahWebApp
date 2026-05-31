@@ -50,6 +50,12 @@ import { useDeviceVolume } from './useDeviceVolume';
 // Android's Material bottom nav is taller, so it keeps a larger clearance.
 const TAB_BAR_CLEARANCE = Platform.OS === 'ios' ? 56 : 90;
 
+// Scrubber bubble geometry. SCRUB_THUMB_SIZE approximates the slider thumb's
+// diameter so the floating time bubble centers over it; SCRUB_BUBBLE_WIDTH is
+// the bubble's fixed width (a clock like "1:23:45" fits comfortably).
+const SCRUB_THUMB_SIZE = 28;
+const SCRUB_BUBBLE_WIDTH = 72;
+
 export interface AudioTrackPayload {
   id: string;
   url: string;
@@ -164,6 +170,17 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // native player has had a beat to settle (same window as seekingRef).
   const [seekOverride, setSeekOverride] = useState<number | null>(null);
   const progress = seekOverride ?? livePosition;
+
+  // Live scrub state for the Now Playing scrubber: while the user drags the
+  // thumb we show their target instantly (time row + a floating bubble) instead
+  // of waiting for release. `scrubValue` tracks the finger; `scrubWidth` is the
+  // measured track width used to place the bubble over the thumb.
+  const [scrubbing, setScrubbing] = useState(false);
+  const [scrubValue, setScrubValue] = useState(0);
+  const [scrubWidth, setScrubWidth] = useState(0);
+  // What the position UI should read: the finger target while scrubbing, else
+  // live playback.
+  const displayPosition = scrubbing ? scrubValue : progress;
 
   // Latest values mirrored into refs so the save callbacks (interval / app
   // background / event listener) read current data without re-subscribing.
@@ -502,6 +519,17 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Slider handles its own drag state, so no separate dragPreview is needed.
   const progressRatio = duration > 0 ? Math.min(1, progress / duration) : 0;
 
+  // Horizontal position for the scrub-time bubble: center it over the thumb,
+  // which travels from THUMB/2 to (trackWidth − THUMB/2) across the track, then
+  // clamp so the bubble never spills past either edge.
+  const scrubRatio = duration > 0 ? Math.min(1, Math.max(0, scrubValue / duration)) : 0;
+  const scrubThumbCenter =
+    SCRUB_THUMB_SIZE / 2 + scrubRatio * Math.max(0, scrubWidth - SCRUB_THUMB_SIZE);
+  const scrubBubbleLeft = Math.min(
+    Math.max(0, scrubThumbCenter - SCRUB_BUBBLE_WIDTH / 2),
+    Math.max(0, scrubWidth - SCRUB_BUBBLE_WIDTH),
+  );
+
   // Now Playing more-menu (Save / Download) state for the current track.
   // `source` is only present for streamed shiurim (a track started from an
   // already-downloaded file has nothing left to fetch or save).
@@ -659,20 +687,47 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Text numberOfLines={1} style={styles.sheetArtist}>{currentTrack?.artist}</Text>
               </View>
 
-              <Slider
-                style={styles.sheetSlider}
-                minimumValue={0}
-                maximumValue={Math.max(1, duration)}
-                value={progress}
-                minimumTrackTintColor={c.accent}
-                maximumTrackTintColor={c.separator}
-                thumbTintColor={c.accent}
-                onSlidingComplete={commitSeek}
-                accessibilityLabel="Playback position"
-              />
+              <View
+                style={styles.sliderWrap}
+                onLayout={(e) => setScrubWidth(e.nativeEvent.layout.width)}>
+                {/* Floating time bubble that tracks the thumb while scrubbing,
+                    Apple-Podcasts style. pointerEvents none so it never steals
+                    the drag. */}
+                {scrubbing ? (
+                  <View
+                    pointerEvents="none"
+                    style={[styles.scrubBubble, { left: scrubBubbleLeft }]}>
+                    <Text style={styles.scrubBubbleText}>{formatClock(scrubValue)}</Text>
+                  </View>
+                ) : null}
+                <Slider
+                  style={styles.sheetSlider}
+                  minimumValue={0}
+                  maximumValue={Math.max(1, duration)}
+                  // While dragging, follow the finger (scrubValue) so live
+                  // playback ticks don't fight the thumb; otherwise track
+                  // playback position.
+                  value={scrubbing ? scrubValue : progress}
+                  minimumTrackTintColor={c.accent}
+                  maximumTrackTintColor={c.separator}
+                  thumbTintColor={c.accent}
+                  onSlidingStart={(v) => {
+                    setScrubValue(v);
+                    setScrubbing(true);
+                  }}
+                  onValueChange={(v) => setScrubValue(v)}
+                  onSlidingComplete={(v) => {
+                    setScrubbing(false);
+                    commitSeek(v);
+                  }}
+                  accessibilityLabel="Playback position"
+                />
+              </View>
               <View style={styles.sheetTimeRow}>
-                <Text style={styles.sheetTime}>{formatClock(progress)}</Text>
-                <Text style={styles.sheetTime}>-{formatClock(Math.max(0, duration - progress))}</Text>
+                <Text style={styles.sheetTime}>{formatClock(displayPosition)}</Text>
+                <Text style={styles.sheetTime}>
+                  -{formatClock(Math.max(0, duration - displayPosition))}
+                </Text>
               </View>
 
               {/* Transport: speed · back 15 · play/pause · forward 30 · download */}
@@ -1045,12 +1100,38 @@ const makeStyles = (c: Palette) =>
     color: c.textSecondary,
     textAlign: 'center',
   },
+  // Holds the slider plus the absolutely-positioned scrub bubble above it.
+  sliderWrap: {
+    width: '100%',
+  },
   sheetSlider: {
     width: '100%',
     height: 32,
     // Inset matches the previous hit area, keeping the thumb clear of
     // Android's left-edge back-swipe zone at progress=0.
     marginHorizontal: 0,
+  },
+  // Floating time tooltip shown above the thumb while scrubbing. `left` is set
+  // at runtime to track the thumb; it overflows the wrap upward (no clip).
+  scrubBubble: {
+    position: 'absolute',
+    top: -34,
+    width: SCRUB_BUBBLE_WIDTH,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.border,
+    zIndex: 10,
+    ...shadows.floating,
+  },
+  scrubBubbleText: {
+    ...typography.footnote,
+    fontWeight: '700',
+    color: c.text,
+    fontVariant: ['tabular-nums'],
   },
   sheetTimeRow: {
     flexDirection: 'row',
