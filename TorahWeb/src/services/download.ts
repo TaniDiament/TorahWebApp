@@ -172,60 +172,77 @@ const resolveFullArticle = async (article: Article): Promise<Article> => {
   return article;
 };
 
-export const downloadContent = async (content: Content): Promise<DownloadItem | null> => {
+export interface DownloadOptions {
+  // Reports download progress as a 0..1 ratio, or null when the total size
+  // isn't known (article snapshots, or audio whose server omits
+  // Content-Length) — callers should show an indeterminate indicator for null.
+  onProgress?: (ratio: number | null) => void;
+}
+
+// Drives the actual fetch/write. Progress is surfaced through `onProgress`
+// rather than the old fire-and-wait Alerts — the DownloadsProvider now owns the
+// user-facing feedback (live progress in the Library, an alert only on
+// failure), so this resolves with the saved DownloadItem and *throws* on error
+// so the caller can mark the in-flight download as failed.
+export const downloadContent = async (
+  content: Content,
+  options?: DownloadOptions,
+): Promise<DownloadItem | null> => {
   const audioRemote = getAudioRemote(content);
   const baseName = sanitizeFileName(content.title) || content.id;
 
-  try {
-    // If this content (matched by stable contentId, not the per-download id)
-    // is already in the manifest AND the file is still on disk, surface a
-    // friendly notice and reuse the existing entry instead of re-fetching.
-    // Stale manifest rows whose files have been deleted out-of-band are
-    // skipped so the user can recover by triggering a fresh download.
-    const existing = (await readManifest()).find((entry) => entry.contentId === content.id);
-    if (existing && (await fs.exists(existing.filePath))) {
-      Alert.alert('Already downloaded', `"${content.title}" is already in your Library.`);
-      return existing;
-    }
-
-    // --- Audio ---------------------------------------------------------------
-    // Audio is kept entirely inside app-private storage on both platforms so
-    // the OS file picker / Files app can't see it and so playback can only
-    // happen through the in-app TrackPlayer. We deliberately bypass Android's
-    // DownloadManager (which would publish the file to the public Downloads
-    // collection) and skip the iOS Share sheet (which would let the user hand
-    // the file off to another player).
-    if (audioRemote) {
-      const destination = `${fs.dirs.DocumentDir}/${baseName}.${audioRemote.extension}`;
-      await RNBlobUtil.config({ path: destination }).fetch('GET', audioRemote.url);
-
-      const item = buildDownloadItem(content, destination, audioRemote.mime, audioRemote.url);
-      await saveDownloadedItem(item);
-      Alert.alert('Saved to Library', 'Find it in the Library tab.');
-      return item;
-    }
-
-    // --- Article (divrei torah) ---------------------------------------------
-    // Articles are saved as a JSON snapshot of the canonical Article so that
-    // the in-app reader can render them offline with full topics / parsha
-    // label / author portrait. Snapshots live in DocumentDir on both
-    // platforms — they're meant for in-app consumption, not for the user's
-    // Files app or for another reader.
-    if (isArticle(content)) {
-      const full = await resolveFullArticle(content);
-      const path = await writeArticleSnapshot(full, fs.dirs.DocumentDir);
-      const item = buildDownloadItem(full, path, ARTICLE_MIME, full.url);
-      await saveDownloadedItem(item);
-      Alert.alert('Saved to Library', 'Find it in the Library tab.');
-      return item;
-    }
-
-    // --- Anything else (currently unreachable: canDownloadContent gates) ---
-    Alert.alert('Not downloadable', 'This content type cannot be saved offline.');
-    return null;
-  } catch (error) {
-    console.error('Download failed:', error);
-    Alert.alert('Download failed', 'Please try again in a moment.');
-    return null;
+  // If this content (matched by stable contentId, not the per-download id) is
+  // already in the manifest AND the file is still on disk, reuse the existing
+  // entry instead of re-fetching. Stale manifest rows whose files have been
+  // deleted out-of-band are skipped so the user can recover by triggering a
+  // fresh download.
+  const existing = (await readManifest()).find((entry) => entry.contentId === content.id);
+  if (existing && (await fs.exists(existing.filePath))) {
+    options?.onProgress?.(1);
+    return existing;
   }
+
+  // --- Audio -----------------------------------------------------------------
+  // Audio is kept entirely inside app-private storage on both platforms so the
+  // OS file picker / Files app can't see it and so playback can only happen
+  // through the in-app TrackPlayer. We deliberately bypass Android's
+  // DownloadManager (which would publish the file to the public Downloads
+  // collection) and skip the iOS Share sheet (which would let the user hand the
+  // file off to another player).
+  if (audioRemote) {
+    const destination = `${fs.dirs.DocumentDir}/${baseName}.${audioRemote.extension}`;
+    const task = RNBlobUtil.config({ path: destination }).fetch('GET', audioRemote.url);
+    // Throttle native→JS progress events to ~5/sec so a large shiur doesn't
+    // spam the bridge / re-render the Library list on every received chunk.
+    task.progress({ count: -1, interval: 200 }, (received, total) => {
+      const r = Number(received);
+      const t = Number(total);
+      options?.onProgress?.(t > 0 ? Math.min(1, r / t) : null);
+    });
+    await task;
+
+    const item = buildDownloadItem(content, destination, audioRemote.mime, audioRemote.url);
+    await saveDownloadedItem(item);
+    options?.onProgress?.(1);
+    return item;
+  }
+
+  // --- Article (divrei torah) ------------------------------------------------
+  // Articles are saved as a JSON snapshot of the canonical Article so that the
+  // in-app reader can render them offline with full topics / parsha label /
+  // author portrait. The fetch+write is quick and has no byte-progress, so we
+  // report `null` (indeterminate) until it completes.
+  if (isArticle(content)) {
+    options?.onProgress?.(null);
+    const full = await resolveFullArticle(content);
+    const path = await writeArticleSnapshot(full, fs.dirs.DocumentDir);
+    const item = buildDownloadItem(full, path, ARTICLE_MIME, full.url);
+    await saveDownloadedItem(item);
+    options?.onProgress?.(1);
+    return item;
+  }
+
+  // --- Anything else (currently unreachable: canDownloadContent gates) -------
+  Alert.alert('Not downloadable', 'This content type cannot be saved offline.');
+  return null;
 };

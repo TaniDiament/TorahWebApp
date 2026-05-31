@@ -22,6 +22,7 @@ export type IconName =
   | 'chevron.left'
   | 'chevron.right'
   | 'chevron.down'
+  | 'checkmark'
   | 'xmark'
   | 'plus'
   | 'ellipsis'
@@ -58,6 +59,7 @@ const MCI_MAP: Record<IconName, MCIName> = {
   'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
   'chevron.down': 'chevron-down',
+  checkmark: 'check',
   xmark: 'close',
   plus: 'plus',
   ellipsis: 'dots-horizontal',

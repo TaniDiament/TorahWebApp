@@ -14,6 +14,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -33,7 +34,7 @@ import TrackPlayer, {
   useProgress,
 } from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassSurface } from '../components/ui/Glass';
 import SymbolIcon from '../components/ui/SymbolIcon';
 import { playbackPositions } from './playbackPositions';
@@ -51,6 +52,10 @@ export interface AudioTrackPayload {
   title: string;
   artist: string;
   artworkUrl?: string;
+  // Canonical torahweb.org/content/<kind>/<id> link, used by the Now Playing
+  // sheet's share button. Optional so a track can still play if a caller can't
+  // build one; the share button is hidden when it's absent.
+  shareUrl?: string;
 }
 
 interface AudioPlayerContextValue {
@@ -64,7 +69,6 @@ interface AudioPlayerContextValue {
   playTrack: (track: AudioTrackPayload) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekBy: (deltaSeconds: number) => Promise<void>;
-  cyclePlaybackRate: () => Promise<void>;
   expand: () => void;
   collapse: () => void;
   close: () => Promise<void>;
@@ -124,10 +128,22 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
+  // Whether the speed picker popover is showing over the Now Playing sheet.
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
   // Position/duration come from react-native-track-player's own subscription
   // hook. Polled on the native side at the requested interval; we don't have
   // to maintain a setInterval here.
-  const { position: livePosition, duration } = useProgress(1000);
+  //
+  // The poll interval is wall-clock, but the displayed clock advances in *media*
+  // seconds, which at faster speeds tick by quicker than once per real second.
+  // A flat 1 s poll would make the readout skip (0:00 → 0:02 → 0:04 at 2×), so
+  // we shrink the interval in proportion to the rate: ~2 samples per displayed
+  // second (500 ms / rate) guarantees every whole second shows at any speed.
+  // Capped at 120 ms so an extreme rate can't spin the bridge. Changing the
+  // interval only restarts polling — useProgress doesn't reset position — so
+  // there's no 0:00 flicker when the speed changes.
+  const progressInterval = Math.max(120, Math.round(500 / Math.max(playbackRate, 1)));
+  const { position: livePosition, duration } = useProgress(progressInterval);
   // Holds a just-issued seek target so the UI shows it instantly instead of
   // waiting for the next useProgress tick to catch up. Cleared after the
   // native player has had a beat to settle (same window as seekingRef).
@@ -323,20 +339,18 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [currentTrack, duration],
   );
 
-  // Advance to the next preset speed and apply it. We only push the rate to the
-  // native player when it's actively playing: setting a non-zero rate on a
-  // paused iOS AVPlayer would start playback. When paused we just remember the
-  // choice (state/ref + disk) and let the next play() apply it via
-  // applyRateToPlayer, so changing speed never resumes a paused shiur.
-  const cyclePlaybackRate = useCallback(async () => {
-    const idx = PLAYBACK_RATES.indexOf(rateRef.current as (typeof PLAYBACK_RATES)[number]);
-    const next = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
-    rateRef.current = next;
-    setPlaybackRate(next);
-    playbackRateStore.save(next);
+  // Select a specific playback speed and remember it (state/ref + disk). We only
+  // push the rate to the native player when it's actively playing: setting a
+  // non-zero rate on a paused iOS AVPlayer would start playback. When paused we
+  // just store the choice and let the next play() apply it via applyRateToPlayer,
+  // so changing speed never resumes a paused shiur.
+  const applyRate = useCallback(async (rate: number) => {
+    rateRef.current = rate;
+    setPlaybackRate(rate);
+    playbackRateStore.save(rate);
     try {
       if ((await TrackPlayer.getState()) === State.Playing) {
-        await TrackPlayer.setRate(next);
+        await TrackPlayer.setRate(rate);
       }
     } catch {
       // No player yet / transient native error — the rate is stored and will
@@ -363,6 +377,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // We defer the translateY reset until well after the Modal's slide
     // has finished, so the next expand() starts from a clean 0.
     setIsExpanded(false);
+    setSpeedMenuOpen(false);
     translateY.stopAnimation();
     setTimeout(() => translateY.setValue(0), 320);
   }, [translateY]);
@@ -376,8 +391,27 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentTrack(null);
     setIsPlaying(false);
     setIsExpanded(false);
+    setSpeedMenuOpen(false);
     setSeekOverride(null);
   }, [saveNow]);
+
+  // Share the canonical content link for the now-playing track — the same
+  // deep-linking torahweb.org/content/<kind>/<id> URL the ContentScreen shares,
+  // so a recipient lands back on this shiur. Reads the ref so its identity is
+  // stable. No-op (and the button is hidden) when the track carries no link.
+  const shareCurrent = useCallback(async () => {
+    const track = currentTrackRef.current;
+    if (!track?.shareUrl) return;
+    const message = `${track.title}\n${track.artist}\n\n${track.shareUrl}`;
+    try {
+      // `url` is iOS-only; Android reads `message`. Include both so iOS gets a
+      // previewable link attachment and Android still ships the URL in-line.
+      await Share.share({ title: track.title, message, url: track.shareUrl });
+    } catch {
+      // User dismissed the sheet or the platform rejected the payload —
+      // nothing actionable to surface.
+    }
+  }, []);
 
   // Commits a slider seek and briefly suppresses the next PlaybackState
   // event so the play/pause icon doesn't flicker through the transient
@@ -440,12 +474,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       playTrack,
       togglePlayPause,
       seekBy,
-      cyclePlaybackRate,
       expand,
       collapse,
       close,
     }),
-    [collapse, close, currentTrack, cyclePlaybackRate, duration, expand, isExpanded, isPlaying, loading, playbackRate, playTrack, progress, seekBy, togglePlayPause],
+    [collapse, close, currentTrack, duration, expand, isExpanded, isPlaying, loading, playbackRate, playTrack, progress, seekBy, togglePlayPause],
   );
 
   // Mini-player fill bar uses the same `progress` value as the sheet slider;
@@ -536,6 +569,24 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
               ]}>
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeader}>
+                {currentTrack?.shareUrl ? (
+                  <Pressable
+                    onPress={shareCurrent}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Share ${currentTrack.title}`}
+                    android_ripple={{ color: c.ripple, borderless: true }}
+                    style={({ pressed }) => [
+                      styles.sheetHeaderButton,
+                      pressed && { opacity: 0.6 },
+                    ]}>
+                    <SymbolIcon name="square.and.arrow.up" size={20} color={c.text} />
+                  </Pressable>
+                ) : (
+                  // Invisible spacer the same size as a header button, so the
+                  // eyebrow stays centered between the corners with no link.
+                  <View style={styles.sheetHeaderSpacer} />
+                )}
                 <Text style={styles.sheetEyebrow}>Now Playing</Text>
                 <Pressable
                   onPress={close}
@@ -544,7 +595,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   accessibilityLabel="Close player"
                   android_ripple={{ color: c.ripple, borderless: true }}
                   style={({ pressed }) => [
-                    styles.sheetCloseButton,
+                    styles.sheetHeaderButton,
                     pressed && { opacity: 0.6 },
                   ]}>
                   <SymbolIcon name="xmark" size={20} color={c.text} />
@@ -620,11 +671,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
               <View style={styles.speedRow}>
                 <Pressable
-                  onPress={cyclePlaybackRate}
+                  onPress={() => setSpeedMenuOpen((open) => !open)}
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={`Playback speed ${formatRate(playbackRate)}`}
-                  accessibilityHint="Cycles through playback speeds"
+                  accessibilityHint="Opens a list of playback speeds to choose from"
+                  accessibilityState={{ expanded: speedMenuOpen }}
                   android_ripple={{ color: c.ripple, borderless: false }}
                   style={({ pressed }) => [
                     styles.speedChip,
@@ -636,6 +688,60 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
               </View>
 
                 </GlassSurface>
+
+                {/* Speed picker popover. Rendered in-tree (not a nested Modal /
+                    ActionSheetIOS, which present unreliably over an open RN
+                    Modal on iOS) and after the sheet so it layers on top. The
+                    full-screen backdrop catches an outside tap to dismiss. */}
+                {speedMenuOpen ? (
+                  <View style={styles.speedMenuLayer} pointerEvents="box-none">
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => setSpeedMenuOpen(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss playback speed menu"
+                    />
+                    <View
+                      style={[
+                        styles.speedMenu,
+                        { marginBottom: Math.max(insets.bottom, spacing.lg) + 68 },
+                      ]}>
+                      <View style={styles.speedMenuClip}>
+                        {PLAYBACK_RATES.map((rate, i) => {
+                          const selected = rate === playbackRate;
+                          return (
+                            <Pressable
+                              key={rate}
+                              onPress={() => {
+                                applyRate(rate);
+                                setSpeedMenuOpen(false);
+                              }}
+                              accessibilityRole="menuitem"
+                              accessibilityState={{ selected }}
+                              accessibilityLabel={`${formatRate(rate)}${selected ? ', selected' : ''}`}
+                              android_ripple={{ color: c.ripple }}
+                              style={({ pressed }) => [
+                                styles.speedMenuItem,
+                                i > 0 && styles.speedMenuItemDivider,
+                                pressed && { backgroundColor: c.surfaceTint },
+                              ]}>
+                              <Text
+                                style={[
+                                  styles.speedMenuItemText,
+                                  selected && styles.speedMenuItemTextSelected,
+                                ]}>
+                                {formatRate(rate)}
+                              </Text>
+                              {selected ? (
+                                <SymbolIcon name="checkmark" size={15} color={c.accent} />
+                              ) : null}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
               </Animated.View>
             </GestureDetector>
           </GestureHandlerRootView>
@@ -815,6 +921,50 @@ const makeStyles = (c: Palette) =>
     // Keep the chip from reflowing as the digit count changes (1× → 1.25×).
     fontVariant: ['tabular-nums'],
   },
+  // Full-screen layer over the sheet that hosts the speed popover. box-none so
+  // the dismiss backdrop and the menu receive touches but the layer itself
+  // doesn't swallow anything else.
+  speedMenuLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  // The floating card. Shadow + rounded background live here; corner clipping of
+  // the item press highlights is done by speedMenuClip so the shadow isn't
+  // masked away on iOS (a view can't both clip its bounds and cast a shadow).
+  speedMenu: {
+    minWidth: 184,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.border,
+    ...shadows.floating,
+  },
+  speedMenuClip: {
+    borderRadius: radii.md,
+    overflow: 'hidden',
+  },
+  speedMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+  },
+  speedMenuItemDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.separator,
+  },
+  speedMenuItemText: {
+    ...typography.body,
+    color: c.text,
+    fontVariant: ['tabular-nums'],
+  },
+  speedMenuItemTextSelected: {
+    color: c.accent,
+    fontWeight: '700',
+  },
   skipButton: {
     width: 64,
     height: 64,
@@ -832,12 +982,16 @@ const makeStyles = (c: Palette) =>
     // might overlay around the circle so it reads as a single navy disc.
     overflow: 'hidden',
   },
-  sheetCloseButton: {
+  sheetHeaderButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     backgroundColor: c.surfaceTint,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sheetHeaderSpacer: {
+    width: 36,
+    height: 36,
   },
 });

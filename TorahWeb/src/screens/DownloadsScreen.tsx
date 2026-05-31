@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,13 +17,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { DownloadItem } from '../types';
 import type { LibraryStackParamList } from '../navigation/types';
 import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
-import {
-  getDownloadedItems,
-  loadDownloadedArticle,
-  openDownloadedItem,
-  removeDownloadedItem,
-} from '../services/download';
+import { loadDownloadedArticle, openDownloadedItem } from '../services/download';
+import { ActiveDownload, useDownloads } from '../downloads/DownloadsProvider';
 import Icon from '../components/ui/Icon';
+import CircularProgress from '../components/ui/CircularProgress';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
 import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
@@ -31,6 +28,11 @@ type Nav = NativeStackNavigationProp<LibraryStackParamList, 'Library'>;
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+// The Library list interleaves in-flight downloads (top) with completed ones.
+type LibraryRow =
+  | { type: 'active'; key: string; download: ActiveDownload }
+  | { type: 'done'; key: string; item: DownloadItem };
 
 interface DownloadRowProps {
   item: DownloadItem;
@@ -42,6 +44,84 @@ const kindIcon = (kind: string) => {
   if (kind === 'audio') return 'waveform';
   if (kind === 'video') return 'video.fill';
   return 'doc.text.fill';
+};
+
+// A still-downloading (or just-failed) row: same layout as a completed row but
+// with a live progress ring where the chevron would be, Apple-Podcasts style.
+interface ActiveDownloadRowProps {
+  download: ActiveDownload;
+  onDismiss: (contentId: string) => void;
+}
+
+const ActiveDownloadRow: React.FC<ActiveDownloadRowProps> = ({ download, onDismiss }) => {
+  const c = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const failed = download.status === 'error';
+  // Indeterminate (article snapshot / unknown size) shows a spinner; a known
+  // ratio drives the ring.
+  const indeterminate = download.progress == null;
+
+  const body = (
+    <>
+      {download.artworkUrl ? (
+        <Image source={{ uri: download.artworkUrl }} style={styles.portrait} />
+      ) : (
+        <View style={styles.kindBadge}>
+          <Icon name={kindIcon(download.kind) as any} size={20} color={c.textInverse} />
+        </View>
+      )}
+      <View style={styles.body}>
+        <Text style={styles.kind}>{download.kind.toUpperCase()}</Text>
+        <Text style={styles.title} numberOfLines={2}>{download.title}</Text>
+        <Text style={[styles.meta, failed && styles.metaError]} numberOfLines={1}>
+          {failed
+            ? 'Download failed · Tap to dismiss'
+            : indeterminate
+              ? 'Downloading…'
+              : `Downloading · ${Math.round((download.progress ?? 0) * 100)}%`}
+        </Text>
+      </View>
+      <View style={styles.progressWrap}>
+        {failed ? (
+          <Icon name="exclamationmark.triangle" size={22} color={c.destructive} />
+        ) : indeterminate ? (
+          <ActivityIndicator color={c.accent} />
+        ) : (
+          <CircularProgress
+            size={26}
+            strokeWidth={3}
+            progress={download.progress ?? 0}
+            color={c.accent}
+            trackColor={c.separator}
+            innerColor={c.surface}
+          />
+        )}
+      </View>
+    </>
+  );
+
+  // Only a failed row is interactive (tap to clear it); an in-flight row just
+  // shows progress.
+  if (failed) {
+    return (
+      <Pressable
+        onPress={() => onDismiss(download.contentId)}
+        accessibilityRole="button"
+        accessibilityLabel={`Dismiss failed download ${download.title}`}
+        android_ripple={{ color: c.ripple, borderless: false }}
+        style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
+        {body}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      accessibilityLabel={`Downloading ${download.title}, ${Math.round((download.progress ?? 0) * 100)} percent`}
+      style={styles.row}>
+      {body}
+    </View>
+  );
 };
 
 const DownloadRow: React.FC<DownloadRowProps> = ({ item, onOpen, onDelete }) => {
@@ -132,8 +212,7 @@ const DownloadsScreen: React.FC = () => {
   const chrome = useScreenChromeInsets();
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const [items, setItems] = useState<DownloadItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, activeDownloads, loading, refresh, removeItem, dismissActive } = useDownloads();
   const [refreshing, setRefreshing] = useState(false);
   const { playTrack, expand } = useAudioPlayer();
 
@@ -175,34 +254,32 @@ const DownloadsScreen: React.FC = () => {
     [expand, navigation, playTrack],
   );
 
-  const load = useCallback(async () => {
-    const next = await getDownloadedItems();
-    setItems(next);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await load();
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [load]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await load();
+      await refresh();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const onRemove = async (item: DownloadItem) => {
-    await removeDownloadedItem(item);
-    await load();
-  };
+  // Active downloads ride at the top so a just-tapped item is the first thing
+  // the user sees when they land on the Library; completed downloads follow.
+  // A content id that's still active is filtered out of the completed list so
+  // the handoff at completion never momentarily shows the same item twice.
+  const rows = useMemo<LibraryRow[]>(() => {
+    const activeIds = new Set(activeDownloads.map((d) => d.contentId));
+    return [
+      ...activeDownloads.map((download) => ({
+        type: 'active' as const,
+        key: `active-${download.contentId}`,
+        download,
+      })),
+      ...items
+        .filter((item) => !activeIds.has(item.contentId))
+        .map((item) => ({ type: 'done' as const, key: item.id, item })),
+    ];
+  }, [activeDownloads, items]);
 
   if (loading) {
     return (
@@ -215,8 +292,8 @@ const DownloadsScreen: React.FC = () => {
   return (
     <FlatList
       style={styles.container}
-      data={items}
-      keyExtractor={(item) => item.id}
+      data={rows}
+      keyExtractor={(row) => row.key}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={[
         styles.listContent,
@@ -225,12 +302,20 @@ const DownloadsScreen: React.FC = () => {
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.largeTitle}>Library</Text>
-          <Text style={styles.subtitle}>{items.length} downloaded</Text>
+          <Text style={styles.subtitle}>
+            {activeDownloads.length > 0
+              ? `${activeDownloads.length} downloading · ${items.length} downloaded`
+              : `${items.length} downloaded`}
+          </Text>
         </View>
       }
-      renderItem={({ item }) => (
-        <DownloadRow item={item} onOpen={onOpen} onDelete={onRemove} />
-      )}
+      renderItem={({ item: row }) =>
+        row.type === 'active' ? (
+          <ActiveDownloadRow download={row.download} onDismiss={dismissActive} />
+        ) : (
+          <DownloadRow item={row.item} onOpen={onOpen} onDelete={removeItem} />
+        )
+      }
       ListEmptyComponent={
         <View style={styles.emptyWrap}>
           <Icon name="rectangle.stack.fill" size={56} color={c.textTertiary} />
@@ -317,6 +402,17 @@ const makeStyles = (c: Palette) =>
     ...typography.subheadline,
     color: c.textSecondary,
     marginTop: 2,
+  },
+  metaError: {
+    color: c.destructive,
+  },
+  // Fixed-width slot so the progress ring sits exactly where the completed
+  // row's chevron does, keeping the two row types visually aligned.
+  progressWrap: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   swipeActionWrap: {
     justifyContent: 'center',

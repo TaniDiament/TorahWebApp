@@ -24,7 +24,8 @@ import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import ErrorView from '../components/ErrorView';
 import { api } from '../services/api';
-import { canDownloadContent, downloadContent } from '../services/download';
+import { canDownloadContent } from '../services/download';
+import { useDownloads } from '../downloads/DownloadsProvider';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { HomeStackParamList, RootTabParamList } from '../navigation/types';
 import { contentShareUrl, resolveInternalLink } from '../navigation/links';
@@ -57,7 +58,7 @@ const ContentScreen: React.FC = () => {
   // network/throw (retryable), 'missing' is a 404/null (the item is gone).
   const [loadFailed, setLoadFailed] = useState<'error' | 'missing' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [downloading, setDownloading] = useState(false);
+  const { items, activeDownloads, startDownload } = useDownloads();
 
   // Links inside an article body: keep torahweb.org section links (e.g. the
   // trailing "More divrei Torah on Special Topics") inside the app, and send
@@ -181,14 +182,31 @@ const ContentScreen: React.FC = () => {
   const showDownload = canDownloadContent(content);
   const artwork = content.author.portraitUrl;
 
-  const onDownload = async () => {
-    if (downloading || !showDownload) return;
-    setDownloading(true);
-    try {
-      await downloadContent(content);
-    } finally {
-      setDownloading(false);
+  // Reflect the live download state on the button: already on disk, fetching
+  // right now, or available to start.
+  const isDownloaded = items.some((entry) => entry.contentId === content.id);
+  const isDownloading = activeDownloads.some(
+    (entry) => entry.contentId === content.id && entry.status === 'downloading',
+  );
+
+  // Jump straight to the Library tab (its root list). ContentScreen lives in
+  // several tab stacks, so we hop through the parent tab navigator — the same
+  // pattern the in-article link router uses below.
+  const goToLibrary = () => {
+    navigation
+      .getParent<BottomTabNavigationProp<RootTabParamList>>()
+      ?.navigate('LibraryTab', { screen: 'Library' });
+  };
+
+  // Apple-Podcasts behavior: tapping download kicks off the fetch and takes the
+  // user straight to the Library, where the item shows a live progress ring. If
+  // it's already downloaded or in flight, just show them where it is.
+  const onDownload = () => {
+    if (!showDownload) return;
+    if (!isDownloaded && !isDownloading) {
+      startDownload(content);
     }
+    goToLibrary();
   };
 
   const onShare = async () => {
@@ -243,6 +261,7 @@ const ContentScreen: React.FC = () => {
               title={content.title}
               authorName={content.author.name}
               artworkUrl={content.author.portraitUrl}
+              shareUrl={contentShareUrl(content)}
             />
           ) : null}
           {showDownload ? (
@@ -251,18 +270,23 @@ const ContentScreen: React.FC = () => {
               contentStyle={styles.downloadButtonInner}
               cornerRadius={radii.pill}
               tint={c.navy}
-              disabled={downloading}
               accessibilityRole="button"
-              accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
-              accessibilityState={{ disabled: downloading, busy: downloading }}
+              accessibilityLabel={
+                isDownloaded
+                  ? `${content.title} in Library`
+                  : isDownloading
+                    ? 'Downloading'
+                    : `Download ${content.title}`
+              }
+              accessibilityState={{ busy: isDownloading }}
               onPress={onDownload}>
               <Icon
-                name="arrow.down.circle.fill"
+                name={isDownloaded ? 'checkmark' : 'arrow.down.circle.fill'}
                 size={18}
                 color={c.textInverse}
               />
               <Text style={styles.downloadText}>
-                {downloading ? 'Downloading…' : 'Download'}
+                {isDownloaded ? 'In Library' : isDownloading ? 'Downloading…' : 'Download'}
               </Text>
             </GlassButton>
           ) : null}

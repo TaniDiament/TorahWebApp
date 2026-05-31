@@ -11,6 +11,8 @@ interface AudioPlayerProps {
   title: string;
   authorName: string;
   artworkUrl?: string;
+  // Canonical content link, forwarded to the Now Playing sheet's share button.
+  shareUrl?: string;
 }
 
 // Renders only the primary play / pause / resume control as a pill, sized to
@@ -24,6 +26,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   title,
   authorName,
   artworkUrl,
+  shareUrl,
 }) => {
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -67,6 +70,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         title,
         artist: authorName,
         artworkUrl,
+        shareUrl,
       });
     } catch (err) {
       const message =
