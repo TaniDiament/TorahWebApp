@@ -3,6 +3,7 @@ import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme';
 import { AudioPlayerProvider } from './src/audio/AudioPlayerProvider';
+import { DownloadsProvider } from './src/downloads/DownloadsProvider';
 import OfflineBanner from './src/components/OfflineBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -11,17 +12,19 @@ const Shell: React.FC = () => {
   const c = useTheme();
   const scheme = useColorScheme();
   return (
-    <AudioPlayerProvider>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: c.background }]}
-        edges={['top']}>
-        <OfflineBanner />
-        <View style={styles.body}>
-          <AppNavigator />
-        </View>
-      </SafeAreaView>
-    </AudioPlayerProvider>
+    <DownloadsProvider>
+      <AudioPlayerProvider>
+        <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+        <SafeAreaView
+          style={[styles.container, { backgroundColor: c.background }]}
+          edges={['top']}>
+          <OfflineBanner />
+          <View style={styles.body}>
+            <AppNavigator />
+          </View>
+        </SafeAreaView>
+      </AudioPlayerProvider>
+    </DownloadsProvider>
   );
 };
 

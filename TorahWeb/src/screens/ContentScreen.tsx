@@ -24,7 +24,8 @@ import { GlassButton } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import ErrorView from '../components/ErrorView';
 import { api } from '../services/api';
-import { canDownloadContent, downloadContent } from '../services/download';
+import { canDownloadContent } from '../services/download';
+import { useDownloads } from '../downloads/DownloadsProvider';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { HomeStackParamList, RootTabParamList } from '../navigation/types';
 import { contentShareUrl, resolveInternalLink } from '../navigation/links';
@@ -57,7 +58,8 @@ const ContentScreen: React.FC = () => {
   // network/throw (retryable), 'missing' is a 404/null (the item is gone).
   const [loadFailed, setLoadFailed] = useState<'error' | 'missing' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [downloading, setDownloading] = useState(false);
+  const { items, savedItems, activeDownloads, startDownload, saveContent, removeSaved } =
+    useDownloads();
 
   // Links inside an article body: keep torahweb.org section links (e.g. the
   // trailing "More divrei Torah on Special Topics") inside the app, and send
@@ -181,13 +183,34 @@ const ContentScreen: React.FC = () => {
   const showDownload = canDownloadContent(content);
   const artwork = content.author.portraitUrl;
 
-  const onDownload = async () => {
-    if (downloading || !showDownload) return;
-    setDownloading(true);
-    try {
-      await downloadContent(content);
-    } finally {
-      setDownloading(false);
+  // Reflect the live download state on the button: already on disk, fetching
+  // right now, or available to start.
+  const isDownloaded = items.some((entry) => entry.contentId === content.id);
+  const isDownloading = activeDownloads.some(
+    (entry) => entry.contentId === content.id && entry.status === 'downloading',
+  );
+
+  const isSaved = savedItems.some((entry) => entry.contentId === content.id);
+
+  // Tapping download kicks off the fetch and stays on the page — progress shows
+  // in the Library (the ring) and on this button ("Downloading…"). No automatic
+  // jump to the Library tab.
+  const onDownload = () => {
+    if (!showDownload) return;
+    if (!isDownloaded && !isDownloading) {
+      startDownload(content);
+    }
+  };
+
+  // Save keeps a file-less reference in the Library (the only option for video).
+  // A downloaded item is already in the Library, so saving it does nothing;
+  // otherwise the bookmark toggles on/off.
+  const onSave = () => {
+    if (isDownloaded) return;
+    if (isSaved) {
+      removeSaved(content.id);
+    } else {
+      saveContent(content);
     }
   };
 
@@ -243,6 +266,8 @@ const ContentScreen: React.FC = () => {
               title={content.title}
               authorName={content.author.name}
               artworkUrl={content.author.portraitUrl}
+              shareUrl={contentShareUrl(content)}
+              source={content}
             />
           ) : null}
           {showDownload ? (
@@ -251,21 +276,48 @@ const ContentScreen: React.FC = () => {
               contentStyle={styles.downloadButtonInner}
               cornerRadius={radii.pill}
               tint={c.navy}
-              disabled={downloading}
               accessibilityRole="button"
-              accessibilityLabel={downloading ? 'Downloading' : `Download ${content.title}`}
-              accessibilityState={{ disabled: downloading, busy: downloading }}
+              accessibilityLabel={
+                isDownloaded
+                  ? `${content.title} in Library`
+                  : isDownloading
+                    ? 'Downloading'
+                    : `Download ${content.title}`
+              }
+              accessibilityState={{ busy: isDownloading }}
               onPress={onDownload}>
               <Icon
-                name="arrow.down.circle.fill"
+                name={isDownloaded ? 'checkmark' : 'arrow.down.circle.fill'}
                 size={18}
                 color={c.textInverse}
               />
               <Text style={styles.downloadText}>
-                {downloading ? 'Downloading…' : 'Download'}
+                {isDownloaded ? 'In Library' : isDownloading ? 'Downloading…' : 'Download'}
               </Text>
             </GlassButton>
           ) : null}
+          <GlassButton
+            style={styles.shareButton}
+            contentStyle={styles.shareButtonInner}
+            cornerRadius={radii.pill}
+            variant="regular"
+            disabled={isDownloaded}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isDownloaded
+                ? `${content.title} in Library`
+                : isSaved
+                  ? `Remove ${content.title} from Library`
+                  : `Save ${content.title} to Library`
+            }
+            accessibilityState={{ selected: isSaved || isDownloaded, disabled: isDownloaded }}
+            onPress={onSave}>
+            <Icon
+              name={isSaved || isDownloaded ? 'bookmark.fill' : 'bookmark'}
+              size={18}
+              color={isSaved || isDownloaded ? c.accent : c.text}
+            />
+          </GlassButton>
           <GlassButton
             style={styles.shareButton}
             contentStyle={styles.shareButtonInner}
@@ -464,15 +516,16 @@ const makeStyles = (c: Palette) =>
   },
   actionRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     justifyContent: 'center',
+    // Wrap to a second line on narrow screens now that the cluster can be up to
+    // four controls (Play · Download · Save · Share). gap applies to both axes.
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  // Both buttons render at the same height (40 px) so the row reads as a
-  // single control cluster. `alignItems: stretch` on the row + matching
-  // contentStyle height keeps the Download pill and Share circle aligned
-  // even when the icon/text content differs.
+  // Every control renders at the same 40 px height (set in each contentStyle)
+  // so the row reads as a single control cluster, vertically centered.
   downloadButton: {
     borderRadius: radii.pill,
   },

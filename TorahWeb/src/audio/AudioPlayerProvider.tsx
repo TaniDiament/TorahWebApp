@@ -8,11 +8,14 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   AppState,
   Image,
   Modal,
+  Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -27,16 +30,31 @@ import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
   Event,
+  PitchAlgorithm,
   State,
   useProgress,
 } from 'react-native-track-player';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
-import { GlassSurface } from '../components/ui/Glass';
-import Icon from '../components/ui/Icon';
+import { Palette, radii, shadows, spacing, typography, useTheme, useThemedStyles } from '../theme';
+import { GlassButton, GlassSurface } from '../components/ui/Glass';
+import SymbolIcon from '../components/ui/SymbolIcon';
+import { Audio } from '../types';
+import { useDownloads } from '../downloads/DownloadsProvider';
 import { playbackPositions } from './playbackPositions';
+import { DEFAULT_PLAYBACK_RATE, PLAYBACK_RATES, playbackRateStore } from './playbackRate';
+import { useDeviceVolume } from './useDeviceVolume';
 
-const TAB_BAR_CLEARANCE = 90;
+// Distance from the screen bottom to the mini-player's lower edge — it floats
+// just above the system tab bar. The visible gap is this minus the tab bar's
+// item-area height: iOS's UITabBar is ~49pt, so ~56 leaves only a slight gap.
+// Android's Material bottom nav is taller, so it keeps a larger clearance.
+const TAB_BAR_CLEARANCE = Platform.OS === 'ios' ? 56 : 90;
+
+// Scrubber bubble geometry. SCRUB_THUMB_SIZE approximates the slider thumb's
+// diameter so the floating time bubble centers over it; SCRUB_BUBBLE_WIDTH is
+// the bubble's fixed width (a clock like "1:23:45" fits comfortably).
+const SCRUB_THUMB_SIZE = 28;
+const SCRUB_BUBBLE_WIDTH = 72;
 
 export interface AudioTrackPayload {
   id: string;
@@ -44,6 +62,14 @@ export interface AudioTrackPayload {
   title: string;
   artist: string;
   artworkUrl?: string;
+  // Canonical torahweb.org/content/<kind>/<id> link, used by the Now Playing
+  // sheet's share button. Optional so a track can still play if a caller can't
+  // build one; the share button is hidden when it's absent.
+  shareUrl?: string;
+  // The originating Audio record, so the Now Playing sheet's download button can
+  // save this shiur offline without a re-fetch. Absent when a track is started
+  // from an already-downloaded file (which has nothing left to download).
+  source?: Audio;
 }
 
 interface AudioPlayerContextValue {
@@ -53,6 +79,7 @@ interface AudioPlayerContextValue {
   progress: number;
   duration: number;
   loading: boolean;
+  playbackRate: number;
   playTrack: (track: AudioTrackPayload) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekBy: (deltaSeconds: number) => Promise<void>;
@@ -102,6 +129,10 @@ const formatClock = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// "1×", "1.25×", "1.5×". The presets are clean decimals, so the default number
+// formatting already reads correctly (no trailing zeros to trim).
+const formatRate = (rate: number) => `${rate}×`;
+
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const insets = useSafeAreaInsets();
   const c = useTheme();
@@ -110,24 +141,72 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(DEFAULT_PLAYBACK_RATE);
+  // Whether the speed picker popover is showing over the Now Playing sheet.
+  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
+  // Whether the "•••" Save / Download menu is showing over the sheet.
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  // Library state powers the Now Playing more-menu (save / download state), and
+  // device volume drives the under-the-controls volume slider.
+  const { items: downloadedItems, savedItems, activeDownloads, startDownload, saveContent } =
+    useDownloads();
+  const { volume, setVolume } = useDeviceVolume(isExpanded);
   // Position/duration come from react-native-track-player's own subscription
   // hook. Polled on the native side at the requested interval; we don't have
   // to maintain a setInterval here.
-  const { position: livePosition, duration } = useProgress(1000);
+  //
+  // The poll interval is wall-clock, but the displayed clock advances in *media*
+  // seconds, which at faster speeds tick by quicker than once per real second.
+  // A flat 1 s poll would make the readout skip (0:00 → 0:02 → 0:04 at 2×), so
+  // we shrink the interval in proportion to the rate: ~2 samples per displayed
+  // second (500 ms / rate) guarantees every whole second shows at any speed.
+  // Capped at 120 ms so an extreme rate can't spin the bridge. Changing the
+  // interval only restarts polling — useProgress doesn't reset position — so
+  // there's no 0:00 flicker when the speed changes.
+  const progressInterval = Math.max(120, Math.round(500 / Math.max(playbackRate, 1)));
+  const { position: livePosition, duration } = useProgress(progressInterval);
   // Holds a just-issued seek target so the UI shows it instantly instead of
   // waiting for the next useProgress tick to catch up. Cleared after the
   // native player has had a beat to settle (same window as seekingRef).
   const [seekOverride, setSeekOverride] = useState<number | null>(null);
   const progress = seekOverride ?? livePosition;
 
+  // Live scrub state for the Now Playing scrubber: while the user drags the
+  // thumb we show their target instantly (time row + a floating bubble) instead
+  // of waiting for release. `scrubValue` tracks the finger; `scrubWidth` is the
+  // measured track width used to place the bubble over the thumb.
+  const [scrubbing, setScrubbing] = useState(false);
+  const [scrubValue, setScrubValue] = useState(0);
+  const [scrubWidth, setScrubWidth] = useState(0);
+  // What the position UI should read: the finger target while scrubbing, else
+  // live playback.
+  const displayPosition = scrubbing ? scrubValue : progress;
+
   // Latest values mirrored into refs so the save callbacks (interval / app
   // background / event listener) read current data without re-subscribing.
   const progressRef = useRef(0);
   const durationRef = useRef(0);
   const currentTrackRef = useRef<AudioTrackPayload | null>(null);
+  // The chosen rate is read inside playback callbacks (which apply it to the
+  // native player) so it must be available without re-creating those callbacks.
+  const rateRef = useRef(playbackRate);
   progressRef.current = progress;
   durationRef.current = duration;
   currentTrackRef.current = currentTrack;
+  rateRef.current = playbackRate;
+
+  // Restore the listener's last-chosen speed on launch. We only update React
+  // state / the ref here — the rate is pushed to the native player on the next
+  // play() (see playTrack / togglePlayPause), since there's no track loaded yet.
+  useEffect(() => {
+    let active = true;
+    playbackRateStore.get().then((stored) => {
+      if (active) setPlaybackRate(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Persist the current track's position so it resumes next time. Stable
   // identity (reads refs) so the effects below don't re-run on every tick.
@@ -173,6 +252,13 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       switch (event.state) {
         case State.Playing:
           setIsPlaying(true);
+          // Whenever playback actually starts, re-assert the chosen speed.
+          // iOS's AVPlayer resets rate to 1.0 on play, and this fires for
+          // every resume path — including the lock screen / Control Center /
+          // headphone remote that bypass togglePlayPause — so the chosen
+          // speed survives all of them. Fire-and-forget; rate is cosmetic
+          // relative to keeping playback going.
+          TrackPlayer.setRate(rateRef.current).catch(() => {});
           return;
         case State.Paused:
         case State.Stopped:
@@ -198,6 +284,20 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, []);
 
+  // Push the chosen rate to the native player. Called after every play() (not
+  // just on user change) because iOS's AVPlayer resets its rate to 1.0 whenever
+  // playback (re)starts — without re-applying here, resuming or starting a new
+  // track would silently drop back to normal speed. Idempotent and best-effort:
+  // a setRate failure must never break play/pause. Stable identity (reads the
+  // ref) so the playback callbacks below don't churn.
+  const applyRateToPlayer = useCallback(async () => {
+    try {
+      await TrackPlayer.setRate(rateRef.current);
+    } catch {
+      // Rate is cosmetic relative to playback — ignore and keep playing.
+    }
+  }, []);
+
   const playTrack = useCallback(async (track: AudioTrackPayload) => {
     setLoading(true);
     try {
@@ -209,6 +309,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         title: track.title,
         artist: track.artist,
         artwork: track.artworkUrl,
+        // These shiurim are speech, so keep pitch corrected at faster speeds —
+        // otherwise 1.5×–2× turns the maggid shiur into a chipmunk on iOS.
+        pitchAlgorithm: PitchAlgorithm.Voice,
       });
       // Resume where this track was last left off (0 if new / finished). The
       // seek is queued before playback settles; TrackPlayer applies it once the
@@ -216,13 +319,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const resumeAt = await playbackPositions.getPosition(track.id);
       await TrackPlayer.play();
       if (resumeAt > 0) await TrackPlayer.seekTo(resumeAt);
+      // Carry the listener's chosen speed onto the freshly-loaded track.
+      await applyRateToPlayer();
       setCurrentTrack(track);
       setIsPlaying(true);
       setIsExpanded(false);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyRateToPlayer]);
 
   const togglePlayPause = useCallback(async () => {
     if (!currentTrack) return;
@@ -235,8 +340,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
     await TrackPlayer.play();
+    // Restore the chosen speed — iOS resets rate to 1.0 on resume.
+    await applyRateToPlayer();
     setIsPlaying(true);
-  }, [currentTrack, saveNow]);
+  }, [applyRateToPlayer, currentTrack, saveNow]);
 
   const seekBy = useCallback(
     async (deltaSeconds: number) => {
@@ -264,6 +371,25 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     [currentTrack, duration],
   );
 
+  // Select a specific playback speed and remember it (state/ref + disk). We only
+  // push the rate to the native player when it's actively playing: setting a
+  // non-zero rate on a paused iOS AVPlayer would start playback. When paused we
+  // just store the choice and let the next play() apply it via applyRateToPlayer,
+  // so changing speed never resumes a paused shiur.
+  const applyRate = useCallback(async (rate: number) => {
+    rateRef.current = rate;
+    setPlaybackRate(rate);
+    playbackRateStore.save(rate);
+    try {
+      if ((await TrackPlayer.getState()) === State.Playing) {
+        await TrackPlayer.setRate(rate);
+      }
+    } catch {
+      // No player yet / transient native error — the rate is stored and will
+      // be applied on the next play().
+    }
+  }, []);
+
   const expand = useCallback(() => {
     if (!currentTrack) return;
     // Make sure no stale drag offset carries over from a prior dismissal —
@@ -283,6 +409,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // We defer the translateY reset until well after the Modal's slide
     // has finished, so the next expand() starts from a clean 0.
     setIsExpanded(false);
+    setSpeedMenuOpen(false);
+    setMoreMenuOpen(false);
     translateY.stopAnimation();
     setTimeout(() => translateY.setValue(0), 320);
   }, [translateY]);
@@ -296,8 +424,28 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentTrack(null);
     setIsPlaying(false);
     setIsExpanded(false);
+    setSpeedMenuOpen(false);
+    setMoreMenuOpen(false);
     setSeekOverride(null);
   }, [saveNow]);
+
+  // Share the canonical content link for the now-playing track — the same
+  // deep-linking torahweb.org/content/<kind>/<id> URL the ContentScreen shares,
+  // so a recipient lands back on this shiur. Reads the ref so its identity is
+  // stable. No-op (and the button is hidden) when the track carries no link.
+  const shareCurrent = useCallback(async () => {
+    const track = currentTrackRef.current;
+    if (!track?.shareUrl) return;
+    const message = `${track.title}\n${track.artist}\n\n${track.shareUrl}`;
+    try {
+      // `url` is iOS-only; Android reads `message`. Include both so iOS gets a
+      // previewable link attachment and Android still ships the URL in-line.
+      await Share.share({ title: track.title, message, url: track.shareUrl });
+    } catch {
+      // User dismissed the sheet or the platform rejected the payload —
+      // nothing actionable to surface.
+    }
+  }, []);
 
   // Commits a slider seek and briefly suppresses the next PlaybackState
   // event so the play/pause icon doesn't flicker through the transient
@@ -356,6 +504,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       progress,
       duration,
       loading,
+      playbackRate,
       playTrack,
       togglePlayPause,
       seekBy,
@@ -363,12 +512,46 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       collapse,
       close,
     }),
-    [collapse, close, currentTrack, duration, expand, isExpanded, isPlaying, loading, playTrack, progress, seekBy, togglePlayPause],
+    [collapse, close, currentTrack, duration, expand, isExpanded, isPlaying, loading, playbackRate, playTrack, progress, seekBy, togglePlayPause],
   );
 
   // Mini-player fill bar uses the same `progress` value as the sheet slider;
   // Slider handles its own drag state, so no separate dragPreview is needed.
   const progressRatio = duration > 0 ? Math.min(1, progress / duration) : 0;
+
+  // Horizontal position for the scrub-time bubble: center it over the thumb,
+  // which travels from THUMB/2 to (trackWidth − THUMB/2) across the track, then
+  // clamp so the bubble never spills past either edge.
+  const scrubRatio = duration > 0 ? Math.min(1, Math.max(0, scrubValue / duration)) : 0;
+  const scrubThumbCenter =
+    SCRUB_THUMB_SIZE / 2 + scrubRatio * Math.max(0, scrubWidth - SCRUB_THUMB_SIZE);
+  const scrubBubbleLeft = Math.min(
+    Math.max(0, scrubThumbCenter - SCRUB_BUBBLE_WIDTH / 2),
+    Math.max(0, scrubWidth - SCRUB_BUBBLE_WIDTH),
+  );
+
+  // Now Playing more-menu (Save / Download) state for the current track.
+  // `source` is only present for streamed shiurim (a track started from an
+  // already-downloaded file has nothing left to fetch or save).
+  const trackId = currentTrack?.id;
+  const downloadSource = currentTrack?.source;
+  const isTrackDownloaded = !!trackId && downloadedItems.some((d) => d.contentId === trackId);
+  const isTrackDownloading =
+    !!trackId &&
+    activeDownloads.some((a) => a.contentId === trackId && a.status === 'downloading');
+  const isTrackSaved = !!trackId && savedItems.some((s) => s.contentId === trackId);
+  const canDownloadTrack = !!downloadSource && !isTrackDownloaded && !isTrackDownloading;
+  // A downloaded item is already in the Library, so saving does nothing.
+  const canSaveTrack = !!downloadSource && !isTrackDownloaded && !isTrackSaved;
+  const onDownloadTrack = () => {
+    // Stays in the player — no jump to the Library.
+    setMoreMenuOpen(false);
+    if (canDownloadTrack && downloadSource) startDownload(downloadSource);
+  };
+  const onSaveTrack = () => {
+    setMoreMenuOpen(false);
+    if (canSaveTrack && downloadSource) saveContent(downloadSource);
+  };
 
   return (
     <AudioPlayerContext.Provider value={value}>
@@ -392,7 +575,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 <Image source={{ uri: currentTrack.artworkUrl }} style={styles.miniArtwork} />
               ) : (
                 <View style={[styles.miniArtwork, styles.miniArtworkPlaceholder]}>
-                  <Icon name="waveform" size={20} color={c.textInverse} />
+                  <SymbolIcon name="waveform" size={20} color={c.textInverse} />
                 </View>
               )}
               <View style={styles.miniTextWrap}>
@@ -414,7 +597,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={c.text} />
+                <SymbolIcon name={isPlaying ? 'pause.fill' : 'play.fill'} size={18} color={c.text} />
               </Pressable>
               <Pressable
                 onPress={(e) => {
@@ -431,7 +614,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                   styles.miniIconButton,
                   pressed && { opacity: 0.6 },
                 ]}>
-                <Icon name="goforward.30" size={20} color={c.text} />
+                <SymbolIcon name="goforward.30" size={20} color={c.text} />
               </Pressable>
               <View style={styles.miniProgressTrack}>
                 <View style={[styles.miniProgressFill, { width: `${progressRatio * 100}%` }]} />
@@ -440,103 +623,342 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           </Pressable>
         ) : null}
 
-        <Modal visible={isExpanded} animationType="slide" transparent onRequestClose={collapse}>
+        <Modal
+          visible={isExpanded}
+          animationType="slide"
+          transparent
+          statusBarTranslucent
+          onRequestClose={collapse}>
           <GestureHandlerRootView style={styles.gestureRoot}>
             <GestureDetector gesture={dragGesture}>
               <Animated.View
                 style={[styles.sheetOverlay, { transform: [{ translateY }] }]}>
-                <GlassSurface
-              variant="prominent"
-              cornerRadius={radii.xl}
-              style={[
-                styles.sheet,
-                { paddingBottom: Math.max(insets.bottom, spacing.lg) },
-              ]}>
+                {/* Full-screen, opaque player. The transparent Modal lets the
+                    app show through as it slides/drags down to dismiss. */}
+                <View
+                  style={[
+                    styles.sheet,
+                    {
+                      paddingTop: Math.max(insets.top, spacing.lg),
+                      paddingBottom: Math.max(insets.bottom, spacing.lg),
+                    },
+                  ]}>
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeader}>
+                {currentTrack?.shareUrl ? (
+                  <GlassButton
+                    contentStyle={styles.sheetHeaderButton}
+                    cornerRadius={radii.pill}
+                    variant="regular"
+                    onPress={shareCurrent}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Share ${currentTrack.title}`}>
+                    <SymbolIcon name="square.and.arrow.up" size={20} color={c.text} />
+                  </GlassButton>
+                ) : (
+                  // Invisible spacer the same size as a header button, so the
+                  // eyebrow stays centered between the corners with no link.
+                  <View style={styles.sheetHeaderSpacer} />
+                )}
                 <Text style={styles.sheetEyebrow}>Now Playing</Text>
-                <Pressable
+                <GlassButton
+                  contentStyle={styles.sheetHeaderButton}
+                  cornerRadius={radii.pill}
+                  variant="regular"
                   onPress={close}
                   hitSlop={12}
                   accessibilityRole="button"
-                  accessibilityLabel="Close player"
-                  android_ripple={{ color: c.ripple, borderless: true }}
-                  style={({ pressed }) => [
-                    styles.sheetCloseButton,
-                    pressed && { opacity: 0.6 },
-                  ]}>
-                  <Icon name="xmark" size={20} color={c.text} />
-                </Pressable>
+                  accessibilityLabel="Close player">
+                  <SymbolIcon name="xmark" size={20} color={c.text} />
+                </GlassButton>
               </View>
 
-              {currentTrack?.artworkUrl ? (
-                <Image source={{ uri: currentTrack.artworkUrl }} style={styles.sheetArtwork} />
-              ) : (
-                <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]}>
-                  <Icon name="waveform" size={64} color={c.textInverse} />
-                </View>
-              )}
+              <View style={styles.sheetMain}>
+                {currentTrack?.artworkUrl ? (
+                  <Image source={{ uri: currentTrack.artworkUrl }} style={styles.sheetArtwork} />
+                ) : (
+                  <View style={[styles.sheetArtwork, styles.sheetArtworkPlaceholder]}>
+                    <SymbolIcon name="waveform" size={64} color={c.textInverse} />
+                  </View>
+                )}
 
-              <Text numberOfLines={2} style={styles.sheetTitle}>{currentTrack?.title}</Text>
-              <Text numberOfLines={1} style={styles.sheetArtist}>{currentTrack?.artist}</Text>
+                <Text numberOfLines={2} style={styles.sheetTitle}>{currentTrack?.title}</Text>
+                <Text numberOfLines={1} style={styles.sheetArtist}>{currentTrack?.artist}</Text>
+              </View>
 
-              <Slider
-                style={styles.sheetSlider}
-                minimumValue={0}
-                maximumValue={Math.max(1, duration)}
-                value={progress}
-                minimumTrackTintColor={c.accent}
-                maximumTrackTintColor={c.separator}
-                thumbTintColor={c.accent}
-                onSlidingComplete={commitSeek}
-                accessibilityLabel="Playback position"
-              />
+              <View
+                style={styles.sliderWrap}
+                onLayout={(e) => setScrubWidth(e.nativeEvent.layout.width)}>
+                {/* Floating time bubble that tracks the thumb while scrubbing,
+                    Apple-Podcasts style. pointerEvents none so it never steals
+                    the drag. */}
+                {scrubbing ? (
+                  <View
+                    pointerEvents="none"
+                    style={[styles.scrubBubble, { left: scrubBubbleLeft }]}>
+                    <Text style={styles.scrubBubbleText}>{formatClock(scrubValue)}</Text>
+                  </View>
+                ) : null}
+                <Slider
+                  style={styles.sheetSlider}
+                  minimumValue={0}
+                  maximumValue={Math.max(1, duration)}
+                  // While dragging, follow the finger (scrubValue) so live
+                  // playback ticks don't fight the thumb; otherwise track
+                  // playback position.
+                  value={scrubbing ? scrubValue : progress}
+                  minimumTrackTintColor={c.accent}
+                  maximumTrackTintColor={c.separator}
+                  thumbTintColor={c.accent}
+                  onSlidingStart={(v) => {
+                    setScrubValue(v);
+                    setScrubbing(true);
+                  }}
+                  onValueChange={(v) => setScrubValue(v)}
+                  onSlidingComplete={(v) => {
+                    setScrubbing(false);
+                    commitSeek(v);
+                  }}
+                  accessibilityLabel="Playback position"
+                />
+              </View>
               <View style={styles.sheetTimeRow}>
-                <Text style={styles.sheetTime}>{formatClock(progress)}</Text>
-                <Text style={styles.sheetTime}>-{formatClock(Math.max(0, duration - progress))}</Text>
+                <Text style={styles.sheetTime}>{formatClock(displayPosition)}</Text>
+                <Text style={styles.sheetTime}>
+                  -{formatClock(Math.max(0, duration - displayPosition))}
+                </Text>
               </View>
 
+              {/* Transport: speed · back 15 · play/pause · forward 30 · download */}
               <View style={styles.controlsRow}>
-                <Pressable
+                <GlassButton
+                  contentStyle={styles.speedButtonInner}
+                  cornerRadius={radii.pill}
+                  variant="regular"
+                  onPress={() => {
+                    setMoreMenuOpen(false);
+                    setSpeedMenuOpen((open) => !open);
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Playback speed ${formatRate(playbackRate)}`}
+                  accessibilityHint="Opens a list of playback speeds to choose from"
+                  accessibilityState={{ expanded: speedMenuOpen }}>
+                  <Text style={styles.speedChipText}>{formatRate(playbackRate)}</Text>
+                </GlassButton>
+
+                <GlassButton
+                  contentStyle={styles.controlButton}
+                  cornerRadius={radii.pill}
+                  variant="regular"
                   onPress={() => seekBy(-15)}
                   accessibilityRole="button"
-                  accessibilityLabel="Back 15 seconds"
-                  android_ripple={{ color: c.ripple, borderless: true }}
-                  style={({ pressed }) => [
-                    styles.skipButton,
-                    pressed && { opacity: 0.6 },
-                  ]}>
-                  <Icon name="gobackward.15" size={32} color={c.text} />
-                </Pressable>
+                  accessibilityLabel="Back 15 seconds">
+                  <SymbolIcon name="gobackward.15" size={26} color={c.text} />
+                </GlassButton>
 
-                <Pressable
+                <GlassButton
+                  contentStyle={styles.playButtonInner}
+                  cornerRadius={radii.pill}
+                  variant="prominent"
+                  tint={c.navy}
                   onPress={togglePlayPause}
                   disabled={loading}
                   accessibilityRole="button"
                   accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-                  accessibilityState={{ disabled: loading, busy: loading }}
-                  android_ripple={{ color: 'rgba(255,255,255,0.18)', borderless: false }}
-                  style={({ pressed }) => [
-                    styles.playButton,
-                    pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
-                  ]}>
-                  <Icon name={isPlaying ? 'pause.fill' : 'play.fill'} size={34} color={c.textInverse} />
-                </Pressable>
+                  accessibilityState={{ disabled: loading, busy: loading }}>
+                  {loading ? (
+                    <ActivityIndicator color={c.textInverse} />
+                  ) : (
+                    <SymbolIcon name={isPlaying ? 'pause.fill' : 'play.fill'} size={32} color={c.textInverse} />
+                  )}
+                </GlassButton>
 
-                <Pressable
+                <GlassButton
+                  contentStyle={styles.controlButton}
+                  cornerRadius={radii.pill}
+                  variant="regular"
                   onPress={() => seekBy(30)}
                   accessibilityRole="button"
-                  accessibilityLabel="Forward 30 seconds"
-                  android_ripple={{ color: c.ripple, borderless: true }}
-                  style={({ pressed }) => [
-                    styles.skipButton,
-                    pressed && { opacity: 0.6 },
-                  ]}>
-                  <Icon name="goforward.30" size={32} color={c.text} />
-                </Pressable>
+                  accessibilityLabel="Forward 30 seconds">
+                  <SymbolIcon name="goforward.30" size={26} color={c.text} />
+                </GlassButton>
+
+                <GlassButton
+                  contentStyle={styles.controlButton}
+                  cornerRadius={radii.pill}
+                  variant="regular"
+                  onPress={() => {
+                    setSpeedMenuOpen(false);
+                    setMoreMenuOpen((open) => !open);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="More options"
+                  accessibilityHint="Save or download this shiur"
+                  accessibilityState={{ expanded: moreMenuOpen, busy: isTrackDownloading }}>
+                  {isTrackDownloading ? (
+                    <ActivityIndicator color={c.text} />
+                  ) : (
+                    <SymbolIcon name="ellipsis" size={24} color={c.text} />
+                  )}
+                </GlassButton>
               </View>
 
-                </GlassSurface>
+              {/* Device volume (moves with the hardware buttons, Apple-style) */}
+              <View style={styles.volumeRow}>
+                <SymbolIcon name="speaker.fill" size={15} color={c.textTertiary} />
+                <Slider
+                  style={styles.volumeSlider}
+                  minimumValue={0}
+                  maximumValue={1}
+                  value={volume}
+                  minimumTrackTintColor={c.accent}
+                  maximumTrackTintColor={c.separator}
+                  thumbTintColor={c.accent}
+                  onValueChange={setVolume}
+                  accessibilityLabel="Volume"
+                />
+                <SymbolIcon name="speaker.wave.3.fill" size={18} color={c.textTertiary} />
+              </View>
+
+                </View>
+
+                {/* Speed picker popover. Rendered in-tree (not a nested Modal /
+                    ActionSheetIOS, which present unreliably over an open RN
+                    Modal on iOS) and after the sheet so it layers on top. The
+                    full-screen backdrop catches an outside tap to dismiss. */}
+                {speedMenuOpen ? (
+                  <View style={styles.speedMenuLayer} pointerEvents="box-none">
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => setSpeedMenuOpen(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss playback speed menu"
+                    />
+                    <View style={styles.speedMenu}>
+                      <View style={styles.speedMenuClip}>
+                        {PLAYBACK_RATES.map((rate, i) => {
+                          const selected = rate === playbackRate;
+                          return (
+                            <Pressable
+                              key={rate}
+                              onPress={() => {
+                                applyRate(rate);
+                                setSpeedMenuOpen(false);
+                              }}
+                              accessibilityRole="menuitem"
+                              accessibilityState={{ selected }}
+                              accessibilityLabel={`${formatRate(rate)}${selected ? ', selected' : ''}`}
+                              android_ripple={{ color: c.ripple }}
+                              style={({ pressed }) => [
+                                styles.speedMenuItem,
+                                i > 0 && styles.speedMenuItemDivider,
+                                pressed && { backgroundColor: c.surfaceTint },
+                              ]}>
+                              <Text
+                                style={[
+                                  styles.speedMenuItemText,
+                                  selected && styles.speedMenuItemTextSelected,
+                                ]}>
+                                {formatRate(rate)}
+                              </Text>
+                              {selected ? (
+                                <SymbolIcon name="checkmark" size={15} color={c.accent} />
+                              ) : null}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Save / Download menu, opened by the "•••" transport button.
+                    Same in-tree popover pattern as the speed picker. */}
+                {moreMenuOpen ? (
+                  <View style={styles.speedMenuLayer} pointerEvents="box-none">
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => setMoreMenuOpen(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss menu"
+                    />
+                    <View style={styles.speedMenu}>
+                      <View style={styles.speedMenuClip}>
+                        <Pressable
+                          onPress={onSaveTrack}
+                          disabled={!canSaveTrack}
+                          accessibilityRole="menuitem"
+                          accessibilityState={{ disabled: !canSaveTrack, selected: isTrackSaved }}
+                          accessibilityLabel={
+                            isTrackSaved || isTrackDownloaded
+                              ? 'Saved to Library'
+                              : 'Save to Library'
+                          }
+                          android_ripple={{ color: c.ripple }}
+                          style={({ pressed }) => [
+                            styles.speedMenuItem,
+                            pressed && canSaveTrack && { backgroundColor: c.surfaceTint },
+                            !canSaveTrack && styles.menuItemDisabled,
+                          ]}>
+                          <View style={styles.moreMenuItemLeft}>
+                            <SymbolIcon
+                              name={isTrackSaved || isTrackDownloaded ? 'bookmark.fill' : 'bookmark'}
+                              size={18}
+                              color={isTrackSaved ? c.accent : c.text}
+                            />
+                            <Text style={styles.speedMenuItemText}>
+                              {isTrackSaved ? 'Saved' : 'Save'}
+                            </Text>
+                          </View>
+                          {isTrackSaved ? (
+                            <SymbolIcon name="checkmark" size={15} color={c.accent} />
+                          ) : null}
+                        </Pressable>
+
+                        <Pressable
+                          onPress={onDownloadTrack}
+                          disabled={!canDownloadTrack}
+                          accessibilityRole="menuitem"
+                          accessibilityState={{
+                            disabled: !canDownloadTrack,
+                            busy: isTrackDownloading,
+                          }}
+                          accessibilityLabel={
+                            isTrackDownloaded
+                              ? 'Downloaded'
+                              : isTrackDownloading
+                                ? 'Downloading'
+                                : 'Download'
+                          }
+                          android_ripple={{ color: c.ripple }}
+                          style={({ pressed }) => [
+                            styles.speedMenuItem,
+                            styles.speedMenuItemDivider,
+                            pressed && canDownloadTrack && { backgroundColor: c.surfaceTint },
+                            !canDownloadTrack && !isTrackDownloading && styles.menuItemDisabled,
+                          ]}>
+                          <View style={styles.moreMenuItemLeft}>
+                            <SymbolIcon
+                              name={isTrackDownloaded ? 'checkmark' : 'arrow.down.circle.fill'}
+                              size={18}
+                              color={isTrackDownloaded ? c.accent : c.text}
+                            />
+                            <Text style={styles.speedMenuItemText}>
+                              {isTrackDownloaded
+                                ? 'Downloaded'
+                                : isTrackDownloading
+                                  ? 'Downloading…'
+                                  : 'Download'}
+                            </Text>
+                          </View>
+                          {isTrackDownloading ? <ActivityIndicator color={c.accent} /> : null}
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
               </Animated.View>
             </GestureDetector>
           </GestureHandlerRootView>
@@ -617,17 +1039,18 @@ const makeStyles = (c: Palette) =>
   gestureRoot: {
     flex: 1,
   },
+  // Transparent so the app behind shows through as the opaque full-screen
+  // player slides / drags down to dismiss.
   sheetOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: c.overlay,
+    backgroundColor: 'transparent',
   },
+  // Full-screen on both platforms (Apple-Podcasts style). paddingTop/Bottom are
+  // set at runtime from the safe-area insets.
   sheet: {
-    paddingTop: spacing.md,
+    flex: 1,
     paddingHorizontal: spacing.xl,
-    minHeight: '88%',
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
+    backgroundColor: c.background,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -647,8 +1070,16 @@ const makeStyles = (c: Palette) =>
     ...typography.eyebrow,
     color: c.textSecondary,
   },
-  sheetArtwork: {
+  // Artwork + title/artist live in a flexible region that centers them in the
+  // space between the header and the transport controls.
+  sheetMain: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
+  },
+  sheetArtwork: {
+    width: '74%',
     aspectRatio: 1,
     borderRadius: radii.lg,
     marginBottom: spacing.xl,
@@ -661,12 +1092,17 @@ const makeStyles = (c: Palette) =>
   sheetTitle: {
     ...typography.title2,
     color: c.text,
+    textAlign: 'center',
     marginBottom: spacing.xs,
   },
   sheetArtist: {
     ...typography.body,
     color: c.textSecondary,
-    marginBottom: spacing.xl,
+    textAlign: 'center',
+  },
+  // Holds the slider plus the absolutely-positioned scrub bubble above it.
+  sliderWrap: {
+    width: '100%',
   },
   sheetSlider: {
     width: '100%',
@@ -674,6 +1110,28 @@ const makeStyles = (c: Palette) =>
     // Inset matches the previous hit area, keeping the thumb clear of
     // Android's left-edge back-swipe zone at progress=0.
     marginHorizontal: 0,
+  },
+  // Floating time tooltip shown above the thumb while scrubbing. `left` is set
+  // at runtime to track the thumb; it overflows the wrap upward (no clip).
+  scrubBubble: {
+    position: 'absolute',
+    top: -34,
+    width: SCRUB_BUBBLE_WIDTH,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.border,
+    zIndex: 10,
+    ...shadows.floating,
+  },
+  scrubBubbleText: {
+    ...typography.footnote,
+    fontWeight: '700',
+    color: c.text,
+    fontVariant: ['tabular-nums'],
   },
   sheetTimeRow: {
     flexDirection: 'row',
@@ -685,36 +1143,123 @@ const makeStyles = (c: Palette) =>
     ...typography.footnote,
     color: c.textTertiary,
   },
+  // Five-up transport row spread edge-to-edge: speed · back15 · play · fwd30 ·
+  // download. space-between keeps it balanced across phone widths.
   controlsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.xl,
-    marginBottom: spacing.xl,
+    width: '100%',
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  skipButton: {
-    width: 64,
-    height: 64,
+  // Circular glass content for the skip + download buttons.
+  controlButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playButton: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: c.navy,
+  // The larger, prominent (navy-tinted glass) play/pause disc.
+  playButtonInner: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     alignItems: 'center',
     justifyContent: 'center',
-    // Drop any platform default border/shadow that GlassSurface or Pressable
-    // might overlay around the circle so it reads as a single navy disc.
+  },
+  // Compact glass pill showing the current rate ("1×", "1.25×").
+  speedButtonInner: {
+    minWidth: 54,
+    height: 54,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  volumeSlider: {
+    flex: 1,
+    height: 36,
+  },
+  speedChipText: {
+    ...typography.subheadline,
+    color: c.text,
+    fontWeight: '700',
+    // Keep the chip from reflowing as the digit count changes (1× → 1.25×).
+    fontVariant: ['tabular-nums'],
+  },
+  // Full-screen layer over the sheet that hosts the speed popover. box-none so
+  // the dismiss backdrop and the menu receive touches but the layer itself
+  // doesn't swallow anything else.
+  speedMenuLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // The floating card. Shadow + rounded background live here; corner clipping of
+  // the item press highlights is done by speedMenuClip so the shadow isn't
+  // masked away on iOS (a view can't both clip its bounds and cast a shadow).
+  speedMenu: {
+    minWidth: 184,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.border,
+    ...shadows.floating,
+  },
+  speedMenuClip: {
+    borderRadius: radii.md,
     overflow: 'hidden',
   },
-  sheetCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: c.surfaceTint,
+  speedMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+  },
+  speedMenuItemDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.separator,
+  },
+  speedMenuItemText: {
+    ...typography.body,
+    color: c.text,
+    fontVariant: ['tabular-nums'],
+  },
+  speedMenuItemTextSelected: {
+    color: c.accent,
+    fontWeight: '700',
+  },
+  // Leading icon + label group for the Save / Download menu rows.
+  moreMenuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  menuItemDisabled: {
+    opacity: 0.4,
+  },
+  // Glass content for the header share/close buttons (the glass material
+  // provides the fill, so no backgroundColor here).
+  sheetHeaderButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sheetHeaderSpacer: {
+    width: 36,
+    height: 36,
   },
 });

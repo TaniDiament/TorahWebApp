@@ -75,6 +75,19 @@ export interface EventFlier {
 
 export type DownloadKind = 'article' | 'audio';
 
+// A "saved" library entry is a lightweight reference to content the user wants
+// to keep handy without downloading the file — so it works for video too
+// (which can't be downloaded). Opening one streams/reads the content live.
+export interface SavedItem {
+  contentId: string;
+  kind: ContentType;
+  title: string;
+  authorName: string;
+  publishedDate: string;
+  artworkUrl?: string;
+  savedAt: string;
+}
+
 export interface DownloadItem {
   id: string;
   contentId: string;

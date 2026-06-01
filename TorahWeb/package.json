@@ -38,6 +38,7 @@
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.25.0",
     "react-native-track-player": "^4.1.2",
+    "react-native-volume-manager": "^2.0.8",
     "react-native-webview": "^13.16.1",
     "react-native-worklets": "^0.8.1",
     "react-native-worklets-core": "^1.6.3"
@@ -75,7 +76,8 @@
     },
     "ios": {
       "componentProvider": {
-        "TorahWebLiquidGlassView": "TorahWebLiquidGlassViewComponentView"
+        "TorahWebLiquidGlassView": "TorahWebLiquidGlassViewComponentView",
+        "TorahWebSFSymbolView": "TorahWebSFSymbolViewComponentView"
       }
     }
   }

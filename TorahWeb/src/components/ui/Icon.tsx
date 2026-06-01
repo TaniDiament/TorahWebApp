@@ -22,10 +22,16 @@ export type IconName =
   | 'chevron.left'
   | 'chevron.right'
   | 'chevron.down'
+  | 'checkmark'
   | 'xmark'
   | 'plus'
   | 'ellipsis'
+  | 'bookmark'
+  | 'bookmark.fill'
   | 'waveform'
+  | 'speedometer'
+  | 'speaker.fill'
+  | 'speaker.wave.3.fill'
   | 'video.fill'
   | 'doc.text.fill'
   | 'mic.fill'
@@ -57,10 +63,16 @@ const MCI_MAP: Record<IconName, MCIName> = {
   'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
   'chevron.down': 'chevron-down',
+  checkmark: 'check',
   xmark: 'close',
   plus: 'plus',
   ellipsis: 'dots-horizontal',
+  bookmark: 'bookmark-outline',
+  'bookmark.fill': 'bookmark',
   waveform: 'waveform',
+  speedometer: 'speedometer',
+  'speaker.fill': 'volume-low',
+  'speaker.wave.3.fill': 'volume-high',
   'video.fill': 'video',
   'doc.text.fill': 'file-document',
   'mic.fill': 'microphone',

@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text } from 'react-native';
 import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 import { GlassButton } from './ui/Glass';
-import Icon from './ui/Icon';
+import SymbolIcon from './ui/SymbolIcon';
 import { useAudioPlayer } from '../audio/AudioPlayerProvider';
+import type { Audio } from '../types';
 
 interface AudioPlayerProps {
   audioId: string;
@@ -11,6 +12,11 @@ interface AudioPlayerProps {
   title: string;
   authorName: string;
   artworkUrl?: string;
+  // Canonical content link, forwarded to the Now Playing sheet's share button.
+  shareUrl?: string;
+  // The originating Audio record, carried into the Now Playing sheet so its
+  // download button can save this shiur offline without a re-fetch.
+  source?: Audio;
 }
 
 // Renders only the primary play / pause / resume control as a pill, sized to
@@ -24,6 +30,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   title,
   authorName,
   artworkUrl,
+  shareUrl,
+  source,
 }) => {
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -67,6 +75,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         title,
         artist: authorName,
         artworkUrl,
+        shareUrl,
+        source,
       });
     } catch (err) {
       const message =
@@ -89,7 +99,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {loading ? (
         <ActivityIndicator color={c.textInverse} size="small" />
       ) : (
-        <Icon
+        <SymbolIcon
           name={isCurrent && isPlaying ? 'pause.fill' : 'play.fill'}
           size={18}
           color={c.textInverse}
