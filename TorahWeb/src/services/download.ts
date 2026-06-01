@@ -6,7 +6,7 @@ import { Article, Content, DownloadItem, DownloadKind, SavedItem, isArticle, isA
 const { fs } = RNBlobUtil;
 const MANIFEST_PATH = `${fs.dirs.DocumentDir}/torahweb-downloads.json`;
 // Saved items are a separate, file-less manifest — references the user keeps in
-// their Library without a download (the only option for video).
+// their Library without a download (the only option for video and divrei Torah).
 const SAVED_MANIFEST_PATH = `${fs.dirs.DocumentDir}/torahweb-saved.json`;
 const ARTICLE_MIME = 'application/json';
 
@@ -69,7 +69,11 @@ const writeArticleSnapshot = async (article: Article, folder: string) => {
   return path;
 };
 
-export const canDownloadContent = (content: Content) => isArticle(content) || isAudio(content);
+// Only audio is downloadable. Divrei Torah (articles) and video are
+// save-to-Library only — a saved reference is resolved live when opened
+// (see saveContent / SavedItem). Articles still *render* offline if they were
+// downloaded by an older build; we just don't start new article downloads.
+export const canDownloadContent = (content: Content) => isAudio(content);
 
 export const getDownloadedItems = async (): Promise<DownloadItem[]> => {
   const items = await readManifest();

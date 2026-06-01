@@ -202,9 +202,9 @@ const ContentScreen: React.FC = () => {
     }
   };
 
-  // Save keeps a file-less reference in the Library (the only option for video).
-  // A downloaded item is already in the Library, so saving it does nothing;
-  // otherwise the bookmark toggles on/off.
+  // Save keeps a file-less reference in the Library (the only option for video
+  // and divrei Torah, which aren't downloadable). A downloaded item is already
+  // in the Library, so saving it does nothing; otherwise the bookmark toggles.
   const onSave = () => {
     if (isDownloaded) return;
     if (isSaved) {

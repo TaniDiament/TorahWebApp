@@ -442,8 +442,8 @@ const DownloadsScreen: React.FC = () => {
           <Icon name="rectangle.stack.fill" size={56} color={c.textTertiary} />
           <Text style={styles.emptyTitle}>Your Library is empty</Text>
           <Text style={styles.emptyText}>
-            Tap the bookmark to save anything for later, or download audio and
-            divrei Torah to keep them offline.
+            Tap the bookmark to save divrei Torah and video for later, or
+            download audio to keep it offline.
           </Text>
         </View>
       }

@@ -23,6 +23,7 @@ import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '
 import { GlassSurface } from '../components/ui/Glass';
 import Icon from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
+import { useDownloads } from '../downloads/DownloadsProvider';
 import type {
   HomeStackParamList,
   RootTabParamList,
@@ -56,6 +57,19 @@ const SearchScreen: React.FC = () => {
   const chrome = useScreenChromeInsets();
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { savedItems, saveContent, removeSaved } = useDownloads();
+  // Audio is downloadable; divrei Torah and video can only be saved to the
+  // Library (a bookmark toggle). Returns the matching ArticleCard props.
+  const cardActions = (item: Content) => {
+    if (canDownloadContent(item)) {
+      return { onDownloadPress: async () => { await downloadContent(item); } };
+    }
+    const saved = savedItems.some((s) => s.contentId === item.id);
+    return {
+      saved,
+      onSavePress: () => (saved ? removeSaved(item.id) : saveContent(item)),
+    };
+  };
   const params = route.params ?? {};
   const initialAuthorId = params.authorId;
   const initialTopicSlug = params.topicSlug;
@@ -278,13 +292,7 @@ const SearchScreen: React.FC = () => {
           <ArticleCard
             content={item}
             onPress={() => onContentSelect(item)}
-            onDownloadPress={
-              canDownloadContent(item)
-                ? async () => {
-                    await downloadContent(item);
-                  }
-                : undefined
-            }
+            {...cardActions(item)}
           />
         )}
         ListEmptyComponent={

@@ -20,6 +20,7 @@ import { Palette, radii, spacing, typography, useTheme, useThemedStyles } from '
 import { GlassButton } from '../components/ui/Glass';
 import Icon, { IconName } from '../components/ui/Icon';
 import { canDownloadContent, downloadContent } from '../services/download';
+import { useDownloads } from '../downloads/DownloadsProvider';
 import type { HomeStackParamList, MenuRouteParams } from '../navigation/types';
 import { useScreenChromeInsets } from '../navigation/chromeInsets';
 
@@ -30,6 +31,20 @@ const HomeScreen: React.FC = () => {
   const chrome = useScreenChromeInsets();
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { savedItems, saveContent, removeSaved } = useDownloads();
+  // A card's trailing action depends on the content type: audio is downloadable,
+  // while divrei Torah and video can only be saved to the Library (a bookmark
+  // toggle). Returns the matching ArticleCard props.
+  const cardActions = (item: Content) => {
+    if (canDownloadContent(item)) {
+      return { onDownloadPress: async () => { await downloadContent(item); } };
+    }
+    const saved = savedItems.some((s) => s.contentId === item.id);
+    return {
+      saved,
+      onSavePress: () => (saved ? removeSaved(item.id) : saveContent(item)),
+    };
+  };
   const onAuthorPress = (author: Author) =>
     navigation.navigate('Search', { authorId: author.id, title: author.name });
   // Parsha and Yom Tov open the torahweb.org-style drill-down menus
@@ -157,13 +172,7 @@ const HomeScreen: React.FC = () => {
             key={item.id}
             content={item}
             onPress={() => onArticlePress(item)}
-            onDownloadPress={
-              canDownloadContent(item)
-                ? async () => {
-                    await downloadContent(item);
-                  }
-                : undefined
-            }
+            {...cardActions(item)}
           />
         ))}
       </View>

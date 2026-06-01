@@ -8,7 +8,11 @@ interface ArticleCardProps {
   content: Content;
   onPress: () => void;
   compact?: boolean;
+  // Audio gets a one-tap Download; divrei Torah and video get a Save-to-Library
+  // bookmark instead (they aren't downloadable). At most one is provided.
   onDownloadPress?: () => Promise<void> | void;
+  onSavePress?: () => void;
+  saved?: boolean;
 }
 
 const kindLabel = (c: Content): string => {
@@ -34,6 +38,8 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
   onPress,
   compact,
   onDownloadPress,
+  onSavePress,
+  saved,
 }) => {
   const c = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -49,6 +55,11 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleSave = (e?: any) => {
+    e?.stopPropagation?.();
+    onSavePress?.();
   };
 
   return (
@@ -98,6 +109,28 @@ const ArticleCard: React.FC<ArticleCardProps> = ({
             downloading && { opacity: 0.5 },
           ]}>
           <Icon name="arrow.down.circle.fill" size={26} color={c.accent} />
+        </Pressable>
+      ) : onSavePress ? (
+        <Pressable
+          onPress={handleSave}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={
+            saved
+              ? `Remove ${content.title} from Library`
+              : `Save ${content.title} to Library`
+          }
+          accessibilityState={{ selected: saved }}
+          android_ripple={{ color: c.ripple, borderless: true }}
+          style={({ pressed }) => [
+            styles.downloadButton,
+            pressed && { opacity: 0.6 },
+          ]}>
+          <Icon
+            name={saved ? 'bookmark.fill' : 'bookmark'}
+            size={24}
+            color={saved ? c.accent : c.textTertiary}
+          />
         </Pressable>
       ) : null}
     </Pressable>
